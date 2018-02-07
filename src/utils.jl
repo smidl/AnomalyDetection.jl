@@ -1,4 +1,7 @@
 import Base.convert
+using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate, false_negative_rate
+#using ScikitLearn: @sk_import, fit!, predict
+using StatsBase: sample
 
 
 """
@@ -205,5 +208,108 @@ function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequenc
         )
 
     return trData, tstData, clusterdness
+end
+
+"""
+    labels2bin(y::Array{Int64,1})
+
+Changes binary coded array from {-1,1} to {0,1}.
+"""
+function labels2bin(y::Array{Int64,1})
+    x = copy(y)
+    x[x.==-1] = 0
+    return x;
+end
+
+"""
+    bin2labels(y::Array{Int64,1})
+
+Changes binary coded array from {0,1} to {-1,1}.
+"""
+function bin2labels(y::Array{Int64,1})
+    x = copy(y)
+    x[x.==0] = -1
+    return x;
+end
+
+"""
+    switchlabels(y::Array{Int64,1})
+
+Swaps labels in a binary vector of {0,1}.
+"""
+function switchlabels(y::Array{Int64,1})
+    x = copy(y);
+    x[y.==0] = 1;
+    x[y.==1] = 0;
+    return x;
+end
+
+"""
+    quickvalidate(data::BasicSet, samplesettings::Dict{Any,Any}, algorithm; 
+    supervised::Bool = false)
+
+Quickly validate an algorithm on a dataset.
+"""
+function quickvalidate!(data::Basicset, settings::Dict{Any,Any}, algorithm; 
+    supervised::Bool = false)
+    # sample the data
+    trData, tstData, c = makeset(data, settings["alpha"], settings["difficulty"],
+                                    settings["frequency"], settings["variation"])
+
+    print("clusterdness = $(c)\n")
+
+    return quickvalidate!(trData, tstData, algorithm, supervised = supervised)
+end
+
+"""
+    quickvalidate(trData::Dataset, ststData::Dataset, algorithm; 
+    supervised::Bool = false)
+
+Quickly validate an algorithm on a dataset.
+"""
+function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm; 
+    supervised::Bool = false)
+    # fit the algorithm with the training data
+    if supervised
+        fit!(algorithm, trData.data', trData.labels)
+    else
+        fit!(algorithm, trData.data')
+    end
+
+    # get the results on the training dataset
+    tryhat = labels2bin(predict(algorithm, trData.data'));
+    cr = correctrate(trData.labels, tryhat);
+    # the labels may be switched
+    if cr < 0.5
+        tryhat = switchlabels(tryhat);
+    end
+
+    # measures of accuracy
+    print("\n Training data performance: \n")
+    trroc = roc(trData.labels, tryhat);
+    print(trroc)
+    print("precision: $(precision(trroc))\n")
+    print("recall: $(recall(trroc))\n")
+    print("f1score: $(f1score(trroc))\n")
+    print("equal error rate: $((false_positive_rate(trroc) + false_negative_rate(trroc))/2)\n")
+
+    # accuracy on test data
+    tstyhat = labels2bin(predict(algorithm, tstData.data'));
+    cr = correctrate(tstData.labels, tstyhat);
+    # the labels may be switched
+    if cr < 0.5
+        tstyhat = switchlabels(tstyhat);
+    end
+
+    # measures of accuracy
+    print("\n Testing data performance: \n")
+    tstroc = roc(tstData.labels, tstyhat);
+    print(tstroc)
+    print("precision: $(precision(tstroc))\n")
+    print("recall: $(recall(tstroc))\n")
+    print("f1score: $(f1score(tstroc))\n")
+    print("equal error rate: $((false_positive_rate(tstroc) + false_negative_rate(tstroc))/2)\n")
+
+    return tryhat, tstyhat
 end
 
