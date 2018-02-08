@@ -249,6 +249,7 @@ end
     supervised::Bool = false)
 
 Quickly validate an algorithm on a dataset.
+ScikitLearn version (instances in rows) with data sampling from BasicSet.
 """
 function quickvalidate!(data::Basicset, settings::Dict{Any,Any}, algorithm; 
     supervised::Bool = false)
@@ -266,6 +267,7 @@ end
     supervised::Bool = false)
 
 Quickly validate an algorithm on a dataset.
+ScikitLearn version (instances in rows) with sampled data.
 """
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm; 
     supervised::Bool = false)
@@ -276,9 +278,33 @@ function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm;
         fit!(algorithm, trData.data')
     end
 
+    return rocstats(trData.data', trData.labels, tstData.data', tstData.labels,
+        algorithm)
+end
+
+"""
+    quickvalidate(trData::Dataset, ststData::Dataset, algorithm, contamination)
+
+Quickly validate an algorithm on a dataset.
+VAE version (instances in columns) with known contamination level.
+"""
+function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel)
+    # fit the model
+    # only non-anomalous data are used for training
+    fit!(algorithm, trData.data[:,trData.labels .== 0])
+
+    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm)
+end
+
+"""
+    rocstats(trX, trY, tstX, tstY, algorithm)
+
+Quickly validate an algorithm on a dataset, an instance is a column of X.
+"""
+function rocstats(trX, trY, tstX, tstY, algorithm)
     # get the results on the training dataset
-    tryhat = labels2bin(predict(algorithm, trData.data'));
-    cr = correctrate(trData.labels, tryhat);
+    tryhat = labels2bin(predict(algorithm, trX));
+    cr = correctrate(trY, tryhat);
     # the labels may be switched
     if cr < 0.5
         tryhat = switchlabels(tryhat);
@@ -286,7 +312,7 @@ function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm;
 
     # measures of accuracy
     print("\n Training data performance: \n")
-    trroc = roc(trData.labels, tryhat);
+    trroc = roc(trY, tryhat);
     print(trroc)
     print("precision: $(precision(trroc))\n")
     print("recall: $(recall(trroc))\n")
@@ -294,8 +320,8 @@ function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm;
     print("equal error rate: $((false_positive_rate(trroc) + false_negative_rate(trroc))/2)\n")
 
     # accuracy on test data
-    tstyhat = labels2bin(predict(algorithm, tstData.data'));
-    cr = correctrate(tstData.labels, tstyhat);
+    tstyhat = labels2bin(predict(algorithm, tstX));
+    cr = correctrate(tstY, tstyhat);
     # the labels may be switched
     if cr < 0.5
         tstyhat = switchlabels(tstyhat);
@@ -303,7 +329,7 @@ function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm;
 
     # measures of accuracy
     print("\n Testing data performance: \n")
-    tstroc = roc(tstData.labels, tstyhat);
+    tstroc = roc(tstY, tstyhat);
     print(tstroc)
     print("precision: $(precision(tstroc))\n")
     print("recall: $(recall(tstroc))\n")

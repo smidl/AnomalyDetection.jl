@@ -5,9 +5,9 @@ using Distances
 import ScikitLearn: @sk_import, fit!, predict
 
 
-export Basicset, Dataset, VAE
+export Basicset, Dataset, VAE, VAEmodel
 
-include("utils.jl")
 include("vae.jl")
+include("utils.jl")
 
 end
