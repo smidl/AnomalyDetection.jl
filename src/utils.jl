@@ -286,7 +286,7 @@ end
     quickvalidate(trData::Dataset, tstData::Dataset, algorithm)
 
 Quickly validate an algorithm on a dataset.
-VAE version (instances in columns) with known contamination leuvel.
+VAE version (instances in columns) with known contamination level.
 """
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel)
     # fit the model
