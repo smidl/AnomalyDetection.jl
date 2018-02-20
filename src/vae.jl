@@ -46,6 +46,7 @@ sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:
 
 Sample from the last encoder layer.
 """
+#sample_z(vae::VAE, X) = mu(vae,X)
 sample_z(vae::VAE, X) = randn(size(mu(vae, X))) .* sigma(vae,X) + mu(vae,X)
 
 """
@@ -112,7 +113,11 @@ Trains the VAE neural net.
 function fit!(vae::VAE, X; iterations=1000, throttle = 5, verb = true)
 	# settings
 	opt = ADAM(params(vae))
-	dataset = repeated((vae, X), iterations) # Y=x
+	if iterations != 0
+		dataset = repeated((vae, X), iterations) # Y=x
+	else
+		dataset = X # if x is already an iterable to be trained on
+	end
 	
 	# callback
 	evalcb = () -> print("loss: ", loss(vae, X).data[1], "\nreconstruction error: ", rerr(vae, X).data[1], "\nKL: ", KL(vae, X).data[1], "\n\n")	
@@ -203,9 +208,9 @@ end
 
 # reimplement some methods of VAE
 (model::VAEmodel)(x) = model.vae(x)   
-mu(model::VAEmodel, X) = mu(model.vae, X)
-sigma(model::VAEmodel, X) = sigma(model.vae, X)
-sample_z(model::VAEmodel, X) = sample_z(model.vae, X)
+mu(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
+sigma(model::VAEmodel, X) = sigma(model.vae, model.vae.encoder(X))
+sample_z(model::VAEmodel, X) = sample_z(model.vae, model.vae.encoder(X))
 KL(model::VAEmodel, X) = KL(model.vae, X)
 rerr(model::VAEmodel, X) = rerr(model.vae, X)
 loss(model::VAEmodel, X) = loss(model.vae, X)

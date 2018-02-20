@@ -263,7 +263,7 @@ function quickvalidate!(data::Basicset, settings::Dict{Any,Any}, algorithm;
 end
 
 """
-    quickvalidate(trData::Dataset, ststData::Dataset, algorithm; 
+    quickvalidate(trData::Dataset, tstData::Dataset, algorithm; 
     supervised::Bool = false)
 
 Quickly validate an algorithm on a dataset.
@@ -283,12 +283,26 @@ function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm;
 end
 
 """
-    quickvalidate(trData::Dataset, ststData::Dataset, algorithm, contamination)
+    quickvalidate(trData::Dataset, tstData::Dataset, algorithm)
 
 Quickly validate an algorithm on a dataset.
-VAE version (instances in columns) with known contamination level.
+VAE version (instances in columns) with known contamination leuvel.
 """
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel)
+    # fit the model
+    # only non-anomalous data are used for training
+    fit!(algorithm, trData.data[:,trData.labels .== 0])
+
+    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm)
+end
+
+"""
+    quickvalidate(trData::Dataset, tstData::Dataset, algorithm)
+
+Quickly validate an algorithm on a dataset.
+AE version (instances in columns) with known contamination level.
+"""
+function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::AEmodel)
     # fit the model
     # only non-anomalous data are used for training
     fit!(algorithm, trData.data[:,trData.labels .== 0])
