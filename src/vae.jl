@@ -82,7 +82,7 @@ end
 
 KL divergence between the encoder parameters and unit gaussian.
 """
-KL(vae::VAE, X) = 1/2*sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1)
+KL(vae::VAE, X) = 1/2*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1, 1))
 
 """
 	rerr(vae::VAE, X, Y)
