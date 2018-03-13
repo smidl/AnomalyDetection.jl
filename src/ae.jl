@@ -1,6 +1,3 @@
-using Flux
-import Base.Iterators.repeated
-
 ### ae NN construction ###
 
 """
@@ -41,6 +38,40 @@ function AE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int;
 	end
 	decoder = Chain(decoder, Dense(hiddendim, indim))    
 
+	# finally construct the ae struct
+	ae = AE(encoder, decoder)
+
+	return ae
+end
+
+"""
+	AE(esize, dsize; [activation])
+
+Initialize an autoencoder with given encoder size and decoder size.
+esize - vector of ints specifying the width anf number of layers of the encoder
+dsize - size of decoder
+activation - arbitrary activation function
+"""
+function AE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu)
+	@assert size(esize, 1) >= 3
+	@assert size(dsize, 1) >= 3
+	@assert esize[end] == dsize[1] 
+	@assert esize[1] == dsize[end]
+
+	# construct the encoder
+	encoder = Dense(esize[1],esize[2],activation)
+	for i in 3:(size(esize,1)-1)
+	    encoder = Chain(encoder, Dense(esize[i-1],esize[i],activation))
+	end
+	encoder = Chain(encoder, Dense(esize[end-1], esize[end]))
+	    
+	# construct the decoder
+	decoder = Dense(dsize[1],dsize[2],activation)
+	for i in 3:(size(dsize,1)-1)
+	    decoder = Chain(decoder, Dense(dsize[i-1],dsize[i],activation))
+	end
+	decoder = Chain(decoder, Dense(dsize[end-1], dsize[end]))
+	
 	# finally construct the ae struct
 	ae = AE(encoder, decoder)
 
@@ -113,7 +144,7 @@ function get_threshold(ae::AE, x, contamination)
 	xerr = reshape([e.data[1] for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
-	aN = Int(floor(N*contamination)) # number of contaminated samples
+	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
 	return (xerr[end-aN]+xerr[end-aN+1])/2
 end
@@ -145,6 +176,21 @@ function AEmodel(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int,
 	model = AEmodel(ae, threshold, contamination, iterations, cbthrottle, verbfit)
 	return model
 end
+
+"""
+	AEmodel(esize, dsize, threshold, contamination, iteration, cbthrottle, [activation])
+
+Initialize a variational autoencoder model with given parameters.
+"""
+function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
+	threshold::Real, contamination::Real, iterations::Int, 
+	cbthrottle::Real, verbfit::Bool; activation = Flux.relu)
+	# construct the AE object
+	ae = AE(esize, dsize, activation = activation)
+	model = AEmodel(ae, threshold, contamination, iterations, cbthrottle, verbfit)
+	return model
+end
+
 
 # reimplement some methods of AE
 (model::AEmodel)(x) = model.ae(x)   

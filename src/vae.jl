@@ -1,6 +1,3 @@
-using Flux
-import Base.Iterators.repeated
-
 ### vae NN construction ###
 
 """
@@ -46,7 +43,6 @@ sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:
 
 Sample from the last encoder layer.
 """
-#sample_z(vae::VAE, X) = mu(vae,X)
 sample_z(vae::VAE, X) = randn(size(mu(vae, X))) .* sigma(vae,X) + mu(vae,X)
 
 """
@@ -54,18 +50,18 @@ sample_z(vae::VAE, X) = randn(size(mu(vae, X))) .* sigma(vae,X) + mu(vae,X)
 
 Initialize a variational autoencoder with given parameters.
 """
-function VAE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int)
+function VAE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int; activation=Flux.relu)
 	# construct the encoder
-	encoder = Dense(indim,hiddendim,Flux.relu)
+	encoder = Dense(indim,hiddendim,activation)
 	for i in 2:nlayers
-	    encoder = Chain(encoder, Dense(hiddendim,hiddendim,Flux.relu))
+	    encoder = Chain(encoder, Dense(hiddendim,hiddendim,activation))
 	end
 	encoder = Chain(encoder, Dense(hiddendim, 2*latentdim))
 	    
 	# construct the decoder
-	decoder = Dense(latentdim, hiddendim, Flux.relu)
+	decoder = Dense(latentdim, hiddendim, activation)
 	for i in 2:nlayers
-	    decoder = Chain(decoder, Dense(hiddendim, hiddendim, Flux.relu))
+	    decoder = Chain(decoder, Dense(hiddendim, hiddendim, activation))
 	end
 	decoder = Chain(decoder, Dense(hiddendim, indim))    
 
@@ -89,18 +85,18 @@ KL(vae::VAE, X) = 1/2*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encod
 
 Reconstruction error.
 """
-rerr(vae::VAE, X) = Flux.mse(vae(X), X) # reconstruction error, not for training
+rerr(vae::VAE, X) = Flux.mse(vae(X), X)
 
 """
 	loss(vae::VAE, X, lambda)
 
 Loss function of the variational autoencoder. Lambda is scaling parameter of 
-the reconstruction loss, lambda = 1/sigma^2 in p(x|z).
+the KLD, 1 = full KL, 0 = no KL (vanilla autoencoder).
 """
 loss(vae::VAE, X, lambda) = rerr(vae, X) + lambda*KL(vae, X)
 
 """
-	evalcb(vae::VAE, X, lambda)
+	evalloss(vae::VAE, X, lambda)
 
 Print vae loss function values.	
 """
@@ -171,7 +167,7 @@ function get_threshold(vae::VAE, x, contamination)
 	xerr = reshape([e.data[1] for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
-	aN = Int(floor(N*contamination)) # number of contaminated samples
+	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
 	return (xerr[end-aN]+xerr[end-aN+1])/2
 end

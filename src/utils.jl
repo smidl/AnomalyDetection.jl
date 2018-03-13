@@ -106,8 +106,7 @@ function normalize(Y::Array{Float32,2})
 end
 
 """
-    (dataset::Basicset, alpha::Float64, difficulty::String, frequency::Float64, variation::String; 
-    normalize=true, seed=false)
+    trData, tstData, clusterdness = makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequency::Float64, variation::String; normalize=true, seed=false)
 
 Sample a given dataset, return training and testing subsets and a measure of clusterdness. 
 See Emmott, Andrew F., et al. "Systematic construction of anomaly detection benchmarks from 
@@ -147,7 +146,7 @@ function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequenc
     tstK = Int(ceil(tstN*frequency)) 
 
     # set seed
-    if seed
+    if seed != false
         srand(seed)
     end
 
