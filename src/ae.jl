@@ -180,7 +180,7 @@ end
 """
 	AEmodel(esize, dsize, threshold, contamination, iteration, cbthrottle, [activation])
 
-Initialize a variational autoencoder model with given parameters.
+Initialize an autoencoder model with given parameters.
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	threshold::Real, contamination::Real, iterations::Int, 
