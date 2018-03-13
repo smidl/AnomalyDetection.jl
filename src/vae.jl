@@ -45,31 +45,6 @@ Sample from the last encoder layer.
 """
 sample_z(vae::VAE, X) = randn(size(mu(vae, X))) .* sigma(vae,X) + mu(vae,X)
 
-"""
-	VAE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int)
-
-Initialize a variational autoencoder with given parameters.
-"""
-function VAE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int; activation=Flux.relu)
-	# construct the encoder
-	encoder = Dense(indim,hiddendim,activation)
-	for i in 2:nlayers
-	    encoder = Chain(encoder, Dense(hiddendim,hiddendim,activation))
-	end
-	encoder = Chain(encoder, Dense(hiddendim, 2*latentdim))
-	    
-	# construct the decoder
-	decoder = Dense(latentdim, hiddendim, activation)
-	for i in 2:nlayers
-	    decoder = Chain(decoder, Dense(hiddendim, hiddendim, activation))
-	end
-	decoder = Chain(decoder, Dense(hiddendim, indim))    
-
-	# finally construct the vae struct
-	vae = VAE(encoder, sample_z, decoder)
-
-	return vae
-end
 
 """
 	VAE(esize, dsize; [activation])
@@ -219,22 +194,6 @@ mutable struct VAEmodel
 	cbthrottle::Real
 	verbfit::Bool
 	L::Int # number of samples for classification
-end
-
-"""
-	VAEmodel(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int,
-	lambda::Real, threshold::Real, contamination::Real, iteration::Int, 
-	cbthrottle::Real, verbfit::Bool)
-
-Initialize a variational autoencoder model with given parameters.
-"""
-function VAEmodel(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int,
-	lambda::Real, threshold::Real, contamination::Real, iterations::Int, 
-	cbthrottle::Real, verbfit::Bool, L::Int)
-	# construct the VAE object
-	vae = VAE(indim, hiddendim, latentdim, nlayers)
-	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbthrottle, verbfit, L)
-	return model
 end
 
 """

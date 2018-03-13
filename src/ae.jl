@@ -17,34 +17,6 @@ end
 Flux.treelike(AE)
 
 """
-	AE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int; 
-	activation = Flux.relu)
-
-Initialize an autoencoder with given parameters.
-"""
-function AE(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int;
-	activation = Flux.relu)
-	# construct the encoder
-	encoder = Dense(indim,hiddendim,activation)
-	for i in 2:nlayers
-	    encoder = Chain(encoder, Dense(hiddendim,hiddendim,activation))
-	end
-	encoder = Chain(encoder, Dense(hiddendim, latentdim))
-	    
-	# construct the decoder
-	decoder = Dense(latentdim, hiddendim, Flux.relu)
-	for i in 2:nlayers
-	    decoder = Chain(decoder, Dense(hiddendim, hiddendim, Flux.relu))
-	end
-	decoder = Chain(decoder, Dense(hiddendim, indim))    
-
-	# finally construct the ae struct
-	ae = AE(encoder, decoder)
-
-	return ae
-end
-
-"""
 	AE(esize, dsize; [activation])
 
 Initialize an autoencoder with given encoder size and decoder size.
@@ -160,21 +132,6 @@ mutable struct AEmodel
 	iterations::Int
 	cbthrottle::Real
 	verbfit::Bool
-end
-
-"""
-	AEmodel(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int,
-	threshold::Real, contamination::Real, iteration::Int, cbthrottle::Real)
-
-Initialize a variational autoencoder model with given parameters.
-"""
-function AEmodel(indim::Int, hiddendim::Int, latentdim::Int, nlayers::Int,
-	activation,	threshold::Real, contamination::Real, iterations::Int, 
-	cbthrottle::Real, verbfit::Bool)
-	# construct the AE object
-	ae = AE(indim, hiddendim, latentdim, nlayers, activation = activation)
-	model = AEmodel(ae, threshold, contamination, iterations, cbthrottle, verbfit)
-	return model
 end
 
 """
