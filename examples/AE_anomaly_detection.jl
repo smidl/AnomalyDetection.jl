@@ -11,6 +11,13 @@ using AnomalyDetection
 
 dataset = load("toy_data_3.jld")["data"]
 
+figure()
+X = dataset.data
+y = dataset.labels
+scatter(X[1, y.==1], X[2, y.==1])
+scatter(X[1, y.==0], X[2, y.==0])
+show()
+
 # set problem dimensions
 indim = size(X,1)
 hiddendim = 4
@@ -22,29 +29,24 @@ nlayers = 3
 contamination = size(y[y.==1],1)/size(y[y.==0],1) # to set the decision threshold
 activation = Flux.relu
 threshold = 0
-iterations = 100
-cbthrottle = 1
+iterations = 1000
+cbit = 200
 verbfit = true
+rdelta = 0.01
 
 #
 x = X[:,y .== 0]
 
 #
-esize = [indim; hiddendim; hiddendim; latentdim]
-dsize = [latentdim; hiddendim; hiddendim; indim]
+esize = [indim; hiddendim; hiddendim; latentdim];
+dsize = [latentdim; hiddendim; hiddendim; indim];
 
 # model might have to be restarted if loss is > 0.01
 model = AEmodel(esize, dsize, threshold, contamination,
-    iterations, cbthrottle, verbfit, activation = activation)
-    
-while AnomalyDetection.loss(model, X) > 0.01
-    model = AEmodel(esize, dsize, threshold, contamination,
-    iterations, cbthrottle, verbfit, activation = activation)
-    model.verbfit = true
-    for i in 1:10
-        AnomalyDetection.fit!(model, x)
-    end
-end
+    iterations, cbit, verbfit, activation = activation, rdelta = rdelta)
+
+AnomalyDetection.fit!(model, X)
+AnomalyDetection.evalloss(model, X)
 
 model(x)
 
@@ -94,4 +96,3 @@ scatter(z2[1,:], z2[2,:], label = "second cluster")
 scatter(z3[1,:], z3[2,:], label = "third cluster")
 scatter(za[1,:], za[2,:], s = 10, label = "anomalous data")
 legend()
-show()

@@ -21,20 +21,21 @@ nlayers = 2
 # setup the VAE object
 lambda = 1.0
 L = 100 # samples for classification
-# arguments: 4 problem dimensions, 
-# predict threshold, contamination level, iterations, throttle, verbal fit
+# arguments: encodersize, decodersize, 
+# predict threshold, contamination level, iterations, callback iterations, verbal fit
+# activation function, reconstruction error stopping condition
 esize = [indim; hiddendim; hiddendim; latentdim*2]
 dsize = [latentdim; hiddendim; hiddendim; indim]
-model = VAEmodel(esize, dsize, lambda, 0, 0.1, 50, 1, true, L, activation = Flux.relu)
+model = VAEmodel(esize, dsize, lambda, 0, 0.1, 2000, 500, true, L, activation = Flux.relu,
+    rdelta = 0.001)
 #model = VAEmodel(indim, hiddendim, latentdim, nlayers, lambda, 0, 0.1, 50, 1, true, L)
 
 # fit the model
 model.lambda = 0.001
-model.verbfit = false
-while AnomalyDetection.rerr(model, x).data[1] > 0.001
-    AnomalyDetection.fit!(model, x)
-    AnomalyDetection.evalloss(model, x)
-end
+#model.verbfit = false
+#model.rdelta = 0.001 # reconstruction error stopping condition
+AnomalyDetection.evalloss(model, x)
+AnomalyDetection.fit!(model, x)
 
 model(x)
 
@@ -74,7 +75,7 @@ end
 contourf(xx, yy, zz)
 scatter(X[1, tstyhat.==1], X[2, tstyhat.==1], c = "r")
 scatter(X[1, tstyhat.==0], X[2, tstyhat.==0], c = "g")
-b = AnomalyDetection.generate_sample(model)
+b = AnomalyDetection.generate(model)
 scatter(b[1], b[2], c = "y", label = "generated sample")
 legend()
 show()

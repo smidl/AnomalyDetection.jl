@@ -24,7 +24,7 @@ end
 
 Basic GAN constructor.
 """
-GAN(G::Flux.Chain, D::Flux.Chain; pz=rand) = GAN(G, freeze(G), D, freeze(D), pz)
+GAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = GAN(G, freeze(G), D, freeze(D), pz)
 
 """
 	GAN(gsize, dsize, [pz, activation])
@@ -35,7 +35,7 @@ dsize - vector of Ints describing discriminator layers sizes, including the last
 pz - code distribution
 activation - activation function common to all layers
 """
-function GAN(gsize, dsize; pz = rand, activation = Flux.relu)
+function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu)
 	@assert size(gsize,1) >= 3
 	@assert size(dsize,1) >= 3
 	@assert dsize[end] == 1
@@ -43,9 +43,10 @@ function GAN(gsize, dsize; pz = rand, activation = Flux.relu)
 
 	# generator
 	generator = Dense(gsize[1], gsize[2], activation)
-	for i in 3:size(gsize,1)
+	for i in 3:(size(gsize,1)-1)
 		generator = Chain(generator, Dense(gsize[i-1], gsize[i], activation))
 	end
+	generator = Chain(generator, Dense(gsize[end-1], gsize[end]))
 
 	# discriminator
 	discriminator = Dense(dsize[1], dsize[2], activation)
@@ -61,18 +62,18 @@ end
 ### auxilliary functions ###
 
 """
-	generate_sample(gan)
+	generate(gan)
 
 Generate one sample.
 """
-generate_sample(gan::GAN) = gan.g(gan.pz(Int(size(gan.g.layers[1].W,2)))).data
+generate(gan::GAN) = gan.g(gan.pz(size(params(gan.g)[1],2))).data
 
 """
-	generate_sample(gan, n)
+	generate(gan, n)
 
 Generate n samples.
 """
-generate_sample(gan::GAN, n::Int) = gan.g(gan.pz(Int(size(gan.g.layers[1].W,2)), n)).data
+generate(gan::GAN, n::Int) = gan.g(gan.pz(size(params(gan.g)[1],2), n)).data
 
 ### training ###
 """
@@ -87,28 +88,44 @@ Dloss(gan::GAN, X, Z) = - 0.5*(mean(log.(gan.d(X))) + mean(log.(1 - gan.d(gan.gg
 
 Generator loss.
 """
-Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(X))))
+Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z))))
+
+"""
+	rerr(gan, X, Z)
+
+Crude estimate of reconstruction error.
+"""
+rerr(gan::GAN, X, Z) = abs(mean(gan.g(Z).data) - mean(X))
 
 """
 	evalloss(gan, X, Z)
 """
-evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Dloss(gan, X, Z).data[1], 
-	"\ngenerator loss: ", Gloss(gan, Z).data[1], 
-	"\nreconstruction error: ", Flux.mse(gan.g(Z), X).data[1], "\n\n")
+evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Dloss(gan, X, Z).data,  
+	"\ngenerator loss: ", Gloss(gan, Z).data, 
+	"\nreconstruction error: ", rerr(gan, X, Z), "\n\n")
 
 """
-	fit!(gan, X, [iterations throttleit, verb])
+	fit!(gan, X, [iterations, cbit, verb, rdelta])
 
-Trains the GAN.
+Trains a GAN.
+
+gan - struct of type GAN
+X - data array with instances as columns
+M - number of samples to be selected from X and sampled from pz
+iterations - number of iterations
+cbit - after this # of iterations, output is printed
+verb - if output should be produced
+rdelta - stopping condition for reconstruction error
 """
-function fit!(gan::GAN, X, M; iterations=1000, throttleit = 200, verb = true)
+function fit!(gan::GAN, X, M; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
 	# settings
-	Dopt = ADAM(params(gan.d))
+	#Dopt = ADAM(params(gan.d))
+	Dopt = SGD(params(gan.d))
 	Gopt = ADAM(params(gan.g))
 	
 	# problem size
 	N = size(X,2)
-	zdim = size(params(model.g)[1],2)
+	zdim = size(params(gan.g)[1],2)
 
 	# train the GAN
 	for i in 1:iterations
@@ -116,13 +133,30 @@ function fit!(gan::GAN, X, M; iterations=1000, throttleit = 200, verb = true)
 		x = X[:,sample(1:N, M, replace=false)]
 		z = gan.pz(zdim, M)
                 
-        Flux.train!(Dloss, [(gan, x, z)], Dopt)
-		Flux.train!(Gloss, [(gan, z)], Gopt)
+        # discriminator training
+        Dl = Dloss(x,z)
+        Flux.Tracker.back!(Dl)
+        Dopt()
+		
+		# generator training	
+        Gl = Gloss(z)
+        Flux.Tracker.back!(Gl)
+        Gopt()
 	
-        
 		# callback
-		if verb && i%throttleit==0
-			evalloss(model, x, z)
+		if verb && i%cbit==0
+			evalloss(gan, x, z)
+		end
+
+		# if a stopping condition is present
+		if rdelta < Inf
+			re = rerr(model, x, z) 
+			if re < rdelta
+				println("Training ended prematurely after $i iterations,
+					\nreconstruction error $re < $rdelta")
+				break
+			end
 		end
 	end
 end
+

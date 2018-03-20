@@ -53,49 +53,62 @@ end
 ### fitting ###
 
 """
-	loss(ae::AE, X, Y)
+	loss(ae, X)
 
 Reconstruction error.
 """
 loss(ae::AE, X) = Flux.mse(ae(X), X)
 
 """
-	evalcb(ae::AE, X)
+	evalloss(ae, X)
 
 Print ae loss function values.	
 """
-evalloss(ae::AE, X) = print("loss: ", loss(ae, X).data[1])
+evalloss(ae::AE, X) = println("loss: ", loss(ae, X).data, "\n")
 
 """
-	fit!(ae::AE, X)
+	fit!(ae, X, [iterations, cbit, verb, rdelta])
 
 Trains the AE.
+ae - AE type object
+X - data array with instances as columns
+iterations - number of iterations
+cbit - after this # of iterations, output is printed
+verb - if output should be produced
+rdelta - stopping condition for reconstruction error
 """
-function fit!(ae::AE, X; iterations=1000, throttle = 5, verb = true)
-	# settings
+function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
+	# optimizer
 	opt = ADAM(params(ae))
-	if iterations != 0 # if X are complete data that should be trained on numerous times
-		dataset = repeated((ae, X), iterations) # Y=x
-		evalcb = () -> print("loss: ", loss(ae, X).data[1], "\n\n")	
-	else
-		dataset = X # if x is already an iterable to be trained on
-		evalcb = () -> print("loss: ", loss(ae, dataset[1][2]).data[1], "\n\n")	
-	end
-	
-	cb = Flux.throttle(evalcb, throttle)
 
-	# train
-	if verb
-		Flux.train!(loss, dataset, opt, cb = cb)
-	else
-		Flux.train!(loss, dataset, opt)
-	end
+	# training
+	for i in 1:iterations
+		# gradient computation and update
+		l = loss(ae, X)
+		Flux.Tracker.back!(l)
+		opt()
+
+		# callback
+		if verb && i%cbit == 0
+			evalloss(ae, X)
+		end
+
+		# if stopping condition is present
+		if rdelta < Inf
+			re = loss(ae, X).data[1]
+			if re < rdelta
+				println("Training ended prematurely after $i iterations,\n",
+					"reconstruction error $re < $rdelta")
+				break
+			end
+		end
+	end	
 end
 
 ### ae output ###
 
 """
-	classify(ae::AE, x, threshold)
+	classify(ae, x, threshold)
 
 Classify an instance x using reconstruction error and threshold.
 """
@@ -104,7 +117,7 @@ classify(ae::AE, x::Array{Float64,1}, threshold) = (loss(ae, x) > threshold)? 1 
 classify(ae::AE, X::Array{Float64,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
 
 """
-	get_threshold(ae::AE, x, contamination)
+	get_threshold(ae, x, contamination)
 
 Compute threshold for AE classification based on known contamination level.
 """
@@ -130,21 +143,22 @@ mutable struct AEmodel
 	threshold::Real
 	contamination::Real
 	iterations::Int
-	cbthrottle::Real
+	cbit::Real
 	verbfit::Bool
+	rdelta::Real
 end
 
 """
-	AEmodel(esize, dsize, threshold, contamination, iteration, cbthrottle, [activation])
+	AEmodel(esize, dsize, threshold, contamination, iteration, cbit, [activation, rdelta])
 
 Initialize an autoencoder model with given parameters.
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	threshold::Real, contamination::Real, iterations::Int, 
-	cbthrottle::Real, verbfit::Bool; activation = Flux.relu)
+	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation)
-	model = AEmodel(ae, threshold, contamination, iterations, cbthrottle, verbfit)
+	model = AEmodel(ae, threshold, contamination, iterations, cbit, verbfit, rdelta)
 	return model
 end
 
@@ -164,7 +178,7 @@ get_threshold(model::AEmodel, x, contamination) = get_threshold(model.ae, x, con
 Fit the AE model, instances are columns of X.	
 """
 fit!(model::AEmodel, X) = fit!(model.ae, X, iterations = model.iterations, 
-	throttle = model.cbthrottle, verb = model.verbfit)
+	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
 
 """
 	predict(model::AEmodel, X)

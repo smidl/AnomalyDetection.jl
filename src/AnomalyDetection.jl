@@ -12,6 +12,6 @@ export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN
 include("vae.jl")
 include("ae.jl")
 include("utils.jl")
-#include("gan.jl")
+include("gan.jl")
 
 end
