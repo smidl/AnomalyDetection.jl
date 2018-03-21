@@ -1,4 +1,6 @@
+###########################
 ### vae NN construction ###
+###########################
 
 """
 	VAE{encoder, sampler, decoder}
@@ -80,7 +82,9 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 	return vae
 end
 
-### fitting ###
+################
+### training ###
+################
 
 """
 	KL(vae, X)
@@ -153,7 +157,9 @@ function fit!(vae::VAE, X; iterations=1000, cbit = 200, verb = true, lambda = 1,
 	end
 end
 
+##################
 ### vae output ###
+##################
 
 """
 	generate(vae)
@@ -169,6 +175,10 @@ Generate n samples.
 """
 generate(vae::VAE, n::Int) = vae.decoder(randn(Int(size(vae.encoder.layers[end].W,1)/2),n)).data
 
+######################
+### classification ###
+######################
+
 """
 	classify(vae, x, threshold)
 
@@ -179,11 +189,11 @@ classify(vae::VAE, x::Array{Float64,1}, threshold; L=1) = (rerr(vae, repmat(x,1,
 classify(vae::VAE, X::Array{Float64,2}, threshold; L=1) = reshape(mapslices(y -> classify(vae, y, threshold, L=L), X, 1), size(X,2))
 
 """
-	get_threshold(vae, x, contamination)
+	getthreshold(vae, x, contamination)
 
 Compute threshold for VAE classification based on known contamination level.
 """
-function get_threshold(vae::VAE, x, contamination)
+function getthreshold(vae::VAE, x, contamination)
 	N = size(x, 2)
 	# get reconstruction errors
 	xerr  = mapslices(y -> rerr(vae, y), x, 1)
@@ -196,7 +206,10 @@ function get_threshold(vae::VAE, x, contamination)
 	return (xerr[end-aN]+xerr[end-aN+1])/2
 end
 
+##############################################################################
 ### A SK-learn like model based on VAE with the same methods and some new. ###
+##############################################################################
+
 """ 
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
@@ -227,7 +240,6 @@ function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	return model
 end
 
-
 # reimplement some methods of VAE
 (model::VAEmodel)(x) = model.vae(x)   
 mu(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
@@ -241,24 +253,35 @@ generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, L = model.L)
 classify(model::VAEmodel, x, threshold) = classify(model.vae, x, threshold, L = model.L)
-get_threshold(model::VAEmodel, x) = get_threshold(model.vae, x, model.contamination)
-get_threshold(model::VAEmodel, x, contamination) = get_threshold(model.vae, x, contamination)
+getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.contamination)
+getthreshold(model::VAEmodel, x, contamination) = getthreshold(model.vae, x, contamination)
+
+"""
+	setthreshold!(model::VAEmodel, X, [contamination])
+
+Set model classification threshold based on given contamination rate.
+"""
+function setthreshold!(model::VAEmodel, X; contamination = model.contamination)
+	model.threshold = getthreshold(model, X, contamination)
+end
 
 """
 	fit!(model, X)
 
 Fit the VAE model, instances are columns of X.	
 """
-fit!(model::VAEmodel, X) = fit!(model.vae, X, iterations = model.iterations, 
+function fit!(model::VAEmodel, X) 
+	# fit the VAE NN
+	fit!(model.vae, X, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
 	rdelta = model.rdelta)
+	# compute the classification threshold using given contamination rate
+	setthreshold!(model, X)
+end
 
 """
 	predict(model, X)
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-function predict(model::VAEmodel, X)
-	model.threshold = get_threshold(model.vae, X, model.contamination)
-	return classify(model.vae, X, model.threshold, L=model.L)
-end
+predict(model::VAEmodel, X) = classify(model.vae, X, model.threshold, L=model.L)

@@ -23,23 +23,20 @@ indim = size(X,1)
 hiddendim = 4
 latentdim = 2
 nlayers = 3
-# hiddendim should be more then 3, then it works
 
-# other model settings
+# model constructor parameters
+esize = [indim; hiddendim; hiddendim; latentdim]; # encoder architecture
+dsize = [latentdim; hiddendim; hiddendim; indim]; # decoder architecture
+threshold = 0 # classification threshold, is recomputed when calling fit!
 contamination = size(y[y.==1],1)/size(y[y.==0],1) # to set the decision threshold
-activation = Flux.relu
-threshold = 0
 iterations = 1000
-cbit = 200
-verbfit = true
-rdelta = 0.01
+cbit = 200 # when callback is printed
+verbfit = true 
+activation = Flux.relu
+rdelta = 0.01 # reconstruction error threshold when training is stopped
 
-#
+# select only normal data
 x = X[:,y .== 0]
-
-#
-esize = [indim; hiddendim; hiddendim; latentdim];
-dsize = [latentdim; hiddendim; hiddendim; indim];
 
 # model might have to be restarted if loss is > 0.01
 model = AEmodel(esize, dsize, threshold, contamination,
@@ -60,7 +57,7 @@ X
 yhat = AnomalyDetection.predict(model, X)
 
 model.verbfit = false
-tryhat, tsthat = AnomalyDetection.quickvalidate!(dataset, dataset, model)
+tryhat, tsthat = AnomalyDetection.quickvalidate!(dataset, dataset, model);
 
 using ScikitLearn.Utils: meshgrid
 
@@ -78,9 +75,11 @@ for i in 1:size(xx, 1)
         zz[i,j] = AnomalyDetection.loss(model, [xx[i,j], yy[i,j]]).data[1]
     end
 end
-contourf(xx, yy, zz)
-scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r")
-scatter(X[1, tryhat.==0], X[2, tryhat.==0], c = "g")
+axsurf = ax[:contourf](xx, yy, zz)
+cb = colorbar(axsurf, fraction = 0.05, shrink = 0.5, pad = 0.1)
+scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r", label = "predicted positive")
+scatter(X[1, tryhat.==0], X[2, tryhat.==0], c = "g", label = "predicted negative")
+legend(loc = "upper right")
 show()
 
 # what are the codes?

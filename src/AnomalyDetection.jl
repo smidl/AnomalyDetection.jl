@@ -7,11 +7,11 @@ using Flux
 import Base.Iterators.repeated
 
 
-export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN
+export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel
 
 include("vae.jl")
 include("ae.jl")
-include("utils.jl")
 include("gan.jl")
+include("utils.jl")
 
 end

@@ -24,7 +24,7 @@ mutable struct Dataset
 end
 
 """
-   txt2array(file::String)
+   txt2array(file)
 
 If the file does not exist, returns an empty 2D array. 
 """
@@ -38,7 +38,7 @@ function txt2array(file::String)
 end
 
 """ 
-    Basicset(path::String)
+    Basicset(path)
 
 Outer constructor for the Basicset struct using a folder in the Loda database.
 Transposes the arrays so that instances are columns.
@@ -52,7 +52,7 @@ Basicset(path::String) = Basicset(
     )
 
 """
-    loaddata(masterpath::String)
+    loaddata(masterpath)
 
 Loads all the data from the Loda database.
 """
@@ -70,7 +70,7 @@ function loaddata(masterpath::String)
 end
 
 """
-    normalize(Y::Array{Float64,2})
+    normalize(Y)
 
 Scales down a 2 dimensional array so it has approx. standard normal distribution. 
 Instance = column. 
@@ -95,7 +95,7 @@ function normalize(Y::Array{Float64,2})
 end
 
 """
-    normalize(Y::Array{Float32,2})
+    normalize(Y)
 
 Scales down a 2 dimensional array so it has approx. standard normal distribution.
 """
@@ -106,7 +106,7 @@ function normalize(Y::Array{Float32,2})
 end
 
 """
-    trData, tstData, clusterdness = makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequency::Float64, variation::String; normalize=true, seed=false)
+    trData, tstData, clusterdness = makeset(dataset, alpha, difficulty, frequency, variation, [normalize, seed])
 
 Sample a given dataset, return training and testing subsets and a measure of clusterdness. 
 See Emmott, Andrew F., et al. "Systematic construction of anomaly detection benchmarks from 
@@ -210,7 +210,7 @@ function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequenc
 end
 
 """
-    labels2bin(y::Array{Int64,1})
+    labels2bin(y)
 
 Changes binary coded array from {-1,1} to {0,1}.
 """
@@ -221,7 +221,7 @@ function labels2bin(y::Array{Int64,1})
 end
 
 """
-    bin2labels(y::Array{Int64,1})
+    bin2labels(y)
 
 Changes binary coded array from {0,1} to {-1,1}.
 """
@@ -232,7 +232,7 @@ function bin2labels(y::Array{Int64,1})
 end
 
 """
-    switchlabels(y::Array{Int64,1})
+    switchlabels(y)
 
 Swaps labels in a binary vector of {0,1}.
 """
@@ -244,32 +244,30 @@ function switchlabels(y::Array{Int64,1})
 end
 
 """
-    quickvalidate(data::BasicSet, samplesettings::Dict{Any,Any}, algorithm; 
-    supervised::Bool = false)
+    quickvalidate(data, samplesettings, algorithm, [supervised, verb])
 
 Quickly validate an algorithm on a dataset.
 ScikitLearn version (instances in rows) with data sampling from BasicSet.
 """
 function quickvalidate!(data::Basicset, settings::Dict{Any,Any}, algorithm; 
-    supervised::Bool = false)
+    supervised::Bool = false, verb = true)
     # sample the data
     trData, tstData, c = makeset(data, settings["alpha"], settings["difficulty"],
                                     settings["frequency"], settings["variation"])
 
     print("clusterdness = $(c)\n")
 
-    return quickvalidate!(trData, tstData, algorithm, supervised = supervised)
+    return quickvalidate!(trData, tstData, algorithm, supervised = supervised, verb = verb)
 end
 
 """
-    quickvalidate(trData::Dataset, tstData::Dataset, algorithm; 
-    supervised::Bool = false)
+    quickvalidate(trData, tstData, algorithm, [supervised, verb])
 
 Quickly validate an algorithm on a dataset.
 ScikitLearn version (instances in rows) with sampled data.
 """
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm; 
-    supervised::Bool = false)
+    supervised::Bool = false, verb = true)
     # fit the algorithm with the training data
     if supervised
         fit!(algorithm, trData.data', trData.labels)
@@ -278,43 +276,57 @@ function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm;
     end
 
     return rocstats(trData.data', trData.labels, tstData.data', tstData.labels,
-        algorithm)
+        algorithm, verb = verb)
 end
 
 """
-    quickvalidate(trData::Dataset, tstData::Dataset, algorithm)
+    quickvalidate(trData, tstData, algorithm, [verb])
 
 Quickly validate an algorithm on a dataset.
 VAE version (instances in columns) with known contamination level.
 """
-function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel)
+function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    fit!(algorithm, trData.data[:,trData.labels .== 0])
+    # fit!(algorithm, trData.data[:,trData.labels .== 0])
 
-    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm)
+    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end
 
 """
-    quickvalidate(trData::Dataset, tstData::Dataset, algorithm)
+    quickvalidate(trData, tstData, algorithm, [verb])
 
 Quickly validate an algorithm on a dataset.
 AE version (instances in columns) with known contamination level.
 """
-function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::AEmodel)
+function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::AEmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    fit!(algorithm, trData.data[:,trData.labels .== 0])
+    # fit!(algorithm, trData.data[:,trData.labels .== 0])
 
-    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm)
+    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end
 
 """
-    rocstats(trX, trY, tstX, tstY, algorithm)
+    quickvalidate(trData, tstData, algorithm, [verb])
+
+Quickly validate an algorithm on a dataset.
+GAN version (instances in columns) with known contamination level.
+"""
+function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::GANmodel; verb = true)
+    # fit the model
+    # only non-anomalous data are used for training
+    #fit!(algorithm, trData.data[:,trData.labels .== 0])
+
+    return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
+end
+
+"""
+    rocstats(trX, trY, tstX, tstY, algorithm, [verb])
 
 Quickly validate an algorithm on a dataset, an instance is a column of X.
 """
-function rocstats(trX, trY, tstX, tstY, algorithm)
+function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
     # get the results on the training dataset
     tryhat = labels2bin(predict(algorithm, trX));
     cr = correctrate(trY, tryhat);
@@ -324,13 +336,15 @@ function rocstats(trX, trY, tstX, tstY, algorithm)
     end
 
     # measures of accuracy
-    print("\n Training data performance: \n")
     trroc = roc(trY, tryhat);
-    print(trroc)
-    print("precision: $(precision(trroc))\n")
-    print("recall: $(recall(trroc))\n")
-    print("f1score: $(f1score(trroc))\n")
-    print("equal error rate: $((false_positive_rate(trroc) + false_negative_rate(trroc))/2)\n")
+    if verb
+        print("\n Training data performance: \n")
+        print(trroc)
+        print("precision: $(precision(trroc))\n")
+        print("recall: $(recall(trroc))\n")
+        print("f1score: $(f1score(trroc))\n")
+        print("equal error rate: $((false_positive_rate(trroc) + false_negative_rate(trroc))/2)\n")
+    end
 
     # accuracy on test data
     tstyhat = labels2bin(predict(algorithm, tstX));
@@ -341,14 +355,37 @@ function rocstats(trX, trY, tstX, tstY, algorithm)
     end
 
     # measures of accuracy
-    print("\n Testing data performance: \n")
     tstroc = roc(tstY, tstyhat);
-    print(tstroc)
-    print("precision: $(precision(tstroc))\n")
-    print("recall: $(recall(tstroc))\n")
-    print("f1score: $(f1score(tstroc))\n")
-    print("equal error rate: $((false_positive_rate(tstroc) + false_negative_rate(tstroc))/2)\n")
+    if verb
+        print("\n Testing data performance: \n")
+        print(tstroc)
+        print("precision: $(precision(tstroc))\n")
+        print("recall: $(recall(tstroc))\n")
+        print("f1score: $(f1score(tstroc))\n")
+        print("equal error rate: $((false_positive_rate(tstroc) + false_negative_rate(tstroc))/2)\n")
+    end
 
-    return tryhat, tstyhat
+    return tryhat, tstyhat, trroc, tstroc
 end
 
+"""
+    mprint(string, [verb])
+
+Muted print: if verb = true (default), print the string.    
+"""
+function mprint(string; verb = true)
+    if verb
+        print(string)
+    end
+end
+
+"""
+    mprintln(string, [verb])
+
+Muted println: if verb = true (default), println the string.    
+"""
+function mprintln(string; verb = true)
+    if verb
+        println(string)
+    end
+end

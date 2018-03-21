@@ -1,4 +1,6 @@
+##########################
 ### ae NN construction ###
+##########################
 
 """
 	AE{encoder, sampler, decoder}
@@ -50,7 +52,9 @@ function AE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu
 	return ae
 end
 
-### fitting ###
+################
+### training ###
+################
 
 """
 	loss(ae, X)
@@ -105,7 +109,9 @@ function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
 	end	
 end
 
+#################
 ### ae output ###
+#################
 
 """
 	classify(ae, x, threshold)
@@ -117,11 +123,11 @@ classify(ae::AE, x::Array{Float64,1}, threshold) = (loss(ae, x) > threshold)? 1 
 classify(ae::AE, X::Array{Float64,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
 
 """
-	get_threshold(ae, x, contamination)
+	getthreshold(ae, x, contamination)
 
 Compute threshold for AE classification based on known contamination level.
 """
-function get_threshold(ae::AE, x, contamination)
+function getthreshold(ae::AE, x, contamination)
 	N = size(x, 2)
 	# get reconstruction errors
 	xerr  = mapslices(y -> loss(ae, y), x, 1)
@@ -134,7 +140,10 @@ function get_threshold(ae::AE, x, contamination)
 	return (xerr[end-aN]+xerr[end-aN+1])/2
 end
 
+#############################################################################
 ### A SK-learn like model based on AE with the same methods and some new. ###
+#############################################################################
+
 """ 
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
@@ -162,30 +171,40 @@ function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	return model
 end
 
-
 # reimplement some methods of AE
 (model::AEmodel)(x) = model.ae(x)   
 loss(model::AEmodel, X) = loss(model.ae, X)
 evalloss(model::AEmodel, X) = evalloss(model.ae, X)
 classify(model::AEmodel, x) = classify(model.ae, x, model.threshold)
 classify(model::AEmodel, x, threshold) = classify(model.ae, x, threshold)
-get_threshold(model::AEmodel, x) = get_threshold(model.ae, x, model.contamination)
-get_threshold(model::AEmodel, x, contamination) = get_threshold(model.ae, x, contamination)
+getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination)
+getthreshold(model::AEmodel, x, contamination) = getthreshold(model.ae, x, contamination)
+
+"""
+	setthreshold!(model::AEmodel, X, [contamination])
+
+Set model classification threshold based on given contamination rate.
+"""
+function setthreshold!(model::AEmodel, X; contamination = model.contamination)
+	model.threshold = getthreshold(model, X, contamination)
+end
 
 """
 	fit!(model::AEmodel, X)
 
 Fit the AE model, instances are columns of X.	
 """
-fit!(model::AEmodel, X) = fit!(model.ae, X, iterations = model.iterations, 
+function fit!(model::AEmodel, X) 
+	# train the AE NN
+	fit!(model.ae, X, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
+	# set the threshold for classification
+	setthreshold!(model, X)
+end
 
 """
 	predict(model::AEmodel, X)
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-function predict(model::AEmodel, X)
-	model.threshold = get_threshold(model.ae, X, model.contamination)
-	return classify(model.ae, X, model.threshold)
-end
+predict(model::AEmodel, X) = classify(model.ae, X, model.threshold)
