@@ -271,12 +271,10 @@ end
 Fit the VAE model, instances are columns of X.	
 """
 function fit!(model::VAEmodel, X) 
-	# fit the VAE NN
+	# fit the VAbE NN
 	fit!(model.vae, X, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
 	rdelta = model.rdelta)
-	# compute the classification threshold using given contamination rate
-	setthreshold!(model, X)
 end
 
 """
@@ -284,4 +282,9 @@ end
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-predict(model::VAEmodel, X) = classify(model.vae, X, model.threshold, L=model.L)
+function predict(model::VAEmodel, X) 
+	# compute the classification threshold using given contamination rate
+	setthreshold!(model, X)
+
+	return classify(model.vae, X, model.threshold, L=model.L)
+end

@@ -198,8 +198,6 @@ function fit!(model::AEmodel, X)
 	# train the AE NN
 	fit!(model.ae, X, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
-	# set the threshold for classification
-	setthreshold!(model, X)
 end
 
 """
@@ -207,4 +205,9 @@ end
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-predict(model::AEmodel, X) = classify(model.ae, X, model.threshold)
+function predict(model::AEmodel, X)
+	# set the threshold for classification
+	setthreshold!(model, X)
+	
+	return classify(model.ae, X, model.threshold)
+end

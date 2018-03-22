@@ -290,8 +290,6 @@ function fit!(model::GANmodel, X)
 	# train the GAN NN
 	fit!(model.gan, X, model.L; iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
-	# set classification threshold
-	setthreshold!(model, X)
 end
 
 """
@@ -299,4 +297,9 @@ end
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-predict(model::GANmodel, X) = classify(model.gan, X, model.threshold, model.lambda)
+function predict(model::GANmodel, X) 
+	# set classification threshold
+	setthreshold!(model, X)
+
+	return classify(model.gan, X, model.threshold, model.lambda)
+end
