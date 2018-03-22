@@ -55,8 +55,7 @@ y = dataset.labels
 tryhat = AnomalyDetection.predict(model, X)
 
 # get the labels and roc stats
-tryhat, tstyhat = AnomalyDetection.rocstats(dataset.data, dataset.labels, 
-    dataset.data, dataset.labels, model);
+tryhat, tstyhat = AnomalyDetection.rocstats(dataset, dataset, model);
 
 using ScikitLearn.Utils: meshgrid
 

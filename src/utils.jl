@@ -369,6 +369,14 @@ function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
 end
 
 """
+    rocstats(trdata, tstdata, algorithm, [verb])
+
+Return labels and ROC statistics.
+"""
+rocstats(trdata::Dataset, tstdata::Dataset, algorithm; verb = true) = 
+ rocstats(trdata.data, trdata.labels, tstdata.data, tstdata.labels, algorithm; verb = true)
+
+"""
     mprint(string, [verb])
 
 Muted print: if verb = true (default), print the string.    

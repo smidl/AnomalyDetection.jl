@@ -79,8 +79,7 @@ y = dataset.labels
 tryhat = AnomalyDetection.predict(model, X)
 
 # get all the labels
-tryhat, tstyhat, _, _ = AnomalyDetection.rocstats(dataset.data, dataset.labels, 
-    dataset.data, dataset.labels, model);
+tryhat, tstyhat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
 
 # plot heatmap of the fit
 figure()

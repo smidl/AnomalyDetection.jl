@@ -29,11 +29,11 @@ esize = [indim; hiddendim; hiddendim; latentdim]; # encoder architecture
 dsize = [latentdim; hiddendim; hiddendim; indim]; # decoder architecture
 threshold = 0 # classification threshold, is recomputed when calling fit!
 contamination = size(y[y.==1],1)/size(y[y.==0],1) # to set the decision threshold
-iterations = 1000
-cbit = 200 # when callback is printed
+iterations = 5000
+cbit = 1000 # when callback is printed
 verbfit = true 
 activation = Flux.relu
-rdelta = 0.01 # reconstruction error threshold when training is stopped
+rdelta = 0.005 # reconstruction error threshold when training is stopped
 
 # select only normal data
 x = X[:,y .== 0]
@@ -56,9 +56,9 @@ X
 # predict labels
 yhat = AnomalyDetection.predict(model, X)
 
-model.verbfit = false
-tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset.data, dataset.labels, 
-    dataset.data, dataset.labels, model);
+# training data = testing data
+# this outputs labels
+tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
 
 using ScikitLearn.Utils: meshgrid
 

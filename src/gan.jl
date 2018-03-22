@@ -19,7 +19,7 @@ struct GAN
 	gg # non-trainable generator copy
 	d # discriminator
 	dd # non-trainable discriminator copy
-    pz # code distribution
+	pz # code distribution
 end
 
 
@@ -57,7 +57,7 @@ function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu)
 	for i in 3:(size(dsize,1)-1)
 		discriminator = Chain(discriminator, Dense(dsize[i-1], dsize[i], activation))
 	end
-    discriminator = Chain(discriminator, Dense(dsize[end-1], dsize[end], σ))
+	discriminator = Chain(discriminator, Dense(dsize[end-1], dsize[end], σ))
 
 	return GAN(generator, discriminator, pz=pz)
 end
