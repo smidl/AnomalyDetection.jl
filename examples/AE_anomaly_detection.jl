@@ -57,7 +57,8 @@ X
 yhat = AnomalyDetection.predict(model, X)
 
 model.verbfit = false
-tryhat, tsthat = AnomalyDetection.quickvalidate!(dataset, dataset, model);
+tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset.data, dataset.labels, 
+    dataset.data, dataset.labels, model);
 
 using ScikitLearn.Utils: meshgrid
 

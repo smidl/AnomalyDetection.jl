@@ -115,7 +115,7 @@ real data.", 2013 for details.
 alpha - the ratio of training to all data\n
 difficulty - easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal\n
 frequency - ratio of anomalous to normal data\n
-variation - low/high - setting of whether data should be clustered or not\n
+variation - low/high - should anomalies be clustered or not\n
 seed - random seed
 """
 function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequency::Float64, variation::String;
@@ -288,7 +288,7 @@ VAE version (instances in columns) with known contamination level.
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    # fit!(algorithm, trData.data[:,trData.labels .== 0])
+    fit!(algorithm, trData.data[:,trData.labels .== 0])
 
     return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end
@@ -302,7 +302,7 @@ AE version (instances in columns) with known contamination level.
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::AEmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    # fit!(algorithm, trData.data[:,trData.labels .== 0])
+    fit!(algorithm, trData.data[:,trData.labels .== 0])
 
     return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end
@@ -316,7 +316,7 @@ GAN version (instances in columns) with known contamination level.
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::GANmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    #fit!(algorithm, trData.data[:,trData.labels .== 0])
+    fit!(algorithm, trData.data[:,trData.labels .== 0])
 
     return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end

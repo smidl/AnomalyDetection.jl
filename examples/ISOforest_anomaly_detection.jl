@@ -32,6 +32,7 @@ verbose=0 # verbosity of the fitting
 isoforest = IsolationForest(n_estimators, max_samples, contamination, max_features, bootstrap,
     n_jobs, verbose)
 
+# this fits the model and produces predicted labels
 tryhat, tsthat = AnomalyDetection.quickvalidate!(dataset, dataset, isoforest);
 
 # plot heatmap of the fit
