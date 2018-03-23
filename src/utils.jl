@@ -328,12 +328,7 @@ Quickly validate an algorithm on a dataset, an instance is a column of X.
 """
 function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
     # get the results on the training dataset
-    tryhat = labels2bin(predict(algorithm, trX));
-    cr = correctrate(trY, tryhat);
-    # the labels may be switched
-    if cr < 0.5
-        tryhat = switchlabels(tryhat);
-    end
+    tryhat = correctlabels(algorithm, trX, trY)
 
     # measures of accuracy
     trroc = roc(trY, tryhat);
@@ -347,13 +342,8 @@ function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
     end
 
     # accuracy on test data
-    tstyhat = labels2bin(predict(algorithm, tstX));
-    cr = correctrate(tstY, tstyhat);
-    # the labels may be switched
-    if cr < 0.5
-        tstyhat = switchlabels(tstyhat);
-    end
-
+    tstyhat = correctlabels(algorithm, tstX, tstY)
+    
     # measures of accuracy
     tstroc = roc(tstY, tstyhat);
     if verb
@@ -366,6 +356,23 @@ function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
     end
 
     return tryhat, tstyhat, trroc, tstroc
+end
+
+"""
+    correctlabels(algorithm, X, Y)
+
+Predicts binary labels of X and switches them of needed in order to 
+respect correct label order. 
+"""
+function correctlabels(algorithm, X, Y)
+    # compute labels prediction
+    Yhat = labels2bin(predict(algorithm, X));
+    cr = correctrate(Y, Yhat);
+    # the labels may be switched if the ordering is incorrect
+    if cr < 0.5
+        Yhat = switchlabels(Yhat);
+    end
+    return Yhat
 end
 
 """
