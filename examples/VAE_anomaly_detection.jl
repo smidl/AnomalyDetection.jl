@@ -32,8 +32,10 @@ L = 1 # samples for training and classification
 # set low for training but high for classification
 activation = Flux.relu
 rdelta = 1e-3 # reconstruction error threshold for training stopping
+Beta = 1.0 # for automatic threshold computation, in [0, 1] 
+# 1.0 = tight around normal samples
 model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
-    L, activation = activation, rdelta = rdelta)
+    L, activation = activation, rdelta = rdelta, Beta = Beta)
 
 # fit the model
 AnomalyDetection.evalloss(model, x)

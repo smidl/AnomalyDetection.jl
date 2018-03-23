@@ -207,11 +207,11 @@ classify(gan::GAN, x::Array{Float64,1}, threshold, lambda) = (anomalyscore(gan, 
 classify(gan::GAN, X::Array{Float64,2}, threshold, lambda) = reshape(mapslices(y -> classify(gan, y, threshold, lambda), X, 1), size(X,2))
 
 """
-	getthreshold(gan, x, contamination, lambda)
+	getthreshold(gan, x, contamination, lambda, [Beta])
 
 Compute threshold for GAN classification based on known contamination level.
 """
-function getthreshold(gan::GAN, X, contamination, lambda)
+function getthreshold(gan::GAN, X, contamination, lambda; Beta = 1.0)
 	N = size(X, 2)
 	# get anomaly score
 	ascore = mapslices(y -> anomalyscore(gan, y, lambda), X, 1)
@@ -221,7 +221,7 @@ function getthreshold(gan::GAN, X, contamination, lambda)
 	ascore = sort(ascore)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return (ascore[end-aN]+ascore[end-aN+1])/2
+	return Beta*ascore[end-aN] + (1-Beta)ascore[end-aN+1]
 end
 
 ##############################################################################
@@ -241,20 +241,23 @@ mutable struct GANmodel
 	cbit::Real
 	verbfit::Bool
 	rdelta::Float64
+	Beta::Float64
 end
 
 """
 	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
-	cbit, verbfit, [pz, activation, rdelta])
+	cbit, verbfit, [pz, activation, rdelta, Beta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
-	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, rdelta = Inf)
+	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, rdelta = Inf,
+	Beta = 1.0)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation)
-	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit, verbfit, rdelta)
+	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit, 
+		verbfit, rdelta, Beta)
 	return model
 end
 
@@ -269,16 +272,15 @@ anomalyscore(model::GANmodel, X) = anomalyscore(model.gan, X, model.lambda)
 classify(model::GANmodel, x) = classify(model.gan, x, model.threshold, model.lambda)
 classify(model::GANmodel, x::Array{Float64,1}) = classify(model.gan, x, model.threshold, model.lambda)
 classify(model::GANmodel, X::Array{Float64,2}) = classify(model.gan, X, model.threshold, model.lambda)
-getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda)
-getthreshold(model::GANmodel, X, contamination) = getthreshold(model.gan, X, contamination, model.lambda)
+getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
 
 """
-	setthreshold!(model::GANmodel, X, [contamination])
+	setthreshold!(model, X)
 
 Set model classification threshold based on given contamination rate.
 """
-function setthreshold!(model::GANmodel, X; contamination = model.contamination)
-	model.threshold = getthreshold(model, X, contamination)
+function setthreshold!(model::GANmodel, X)
+	model.threshold = getthreshold(model, X)
 end
 
 """
@@ -301,5 +303,5 @@ function predict(model::GANmodel, X)
 	# set classification threshold
 	setthreshold!(model, X)
 
-	return classify(model.gan, X, model.threshold, model.lambda)
+	return classify(model, X)
 end

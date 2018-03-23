@@ -191,11 +191,11 @@ classify(vae::VAE, x::Array{Float64,1}, threshold, L) = (rerr(vae, x, L) > thres
 classify(vae::VAE, X::Array{Float64,2}, threshold, L) = reshape(mapslices(y -> classify(vae, y, threshold, L), X, 1), size(X,2))
 
 """
-	getthreshold(vae, x, L, contamination)
+	getthreshold(vae, x, L, contamination, [beta])
 
 Compute threshold for VAE classification based on known contamination level.
 """
-function getthreshold(vae::VAE, x, L, contamination)
+function getthreshold(vae::VAE, x, L, contamination; Beta = 1.0)
 	N = size(x, 2)
 	# get reconstruction errors
 	xerr  = mapslices(y -> rerr(vae, y, L), x, 1)
@@ -205,7 +205,7 @@ function getthreshold(vae::VAE, x, L, contamination)
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return (xerr[end-aN]+xerr[end-aN+1])/2
+	return Beta*xerr[end-aN] + (1-Beta)*xerr[end-aN+1]
 end
 
 ##############################################################################
@@ -225,20 +225,22 @@ mutable struct VAEmodel
 	verbfit::Bool
 	L::Int # for sampling
 	rdelta::Float64
+	Beta::Float64
 end
 
 """
 	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration, 
-	L, cbit, [activation, rdelta])
+	L, cbit, [activation, rdelta, Beta])
 
 Initialize a variational autoencoder model with given parameters.
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Int, verbfit::Bool, L::Int; activation = Flux.relu, rdelta = Inf)
+	cbit::Int, verbfit::Bool, L::Int; activation = Flux.relu, rdelta = Inf, 
+	Beta = 1.0)
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation)
-	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, L, rdelta)
+	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, L, rdelta, Beta)
 	return model
 end
 
@@ -254,12 +256,10 @@ evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.L, model.lambda)
 generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.L)
-classify(model::VAEmodel, x, threshold) = classify(model.vae, x, threshold, model.L)
-getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.L, model.contamination)
-getthreshold(model::VAEmodel, x, contamination) = getthreshold(model.vae, x, model.L, contamination)
+getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.L, model.contamination, Beta = model.Beta)
 
 """
-	setthreshold!(model::VAEmodel, X, [contamination])
+	setthreshold!(model::VAEmodel, X)
 
 Set model classification threshold based on given contamination rate.
 """

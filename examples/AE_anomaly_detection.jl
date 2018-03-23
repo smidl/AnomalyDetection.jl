@@ -34,6 +34,8 @@ cbit = 1000 # when callback is printed
 verbfit = true 
 activation = Flux.relu
 rdelta = 0.005 # reconstruction error threshold when training is stopped
+Beta = 1.0 # for automatic threshold computation, in [0, 1] 
+# 1.0 = tight around normal samples
 
 # select only normal data
 x = X[:,y .== 0]

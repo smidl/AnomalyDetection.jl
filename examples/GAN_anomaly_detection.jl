@@ -36,8 +36,11 @@ pz = randn # code distribution (rand should also work)
 activation = Flux.leakyrelu # should work better than relu
 rdelta = 1e-5 # stop training after this reconstruction error is achieved
 # this parameter is basically useless in the case of GANs
+Beta = 1.0 # for automatic threshold computation, in [0, 1] 
+# 1.0 = tight around normal samples
+
 model = GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, cbit,
-    verbfit, pz = pz, activation = activation, rdelta = rdelta)
+    verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta)
 
 # fit the model
 Z = model.gan.pz(zdim,N)

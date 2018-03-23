@@ -123,11 +123,11 @@ classify(ae::AE, x::Array{Float64,1}, threshold) = (loss(ae, x) > threshold)? 1 
 classify(ae::AE, X::Array{Float64,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
 
 """
-	getthreshold(ae, x, contamination)
+	getthreshold(ae, x, contamination, [Beta])
 
 Compute threshold for AE classification based on known contamination level.
 """
-function getthreshold(ae::AE, x, contamination)
+function getthreshold(ae::AE, x, contamination; Beta = 1.0)
 	N = size(x, 2)
 	# get reconstruction errors
 	xerr  = mapslices(y -> loss(ae, y), x, 1)
@@ -137,7 +137,7 @@ function getthreshold(ae::AE, x, contamination)
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return (xerr[end-aN]+xerr[end-aN+1])/2
+	return Beta*xerr[end-aN] + (1-Beta)xerr[end-aN+1]
 end
 
 #############################################################################
@@ -155,19 +155,20 @@ mutable struct AEmodel
 	cbit::Real
 	verbfit::Bool
 	rdelta::Real
+	Beta::Float64
 end
 
 """
-	AEmodel(esize, dsize, threshold, contamination, iteration, cbit, [activation, rdelta])
+	AEmodel(esize, dsize, threshold, contamination, iteration, cbit, [activation, rdelta, Beta])
 
 Initialize an autoencoder model with given parameters.
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf)
+	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf, Beta = 1.0)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation)
-	model = AEmodel(ae, threshold, contamination, iterations, cbit, verbfit, rdelta)
+	model = AEmodel(ae, threshold, contamination, iterations, cbit, verbfit, rdelta, Beta)
 	return model
 end
 
@@ -176,17 +177,15 @@ end
 loss(model::AEmodel, X) = loss(model.ae, X)
 evalloss(model::AEmodel, X) = evalloss(model.ae, X)
 classify(model::AEmodel, x) = classify(model.ae, x, model.threshold)
-classify(model::AEmodel, x, threshold) = classify(model.ae, x, threshold)
-getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination)
-getthreshold(model::AEmodel, x, contamination) = getthreshold(model.ae, x, contamination)
+getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination, Beta = model.Beta)
 
 """
-	setthreshold!(model::AEmodel, X, [contamination])
+	setthreshold!(model::AEmodel, X)
 
 Set model classification threshold based on given contamination rate.
 """
-function setthreshold!(model::AEmodel, X; contamination = model.contamination)
-	model.threshold = getthreshold(model, X, contamination)
+function setthreshold!(model::AEmodel, X)
+	model.threshold = getthreshold(model, X)
 end
 
 """
