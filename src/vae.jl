@@ -94,60 +94,62 @@ KL divergence between the encoder parameters and unit gaussian.
 KL(vae::VAE, X) = 1/2*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1, 1))
 
 """
-	rerr(vae, X, Y)
+	rerr(vae, X, L)
 
 Reconstruction error.
 """
-rerr(vae::VAE, X) = Flux.mse(vae(X), X)
+#rerr(vae::VAE, X) = Flux.mse(vae(X), X)
+rerr(vae::VAE, X, L) = Flux.mse(mean([vae(X) for l in 1:L]), X)
 
 """
-	loss(vae, X, lambda)
+	loss(vae, X, L, lambda)
 
 Loss function of the variational autoencoder. Lambda is scaling parameter of 
 the KLD, 1 = full KL, 0 = no KL (vanilla autoencoder).
 """
-loss(vae::VAE, X, lambda) = rerr(vae, X) + lambda*KL(vae, X)
+loss(vae::VAE, X, L, lambda) = rerr(vae, X, L) + lambda*KL(vae, X)
 
 """
-	evalloss(vae, X, lambda)
+	evalloss(vae, X, L, lambda)
 
 Print vae loss function values.	
 """
-evalloss(vae::VAE, X, lambda) = print("loss: ", loss(vae, X, lambda).data, 
-	"\nreconstruction error: ", rerr(vae, X).data, 
+evalloss(vae::VAE, X, L, lambda) = print("loss: ", loss(vae, X, L, lambda).data, 
+	"\nreconstruction error: ", rerr(vae, X, L).data, 
 	"\nKL: ", KL(vae, X).data, "\n\n")
 
 """
-	fit!(vae, X, [iterations, cbit, verb, lambda, rdelta])
+	fit!(vae, X, L, [iterations, cbit, verb, lambda, rdelta])
 
 Trains the VAE neural net.
 vae - a VAE object
 X - data array with instances as columns
+L - snumber of samples for KLD computation
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 lambda - scaling for the KLD loss
 rdelta - stopping condition for reconstruction error
 """
-function fit!(vae::VAE, X; iterations=1000, cbit = 200, verb = true, lambda = 1, rdelta = Inf)
+function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda = 1, rdelta = Inf)
 	# settings
 	opt = ADAM(params(vae))
 
 	# train
 	for i in 1:iterations
 		# gradient computation and update
-		l = loss(vae, X, lambda)
+		l = loss(vae, X, L, lambda)
 		Flux.Tracker.back!(l)
 		opt()
 
 		# callback
 		if verb && i%cbit == 0
-			evalloss(vae, X, lambda)
+			evalloss(vae, X, L, lambda)
 		end
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = rerr(vae, X).data[1]
+			re = rerr(vae, X, L).data[1]
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,\n",
 					"reconstruction error $re < $rdelta")
@@ -180,23 +182,23 @@ generate(vae::VAE, n::Int) = vae.decoder(randn(Int(size(vae.encoder.layers[end].
 ######################
 
 """
-	classify(vae, x, threshold)
+	classify(vae, x, threshold, L)
 
 Classify an instance x using reconstruction error and threshold.
 """
-classify(vae::VAE, x, threshold) = (rerr(vae, x) > threshold)? 1 : 0
-classify(vae::VAE, x::Array{Float64,1}, threshold; L=1) = (rerr(vae, repmat(x,1,L)) > threshold)? 1 : 0
-classify(vae::VAE, X::Array{Float64,2}, threshold; L=1) = reshape(mapslices(y -> classify(vae, y, threshold, L=L), X, 1), size(X,2))
+classify(vae::VAE, x, threshold, L) = (rerr(vae, x, L) > threshold)? 1 : 0
+classify(vae::VAE, x::Array{Float64,1}, threshold, L) = (rerr(vae, x, L) > threshold)? 1 : 0
+classify(vae::VAE, X::Array{Float64,2}, threshold, L) = reshape(mapslices(y -> classify(vae, y, threshold, L), X, 1), size(X,2))
 
 """
-	getthreshold(vae, x, contamination)
+	getthreshold(vae, x, L, contamination)
 
 Compute threshold for VAE classification based on known contamination level.
 """
-function getthreshold(vae::VAE, x, contamination)
+function getthreshold(vae::VAE, x, L, contamination)
 	N = size(x, 2)
 	# get reconstruction errors
-	xerr  = mapslices(y -> rerr(vae, y), x, 1)
+	xerr  = mapslices(y -> rerr(vae, y, L), x, 1)
 	# create ordinary array from the tracked array
 	xerr = reshape([e.data[1] for e in xerr], N)
 	# sort it
@@ -221,7 +223,7 @@ mutable struct VAEmodel
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
-	L::Int # number of samples for classification
+	L::Int # for sampling
 	rdelta::Float64
 end
 
@@ -246,23 +248,23 @@ mu(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
 sigma(model::VAEmodel, X) = sigma(model.vae, model.vae.encoder(X))
 sample_z(model::VAEmodel, X) = sample_z(model.vae, model.vae.encoder(X))
 KL(model::VAEmodel, X) = KL(model.vae, X)
-rerr(model::VAEmodel, X) = rerr(model.vae, X)
-loss(model::VAEmodel, X) = loss(model.vae, X, model.lambda)
-evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.lambda) 
+rerr(model::VAEmodel, X) = rerr(model.vae, X, model.L)
+loss(model::VAEmodel, X) = loss(model.vae, X, model.L, model.lambda)
+evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.L, model.lambda) 
 generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
-classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, L = model.L)
-classify(model::VAEmodel, x, threshold) = classify(model.vae, x, threshold, L = model.L)
-getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.contamination)
-getthreshold(model::VAEmodel, x, contamination) = getthreshold(model.vae, x, contamination)
+classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.L)
+classify(model::VAEmodel, x, threshold) = classify(model.vae, x, threshold, model.L)
+getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.L, model.contamination)
+getthreshold(model::VAEmodel, x, contamination) = getthreshold(model.vae, x, model.L, contamination)
 
 """
 	setthreshold!(model::VAEmodel, X, [contamination])
 
 Set model classification threshold based on given contamination rate.
 """
-function setthreshold!(model::VAEmodel, X; contamination = model.contamination)
-	model.threshold = getthreshold(model, X, contamination)
+function setthreshold!(model::VAEmodel, X)
+	model.threshold = getthreshold(model, X)
 end
 
 """
@@ -272,7 +274,7 @@ Fit the VAE model, instances are columns of X.
 """
 function fit!(model::VAEmodel, X) 
 	# fit the VAbE NN
-	fit!(model.vae, X, iterations = model.iterations, 
+	fit!(model.vae, X, model.L, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
 	rdelta = model.rdelta)
 end
@@ -286,5 +288,5 @@ function predict(model::VAEmodel, X)
 	# compute the classification threshold using given contamination rate
 	setthreshold!(model, X)
 
-	return classify(model.vae, X, model.threshold, L=model.L)
+	return classify(model, X)
 end

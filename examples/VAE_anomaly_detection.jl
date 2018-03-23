@@ -28,7 +28,8 @@ contamination = size(y[y.==1],1)/size(y, 1) # for automatic threshold computatio
 iterations = 2000
 cbit = 500 # after this number of iteratiosn, callback is printed
 verbfit = true
-L = 100 # samples for classification
+L = 1 # samples for training and classification 
+# set low for training but high for classification
 activation = Flux.relu
 rdelta = 1e-3 # reconstruction error threshold for training stopping
 model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
@@ -52,6 +53,7 @@ AnomalyDetection.sample_z(model, x)
 # predict labels
 X = dataset.data
 y = dataset.labels
+model.L = 100 # number of samples - for classification higher is better (more stable)
 tryhat = AnomalyDetection.predict(model, X)
 
 # get the labels and roc stats
