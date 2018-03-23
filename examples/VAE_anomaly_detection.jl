@@ -10,11 +10,12 @@ using AnomalyDetection
 
 # load data
 dataset = load("toy_data_3.jld")["data"]
-x = dataset.data[:,dataset.labels.==0]
-y = dataset.labels
+X = dataset.data
+Y = dataset.labels
+nX = X[:, Y.==0]
 
 # VAE settings
-indim = size(x,1)
+indim = size(X,1)
 hiddendim = 10
 latentdim = 2
 nlayers = 2
@@ -24,7 +25,7 @@ esize = [indim; hiddendim; hiddendim; latentdim*2] # encoder architecture
 dsize = [latentdim; hiddendim; hiddendim; indim] # decoder architecture
 lambda = 0.001 # KLD weight in loss function
 threshold = 0 # classification threshold, is recomputed during fit!()
-contamination = size(y[y.==1],1)/size(y, 1) # for automatic threshold computation
+contamination = size(Y[Y.==1],1)/size(Y, 1) # for automatic threshold computation
 iterations = 2000
 cbit = 500 # after this number of iteratiosn, callback is printed
 verbfit = true
@@ -38,23 +39,21 @@ model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbi
     L, activation = activation, rdelta = rdelta, Beta = Beta)
 
 # fit the model
-AnomalyDetection.evalloss(model, x)
-AnomalyDetection.fit!(model, x)
-AnomalyDetection.evalloss(model, x)
+AnomalyDetection.evalloss(model, nX)
+AnomalyDetection.fit!(model, X, Y)
+AnomalyDetection.evalloss(model, nX)
 
-model(x)
+model(nX)
 
-x
+nX
 
-AnomalyDetection.mu(model, x)
+AnomalyDetection.mu(model, nX)
 
-AnomalyDetection.sigma(model,x)
+AnomalyDetection.sigma(model, nX)
 
-AnomalyDetection.sample_z(model, x)
+AnomalyDetection.sample_z(model, nX)
 
 # predict labels
-X = dataset.data
-y = dataset.labels
 model.L = 100 # number of samples - for classification higher is better (more stable)
 tryhat = AnomalyDetection.predict(model, X)
 

@@ -189,14 +189,21 @@ function setthreshold!(model::AEmodel, X)
 end
 
 """
-	fit!(model::AEmodel, X)
+	fit!(model::AEmodel, X, Y)
 
 Fit the AE model, instances are columns of X.	
 """
-function fit!(model::AEmodel, X) 
-	# train the AE NN
-	fit!(model.ae, X, iterations = model.iterations, 
+function fit!(model::AEmodel, X, Y) 
+	# train the NN only on normal samples
+	nX = X[:, Y.==0]
+
+	# train
+	fit!(model.ae, nX, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
+
+	# now set the threshold using contamination rate
+	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
+	setthreshold!(model, X)
 end
 
 """
@@ -204,9 +211,6 @@ end
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-function predict(model::AEmodel, X)
-	# set the threshold for classification
-	setthreshold!(model, X)
-	
-	return classify(model.ae, X, model.threshold)
+function predict(model::AEmodel, X)	
+	return classify(model, X)
 end

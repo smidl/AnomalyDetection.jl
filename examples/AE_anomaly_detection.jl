@@ -13,9 +13,10 @@ dataset = load("toy_data_3.jld")["data"]
 
 figure()
 X = dataset.data
-y = dataset.labels
-scatter(X[1, y.==1], X[2, y.==1])
-scatter(X[1, y.==0], X[2, y.==0])
+Y = dataset.labels
+nX = X[:, Y.==0]
+scatter(X[1, Y.==1], X[2, Y.==1])
+scatter(X[1, Y.==0], X[2, Y.==0])
 show()
 
 # set problem dimensions
@@ -28,28 +29,25 @@ nlayers = 3
 esize = [indim; hiddendim; hiddendim; latentdim]; # encoder architecture
 dsize = [latentdim; hiddendim; hiddendim; indim]; # decoder architecture
 threshold = 0 # classification threshold, is recomputed when calling fit!
-contamination = size(y[y.==1],1)/size(y[y.==0],1) # to set the decision threshold
+contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1) # to set the decision threshold
 iterations = 5000
 cbit = 1000 # when callback is printed
 verbfit = true 
 activation = Flux.relu
-rdelta = 0.005 # reconstruction error threshold when training is stopped
+rdelta = 0.002 # reconstruction error threshold when training is stopped
 Beta = 1.0 # for automatic threshold computation, in [0, 1] 
 # 1.0 = tight around normal samples
-
-# select only normal data
-x = X[:,y .== 0]
 
 # model might have to be restarted if loss is > 0.01
 model = AEmodel(esize, dsize, threshold, contamination,
     iterations, cbit, verbfit, activation = activation, rdelta = rdelta)
 
-AnomalyDetection.fit!(model, X)
-AnomalyDetection.evalloss(model, X)
+AnomalyDetection.fit!(model, X, Y)
+AnomalyDetection.evalloss(model, nX)
 
-model(x)
+model(nX)
 
-x
+nX
 
 model(X)
 

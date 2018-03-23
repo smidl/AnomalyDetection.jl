@@ -11,9 +11,10 @@ using AnomalyDetection
 
 # load data
 dataset = load("toy_data_3.jld")["data"]
-x = dataset.data[:,dataset.labels.==0]
-y = dataset.labels;
-M, N = size(x)
+X = dataset.data
+Y = dataset.labels
+nX = X[:, Y.==0]
+M, N = size(X)
 
 # GAN settings
 zdim = 1 # code dimension
@@ -27,7 +28,7 @@ lambda = 0.5 # anomaly score parameter in [0, 1]
 # 1 - ignores the discriminator score
 # 0- ignores the reconstruction error score
 threshold = 0 # classification threshold, is recomputed (getthreshold or when using fit!)
-contamination = size(y[y.==1],1)/size(y, 1) # contamination ratio
+contamination = size(Y[Y.==1],1)/size(Y, 1) # contamination ratio
 L = 30 # batchsize
 iterations = 10000 # no of iterations
 cbit = 5000 # when should output be printed
@@ -43,10 +44,10 @@ model = GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
     verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta)
 
 # fit the model
-Z = model.gan.pz(zdim,N)
-AnomalyDetection.evalloss(model, x, Z)
-AnomalyDetection.fit!(model, x)
-AnomalyDetection.evalloss(model, x, Z)
+Z = model.gan.pz(zdim, size(nX,2))
+AnomalyDetection.evalloss(model, nX, Z)
+AnomalyDetection.fit!(model, X, Y)
+AnomalyDetection.evalloss(model, nX, Z)
 
 # generate new data
 Xgen = AnomalyDetection.generate(model, N)
@@ -58,10 +59,10 @@ scatter(Xgen[1,:], Xgen[2,:]) # first plot jsut to get axis limits
 ax = gca()
 #ylim = ax[:get_ylim]()
 #xlim = ax[:get_xlim]()
-xlim = (min(minimum(x[1,:]), minimum(Xgen[1,:])) - 0.05, 
-    max(maximum(x[1,:]), maximum(Xgen[1,:])) + 0.05)
-ylim = (min(minimum(x[2,:]), minimum(Xgen[2,:])) - 0.05, 
-    max(maximum(x[2,:]), maximum(Xgen[2,:])) + 0.05)
+xlim = (min(minimum(X[1,:]), minimum(Xgen[1,:])) - 0.05, 
+    max(maximum(X[1,:]), maximum(Xgen[1,:])) + 0.05)
+ylim = (min(minimum(X[2,:]), minimum(Xgen[2,:])) - 0.05, 
+    max(maximum(X[2,:]), maximum(Xgen[2,:])) + 0.05)
 xx, yy = meshgrid(linspace(xlim[1], xlim[2], 30), linspace(ylim[1], ylim[2], 30))
 zz = zeros(size(xx))
 for i in 1:size(xx, 1)
@@ -71,14 +72,12 @@ for i in 1:size(xx, 1)
 end
 axsurf = ax[:contourf](xx, yy, zz)
 cb = colorbar(axsurf, fraction = 0.05, shrink = 0.5, pad = 0.1)
-scatter(x[1,:], x[2,:], c = "k", label = "original data")
+scatter(X[1,:], X[2,:], c = "k", label = "original data")
 scatter(Xgen[1,:], Xgen[2,:], c="r", label = "generated data")
 legend()
 show()
 
 # predict labels
-X = dataset.data
-y = dataset.labels
 tryhat = AnomalyDetection.predict(model, X)
 
 # get all the labels

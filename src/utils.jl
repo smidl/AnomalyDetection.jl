@@ -288,7 +288,7 @@ VAE version (instances in columns) with known contamination level.
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::VAEmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    fit!(algorithm, trData.data[:,trData.labels .== 0])
+    fit!(algorithm, trData.data, trData.labels)
 
     return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end
@@ -302,7 +302,7 @@ AE version (instances in columns) with known contamination level.
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::AEmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    fit!(algorithm, trData.data[:,trData.labels .== 0])
+    fit!(algorithm, trData.data, trData.labels)
 
     return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end
@@ -316,7 +316,7 @@ GAN version (instances in columns) with known contamination level.
 function quickvalidate!(trData::Dataset, tstData::Dataset, algorithm::GANmodel; verb = true)
     # fit the model
     # only non-anomalous data are used for training
-    fit!(algorithm, trData.data[:,trData.labels .== 0])
+    fit!(algorithm, trData.data, trData.labels)
 
     return rocstats(trData.data, trData.labels, tstData.data, tstData.labels, algorithm, verb = verb)
 end

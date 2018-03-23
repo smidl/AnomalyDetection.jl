@@ -284,14 +284,21 @@ function setthreshold!(model::GANmodel, X)
 end
 
 """
-	fit!(model, X)
+	fit!(model, X, Y)
 
 Trains a GANmodel.
 """
-function fit!(model::GANmodel, X)
+function fit!(model::GANmodel, X, Y)
+	# train the NN only on normal samples
+	nX = X[:, Y.==0]
+
 	# train the GAN NN
-	fit!(model.gan, X, model.L; iterations=model.iterations, 
+	fit!(model.gan, nX, model.L; iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
+
+	# now set the threshold using contamination rate
+	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
+	setthreshold!(model, X)
 end
 
 """
@@ -300,8 +307,5 @@ end
 Based on known contamination level, compute threshold and classify instances in X.
 """
 function predict(model::GANmodel, X) 
-	# set classification threshold
-	setthreshold!(model, X)
-
 	return classify(model, X)
 end
