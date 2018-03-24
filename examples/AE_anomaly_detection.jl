@@ -37,13 +37,26 @@ activation = Flux.relu
 rdelta = 0.002 # reconstruction error threshold when training is stopped
 Beta = 1.0 # for automatic threshold computation, in [0, 1] 
 # 1.0 = tight around normal samples
+tracked = true # do you want to store training progress?
+# it can be later retrieved from model.traindata
 
 # model might have to be restarted if loss is > 0.01
 model = AEmodel(esize, dsize, threshold, contamination,
-    iterations, cbit, verbfit, activation = activation, rdelta = rdelta)
+    iterations, cbit, verbfit, activation = activation, rdelta = rdelta, 
+    tracked = tracked)
 
 AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX)
+
+# plot model loss
+if tracked
+    figure()
+    title("model loss")
+    plot(model.traindata["loss"])
+    xlabel("iteration")
+    ylabel("loss")
+    show()
+end
 
 model(nX)
 

@@ -23,7 +23,7 @@ nlayers = 2
 # setup the VAE object
 esize = [indim; hiddendim; hiddendim; latentdim*2] # encoder architecture
 dsize = [latentdim; hiddendim; hiddendim; indim] # decoder architecture
-lambda = 0.001 # KLD weight in loss function
+lambda = 0.01 # KLD weight in loss function
 threshold = 0 # classification threshold, is recomputed during fit!()
 contamination = size(Y[Y.==1],1)/size(Y, 1) # for automatic threshold computation
 iterations = 2000
@@ -35,13 +35,32 @@ activation = Flux.relu
 rdelta = 1e-3 # reconstruction error threshold for training stopping
 Beta = 1.0 # for automatic threshold computation, in [0, 1] 
 # 1.0 = tight around normal samples
+tracked = true # do you want to store training progress?
+# it can be later retrieved from model.traindata
 model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
-    L, activation = activation, rdelta = rdelta, Beta = Beta)
+    L, activation = activation, rdelta = rdelta, Beta = Beta, tracked = tracked)
 
 # fit the model
 AnomalyDetection.evalloss(model, nX)
 AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX)
+
+# plot model loss
+if tracked
+    figure()
+    title("model loss, lambda = $(model.lambda)")
+    y1, = plot(model.traindata["loss"], label = "loss")
+    y2, = plot(model.traindata["reconstruction error"], label = "reconstruction error")
+    ax = gca()
+    ylabel("loss + reconstruction error")
+    xlabel("iteration")
+    
+    ax2 = ax[:twinx]()
+    y3, = plot(model.traindata["KLD"], label = "KLD", c = "g")
+    ylabel("KLD")
+    legend([y1, y2, y3], ["loss", "reconstruction error", "KLD"])
+    show()
+end
 
 model(nX)
 

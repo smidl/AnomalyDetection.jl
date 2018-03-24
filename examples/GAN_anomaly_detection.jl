@@ -39,15 +39,34 @@ rdelta = 1e-5 # stop training after this reconstruction error is achieved
 # this parameter is basically useless in the case of GANs
 Beta = 1.0 # for automatic threshold computation, in [0, 1] 
 # 1.0 = tight around normal samples
-
+tracked = true # do you want to store training progress?
+# it can be later retrieved from model.traindata
 model = GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, cbit,
-    verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta)
+    verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta, 
+    tracked = tracked)
 
 # fit the model
 Z = model.gan.pz(zdim, size(nX,2))
 AnomalyDetection.evalloss(model, nX, Z)
 AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX, Z)
+
+# plot model loss
+if tracked
+    figure()
+    title("model loss")
+    y3, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "g")
+    ylabel("reconstruction error")
+    xlabel("iteration")
+    ax = gca()
+    
+    ax2 = ax[:twinx]()
+    y1, = plot(model.traindata["generator loss"], label = "generator loss")
+    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
+    ylabel("Gloss + Dloss")
+    legend([y1, y2, y3], ["generator loss", "discriminator loss", "reconstruction error"])
+    show()
+end
 
 # generate new data
 Xgen = AnomalyDetection.generate(model, N)

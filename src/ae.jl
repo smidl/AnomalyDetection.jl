@@ -71,7 +71,7 @@ Print ae loss function values.
 evalloss(ae::AE, X) = println("loss: ", loss(ae, X).tracker.data, "\n")
 
 """
-	fit!(ae, X, [iterations, cbit, verb, rdelta])
+	fit!(ae, X, [iterations, cbit, verb, rdelta, tracked])
 
 Trains the AE.
 ae - AE type object
@@ -80,8 +80,9 @@ iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
+traindata - dict to be filled with data of individual iterations
 """
-function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
+function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf, traindata = nothing)
 	# optimizer
 	opt = ADAM(params(ae))
 
@@ -97,6 +98,11 @@ function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
 			evalloss(ae, X)
 		end
 
+		# save actual iteration data
+		if traindata != nothing
+			track!(ae, traindata, X)
+		end
+
 		# if stopping condition is present
 		if rdelta < Inf
 			re = loss(ae, X).tracker.data
@@ -107,6 +113,19 @@ function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
 			end
 		end
 	end	
+end
+
+"""
+	track!(ae, traindata, X)
+
+Save current progress.
+"""
+function track!(ae::AE, traindata, X)
+	if haskey(traindata, "loss")
+		push!(traindata["loss"], Flux.Tracker.data(loss(ae,X)))
+	else
+		traindata["loss"] = [Flux.Tracker.data(loss(ae, X))]
+	end
 end
 
 #################
@@ -163,19 +182,24 @@ mutable struct AEmodel
 	verbfit::Bool
 	rdelta::Real
 	Beta::Float64
+	traindata
 end
 
 """
-	AEmodel(esize, dsize, threshold, contamination, iteration, cbit, [activation, rdelta, Beta])
+	AEmodel(esize, dsize, threshold, contamination, iteration, cbit, 
+	[activation, rdelta, Beta, tracked])
 
 Initialize an autoencoder model with given parameters.
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf, Beta = 1.0)
+	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf, Beta = 1.0,
+	tracked = false)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation)
-	model = AEmodel(ae, threshold, contamination, iterations, cbit, verbfit, rdelta, Beta)
+	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
+	model = AEmodel(ae, threshold, contamination, iterations, cbit, verbfit, rdelta, 
+		Beta, traindata)
 	return model
 end
 
@@ -206,7 +230,8 @@ function fit!(model::AEmodel, X, Y)
 
 	# train
 	fit!(model.ae, nX, iterations = model.iterations, 
-	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
+	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
+	traindata = model.traindata)
 
 	# now set the threshold using contamination rate
 	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)

@@ -108,8 +108,10 @@ iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
+traindata - a dictionary for training progress control
 """
-function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
+function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
+	traindata = nothing)
 	# settings
 	#Dopt = ADAM(params(gan.d))
 	Dopt = SGD(params(gan.d))
@@ -140,6 +142,11 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 			evalloss(gan, x, z)
 		end
 
+		# save actual iteration data
+		if traindata != nothing
+			track!(gan, traindata, x, z)
+		end
+
 		# if a stopping condition is present
 		if rdelta < Inf
 			re = rerr(gan, x, z) 
@@ -149,6 +156,34 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 				break
 			end
 		end
+	end
+end
+
+"""
+	track!(gan, traindata, X, Z)
+
+Save current progress.
+"""
+function track!(gan::GAN, traindata, X, Z)
+	# Dloss
+	if haskey(traindata, "discriminator loss")
+		push!(traindata["discriminator loss"], Flux.Tracker.data(Dloss(gan, X, Z)))
+	else
+		traindata["discriminator loss"] = [Flux.Tracker.data(Dloss(gan, X, Z))]
+	end
+
+	# Gloss
+	if haskey(traindata, "generator loss")
+		push!(traindata["generator loss"], Flux.Tracker.data(Gloss(gan, Z)))
+	else
+		traindata["generator loss"] = [Flux.Tracker.data(Gloss(gan, Z))]
+	end
+
+	# reconstruction error
+	if haskey(traindata, "reconstruction error")
+		push!(traindata["reconstruction error"], Flux.Tracker.data(rerr(gan, X, Z)))
+	else
+		traindata["reconstruction error"] = [Flux.Tracker.data(rerr(gan, X, Z))]
 	end
 end
 
@@ -242,22 +277,24 @@ mutable struct GANmodel
 	verbfit::Bool
 	rdelta::Float64
 	Beta::Float64
+	traindata
 end
 
 """
 	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
-	cbit, verbfit, [pz, activation, rdelta, Beta])
+	cbit, verbfit, [pz, activation, rdelta, Beta, tracked])
 
 Initialize a generative adversarial net model for classification with given parameters.
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
 	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, rdelta = Inf,
-	Beta = 1.0)
+	Beta = 1.0, tracked = false)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation)
+	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
 	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit, 
-		verbfit, rdelta, Beta)
+		verbfit, rdelta, Beta, traindata)
 	return model
 end
 
@@ -294,7 +331,8 @@ function fit!(model::GANmodel, X, Y)
 
 	# train the GAN NN
 	fit!(model.gan, nX, model.L; iterations=model.iterations, 
-	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta)
+	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
+	traindata = model.traindata)
 
 	# now set the threshold using contamination rate
 	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)

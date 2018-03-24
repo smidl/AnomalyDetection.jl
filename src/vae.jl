@@ -119,7 +119,7 @@ evalloss(vae::VAE, X, L, lambda) = print("loss: ", loss(vae, X, L, lambda).track
 	"\nKL: ", KL(vae, X).tracker.data, "\n\n")
 
 """
-	fit!(vae, X, L, [iterations, cbit, verb, lambda, rdelta])
+	fit!(vae, X, L, [iterations, cbit, verb, lambda, rdelta, traindata])
 
 Trains the VAE neural net.
 vae - a VAE object
@@ -130,8 +130,10 @@ cbit - after this # of iterations, output is printed
 verb - if output should be produced
 lambda - scaling for the KLD loss
 rdelta - stopping condition for reconstruction error
+traindata - a dictionary for training progress control
 """
-function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda = 1, rdelta = Inf)
+function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda = 1, 
+	rdelta = Inf, traindata = nothing)
 	# settings
 	opt = ADAM(params(vae))
 
@@ -147,6 +149,11 @@ function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda =
 			evalloss(vae, X, L, lambda)
 		end
 
+		# save actual iteration data
+		if traindata != nothing
+			track!(vae, traindata, X, L, lambda)
+		end
+
 		# if stopping condition is present
 		if rdelta < Inf
 			re = rerr(vae, X, L).tracker.data
@@ -158,6 +165,35 @@ function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda =
 		end
 	end
 end
+
+"""
+	track!(vae, traindata, X, L, lambda)
+
+Save current progress.
+"""
+function track!(vae::VAE, traindata, X, L, lambda)
+	# loss
+	if haskey(traindata, "loss")
+		push!(traindata["loss"], Flux.Tracker.data(loss(vae, X, L, lambda)))
+	else
+		traindata["loss"] = [Flux.Tracker.data(loss(vae, X, L, lambda))]
+	end
+
+	# KLD
+	if haskey(traindata, "KLD")
+		push!(traindata["KLD"], Flux.Tracker.data(KL(vae, X)))
+	else
+		traindata["KLD"] = [Flux.Tracker.data(KL(vae, X))]
+	end
+
+	# reconstruction error
+	if haskey(traindata, "reconstruction error")
+		push!(traindata["reconstruction error"], Flux.Tracker.data(rerr(vae, X, L)))
+	else
+		traindata["reconstruction error"] = [Flux.Tracker.data(rerr(vae, X, L))]
+	end
+end
+
 
 ##################
 ### vae output ###
@@ -233,21 +269,24 @@ mutable struct VAEmodel
 	L::Int # for sampling
 	rdelta::Float64
 	Beta::Float64
+	traindata
 end
 
 """
 	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration, 
-	L, cbit, [activation, rdelta, Beta])
+	L, cbit, [activation, rdelta, Beta, tracked])
 
 Initialize a variational autoencoder model with given parameters.
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, iterations::Int, 
 	cbit::Int, verbfit::Bool, L::Int; activation = Flux.relu, rdelta = Inf, 
-	Beta = 1.0)
+	Beta = 1.0, tracked = false)
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation)
-	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, L, rdelta, Beta)
+	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
+	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, 
+		L, rdelta, Beta, traindata)
 	return model
 end
 
@@ -286,7 +325,7 @@ function fit!(model::VAEmodel, X, Y)
 	# fit the VAE NN
 	fit!(model.vae, nX, model.L, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
-	rdelta = model.rdelta)
+	rdelta = model.rdelta, traindata = model.traindata)
 
 	# now set the threshold using contamination rate
 	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
