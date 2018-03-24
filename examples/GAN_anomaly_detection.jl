@@ -67,7 +67,7 @@ xx, yy = meshgrid(linspace(xlim[1], xlim[2], 30), linspace(ylim[1], ylim[2], 30)
 zz = zeros(size(xx))
 for i in 1:size(xx, 1)
     for j in 1:size(xx, 2)
-        zz[i,j] = model.gan.d([xx[i,j], yy[i,j]]).data[1]
+        zz[i,j] = model.gan.d([xx[i,j], yy[i,j]]).tracker.data[1]
     end
 end
 axsurf = ax[:contourf](xx, yy, zz)
@@ -94,7 +94,7 @@ xx, yy = meshgrid(linspace(xlim[1], xlim[2], 30), linspace(ylim[1], ylim[2], 30)
 zz = zeros(size(xx))
 for i in 1:size(xx, 1)
     for j in 1:size(xx, 2)
-        zz[i,j] = model.gan.d([xx[i,j], yy[i,j]]).data[1]
+        zz[i,j] = model.gan.d([xx[i,j], yy[i,j]]).tracker.data[1]
     end
 end
 axsurf = ax[:contourf](xx, yy, zz)

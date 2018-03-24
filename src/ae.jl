@@ -68,7 +68,7 @@ loss(ae::AE, X) = Flux.mse(ae(X), X)
 
 Print ae loss function values.	
 """
-evalloss(ae::AE, X) = println("loss: ", loss(ae, X).data, "\n")
+evalloss(ae::AE, X) = println("loss: ", loss(ae, X).tracker.data, "\n")
 
 """
 	fit!(ae, X, [iterations, cbit, verb, rdelta])
@@ -99,7 +99,7 @@ function fit!(ae::AE, X; iterations=1000, cbit = 200, verb = true, rdelta = Inf)
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = loss(ae, X).data[1]
+			re = loss(ae, X).tracker.data
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,\n",
 					"reconstruction error $re < $rdelta")
@@ -114,12 +114,19 @@ end
 #################
 
 """
+	anomalyscore(ae, X)
+
+Compute anomaly score for X.
+"""
+anomalyscore(ae::AE, X) = loss(ae, X)
+
+"""
 	classify(ae, x, threshold)
 
 Classify an instance x using reconstruction error and threshold.
 """
-classify(ae::AE, x, threshold) = (loss(ae, x) > threshold)? 1 : 0
-classify(ae::AE, x::Array{Float64,1}, threshold) = (loss(ae, x) > threshold)? 1 : 0
+classify(ae::AE, x, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
+classify(ae::AE, x::Array{Float64,1}, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
 classify(ae::AE, X::Array{Float64,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
 
 """
@@ -132,7 +139,7 @@ function getthreshold(ae::AE, x, contamination; Beta = 1.0)
 	# get reconstruction errors
 	xerr  = mapslices(y -> loss(ae, y), x, 1)
 	# create ordinary array from the tracked array
-	xerr = reshape([e.data[1] for e in xerr], N)
+	xerr = reshape([e.tracker.data for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples

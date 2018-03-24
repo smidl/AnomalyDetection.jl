@@ -73,7 +73,7 @@ xx, yy = meshgrid(linspace(xlim[1], xlim[2], 30), linspace(ylim[1], ylim[2], 30)
 zz = zeros(size(xx))
 for i in 1:size(xx, 1)
     for j in 1:size(xx, 2)
-        zz[i,j] = AnomalyDetection.loss(model, [xx[i,j], yy[i,j]]).data[1]
+        zz[i,j] = AnomalyDetection.loss(model, [xx[i,j], yy[i,j]]).tracker.data
     end
 end
 axsurf = ax[:contourf](xx, yy, zz)

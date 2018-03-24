@@ -114,9 +114,9 @@ loss(vae::VAE, X, L, lambda) = rerr(vae, X, L) + lambda*KL(vae, X)
 
 Print vae loss function values.	
 """
-evalloss(vae::VAE, X, L, lambda) = print("loss: ", loss(vae, X, L, lambda).data, 
-	"\nreconstruction error: ", rerr(vae, X, L).data, 
-	"\nKL: ", KL(vae, X).data, "\n\n")
+evalloss(vae::VAE, X, L, lambda) = print("loss: ", loss(vae, X, L, lambda).tracker.data, 
+	"\nreconstruction error: ", rerr(vae, X, L).tracker.data, 
+	"\nKL: ", KL(vae, X).tracker.data, "\n\n")
 
 """
 	fit!(vae, X, L, [iterations, cbit, verb, lambda, rdelta])
@@ -149,7 +149,7 @@ function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda =
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = rerr(vae, X, L).data[1]
+			re = rerr(vae, X, L).tracker.data
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,\n",
 					"reconstruction error $re < $rdelta")
@@ -182,12 +182,19 @@ generate(vae::VAE, n::Int) = vae.decoder(randn(Int(size(vae.encoder.layers[end].
 ######################
 
 """
+	anomalyscore(vae, X, L)
+
+Compute anomaly score for X.
+"""
+anomalyscore(vae::VAE, X, L) = rerr(vae, X, L)
+
+"""
 	classify(vae, x, threshold, L)
 
 Classify an instance x using reconstruction error and threshold.
 """
-classify(vae::VAE, x, threshold, L) = (rerr(vae, x, L) > threshold)? 1 : 0
-classify(vae::VAE, x::Array{Float64,1}, threshold, L) = (rerr(vae, x, L) > threshold)? 1 : 0
+classify(vae::VAE, x, threshold, L) = (anomalyscore(vae, x, L) > threshold)? 1 : 0
+classify(vae::VAE, x::Array{Float64,1}, threshold, L) = (anomalyscore(vae, x, L) > threshold)? 1 : 0
 classify(vae::VAE, X::Array{Float64,2}, threshold, L) = reshape(mapslices(y -> classify(vae, y, threshold, L), X, 1), size(X,2))
 
 """
@@ -200,7 +207,7 @@ function getthreshold(vae::VAE, x, L, contamination; Beta = 1.0)
 	# get reconstruction errors
 	xerr  = mapslices(y -> rerr(vae, y, L), x, 1)
 	# create ordinary array from the tracked array
-	xerr = reshape([e.data[1] for e in xerr], N)
+	xerr = reshape([e.tracker.data for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples

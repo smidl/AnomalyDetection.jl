@@ -86,15 +86,15 @@ Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z))))
 Crude estimate of reconstruction error.
 """
 #rerr(gan::GAN, X, Z) = Flux.mse(mean(gan.g(Z).data,2), mean(X,2))
-rerr(gan::GAN, X, Z) = Flux.mse(gan.g(Z).data, X) # which of these is better?
+rerr(gan::GAN, X, Z) = Flux.mse(gan.g(Z), X) # which of these is better?
 # the first one can easily get fooled in multimodal setting
 
 """
 	evalloss(gan, X, Z)
 """
-evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Dloss(gan, X, Z).data,  
-	"\ngenerator loss: ", Gloss(gan, Z).data, 
-	"\nreconstruction error: ", rerr(gan, X, Z), "\n\n")
+evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Dloss(gan, X, Z).tracker.data,  
+	"\ngenerator loss: ", Gloss(gan, Z).tracker.data, 
+	"\nreconstruction error: ", rerr(gan, X, Z).tracker.data, "\n\n")
 
 """
 	fit!(gan, X, L, [iterations, cbit, verb, rdelta])
@@ -195,7 +195,7 @@ Computes the anomaly score of X under given GAN.
 """
 #anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-mean(log.(gan.d(X))) + lambda*Flux.mse(mean(generate(gan, size(X,2)),2), mean(X,2))
 #anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-mean(log.(gan.d(X))) + lambda*Flux.mse(generate(gan, size(X,2)), X)
-anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-mean(log.(gan.d(X))).data[1] + lambda*rerr(gan, X, getcode(gan, size(X,2)))
+anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-mean(log.(gan.d(X))).tracker.data + lambda*rerr(gan, X, getcode(gan, size(X,2)))
 
 """
 	classify(gan, x, threshold, lambda)
