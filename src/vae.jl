@@ -19,13 +19,6 @@ end
 # and make it trainable
 Flux.treelike(VAE)
 
-""" 
-	softplus(X)
-
-softplus(X) = log(exp(X) + 1)	
-"""
-softplus(X) = log.(exp.(X)+1)
-
 """
 	mu(vae, X)
 
@@ -303,6 +296,33 @@ generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.L)
 getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.L, model.contamination, Beta = model.Beta)
+
+"""
+	plot(model)
+
+Plot the model losses.
+"""
+function plot(model::VAEmodel)
+	# plot model loss
+	if model.traindata == nothing
+		println("No data to plot, set tracked = true before training.")
+		return
+	else
+	    figure()
+	    title("model loss, lambda = $(model.lambda)")
+	    y1, = plot(model.traindata["loss"], label = "loss")
+	    y2, = plot(model.traindata["reconstruction error"], label = "reconstruction error")
+	    ax = gca()
+	    ylabel("loss + reconstruction error")
+	    xlabel("iteration")
+	    
+	    ax2 = ax[:twinx]()
+	    y3, = plot(model.traindata["KLD"], label = "KLD", c = "g")
+	    ylabel("KLD")
+	    legend([y1, y2, y3], ["loss", "reconstruction error", "KLD"])
+	    show()
+	end
+end
 
 """
 	setthreshold!(model::VAEmodel, X)

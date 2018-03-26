@@ -11,13 +11,9 @@ using AnomalyDetection
 
 dataset = load("toy_data_3.jld")["data"]
 
-figure()
 X = dataset.data
 Y = dataset.labels
 nX = X[:, Y.==0]
-scatter(X[1, Y.==1], X[2, Y.==1])
-scatter(X[1, Y.==0], X[2, Y.==0])
-show()
 
 # set problem dimensions
 indim = size(X,1)
@@ -49,14 +45,7 @@ AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX)
 
 # plot model loss
-if tracked
-    figure()
-    title("model loss")
-    plot(model.traindata["loss"])
-    xlabel("iteration")
-    ylabel("loss")
-    show()
-end
+plot(model)
 
 model(nX)
 

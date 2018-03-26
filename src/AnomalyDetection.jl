@@ -5,12 +5,14 @@ using Distances
 import ScikitLearn: @sk_import, fit!, predict
 using Flux
 import Base.Iterators.repeated
-
+using PyPlot
+import PyPlot.plot # so we can add new methods to plot()
 
 export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel
 
 include("vae.jl")
 include("ae.jl")
+#include("svae.jl")
 include("gan.jl")
 include("utils.jl")
 

@@ -373,6 +373,7 @@ function correctlabels(algorithm, X, Y)
         Yhat = switchlabels(Yhat);
     end
     return Yhat
+
 end
 
 """
@@ -404,3 +405,17 @@ function mprintln(string; verb = true)
         println(string)
     end
 end
+
+""" 
+    softplus(X)
+
+softplus(X) = log(exp(X) + 1)   
+"""
+softplus(X) = log.(exp.(X)+1)
+
+"""
+    freeze(m)
+
+Creates a non-trainable copy of a Flux object.
+"""
+freeze(m) = Flux.mapleaves(Flux.Tracker.data,m)

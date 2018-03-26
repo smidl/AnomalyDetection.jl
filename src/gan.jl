@@ -3,13 +3,6 @@
 ##############
 
 """
-	freeze(m)
-
-Creates a non-trainable copy of a Flux object.
-"""
-freeze(m) = Flux.mapleaves(Flux.Tracker.data,m)
-
-"""
 	GAN
 
 Flux-like object representing a generative adversarial network.
@@ -190,7 +183,7 @@ end
 ############################
 ### auxilliary functions ###
 ############################
-
+ 
 """
 	getcode(gan)
 
@@ -310,6 +303,33 @@ classify(model::GANmodel, x) = classify(model.gan, x, model.threshold, model.lam
 classify(model::GANmodel, x::Array{Float64,1}) = classify(model.gan, x, model.threshold, model.lambda)
 classify(model::GANmodel, X::Array{Float64,2}) = classify(model.gan, X, model.threshold, model.lambda)
 getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
+
+"""
+	plot(model)
+
+Plot the model losses.
+"""
+function plot(model::GANmodel)
+	# plot model loss
+	if model.traindata == nothing
+		println("No data to plot, set tracked = true before training.")
+		return
+	else
+	    figure()
+	    title("model loss")
+	    y1, = plot(model.traindata["generator loss"], label = "generator loss")
+	    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
+	    ylabel("Gloss + Dloss")
+	    xlabel("iteration")
+	    ax = gca()
+	    
+	    ax2 = ax[:twinx]()
+	    y3, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "g")
+	    ylabel("reconstruction error")
+	    legend([y1, y2, y3], ["generator loss", "discriminator loss", "reconstruction error"])
+	    show()
+	end
+end
 
 """
 	setthreshold!(model, X)

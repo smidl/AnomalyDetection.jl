@@ -30,8 +30,8 @@ lambda = 0.5 # anomaly score parameter in [0, 1]
 threshold = 0 # classification threshold, is recomputed (getthreshold or when using fit!)
 contamination = size(Y[Y.==1],1)/size(Y, 1) # contamination ratio
 L = 30 # batchsize
-iterations = 10000 # no of iterations
-cbit = 5000 # when should output be printed
+iterations = 2000 # no of iterations
+cbit = 500 # when should output be printed
 verbfit = true # if output should be produced
 pz = randn # code distribution (rand should also work)
 activation = Flux.leakyrelu # should work better than relu
@@ -52,21 +52,7 @@ AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX, Z)
 
 # plot model loss
-if tracked
-    figure()
-    title("model loss")
-    y3, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "g")
-    ylabel("reconstruction error")
-    xlabel("iteration")
-    ax = gca()
-    
-    ax2 = ax[:twinx]()
-    y1, = plot(model.traindata["generator loss"], label = "generator loss")
-    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
-    ylabel("Gloss + Dloss")
-    legend([y1, y2, y3], ["generator loss", "discriminator loss", "reconstruction error"])
-    show()
-end
+plot(model)
 
 # generate new data
 Xgen = AnomalyDetection.generate(model, N)

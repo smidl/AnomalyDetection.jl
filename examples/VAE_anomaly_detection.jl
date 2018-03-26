@@ -46,21 +46,7 @@ AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX)
 
 # plot model loss
-if tracked
-    figure()
-    title("model loss, lambda = $(model.lambda)")
-    y1, = plot(model.traindata["loss"], label = "loss")
-    y2, = plot(model.traindata["reconstruction error"], label = "reconstruction error")
-    ax = gca()
-    ylabel("loss + reconstruction error")
-    xlabel("iteration")
-    
-    ax2 = ax[:twinx]()
-    y3, = plot(model.traindata["KLD"], label = "KLD", c = "g")
-    ylabel("KLD")
-    legend([y1, y2, y3], ["loss", "reconstruction error", "KLD"])
-    show()
-end
+plot(model)
 
 model(nX)
 
