@@ -193,6 +193,13 @@ end
 ##################
 
 """
+	getcode(vae, X)
+
+Produces code z for given X.
+"""
+getcode(vae::VAE, X) = vae.sampler(vae, vae.encoder(X))
+
+"""
 	generate(vae)
 
 Generate a sample from the posterior.
@@ -234,7 +241,7 @@ Compute threshold for VAE classification based on known contamination level.
 function getthreshold(vae::VAE, x, L, contamination; Beta = 1.0)
 	N = size(x, 2)
 	# get reconstruction errors
-	xerr  = mapslices(y -> rerr(vae, y, L), x, 1)
+	xerr  = mapslices(y -> anomalyscore(vae, y, L), x, 1)
 	# create ordinary array from the tracked array
 	xerr = reshape([e.tracker.data for e in xerr], N)
 	# sort it
@@ -288,6 +295,7 @@ end
 mu(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
 sigma(model::VAEmodel, X) = sigma(model.vae, model.vae.encoder(X))
 sample_z(model::VAEmodel, X) = sample_z(model.vae, model.vae.encoder(X))
+getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)
 rerr(model::VAEmodel, X) = rerr(model.vae, X, model.L)
 loss(model::VAEmodel, X) = loss(model.vae, X, model.L, model.lambda)

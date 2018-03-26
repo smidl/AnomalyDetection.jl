@@ -12,7 +12,7 @@ export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel
 
 include("vae.jl")
 include("ae.jl")
-#include("svae.jl")
+include("svae.jl")
 include("gan.jl")
 include("utils.jl")
 

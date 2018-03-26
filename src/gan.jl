@@ -303,6 +303,8 @@ classify(model::GANmodel, x) = classify(model.gan, x, model.threshold, model.lam
 classify(model::GANmodel, x::Array{Float64,1}) = classify(model.gan, x, model.threshold, model.lambda)
 classify(model::GANmodel, X::Array{Float64,2}) = classify(model.gan, X, model.threshold, model.lambda)
 getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
+getcode(model::GANmodel) = getcode(model.gan)
+getcode(model::GANmodel, n) = getcode(model.gan, n)
 
 """
 	plot(model)
