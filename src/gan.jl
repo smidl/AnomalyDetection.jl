@@ -90,20 +90,20 @@ evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Dloss(gan, X, Z).tracke
 	"\nreconstruction error: ", rerr(gan, X, Z).tracker.data, "\n\n")
 
 """
-	fit!(gan, X, L, [iterations, cbit, verb, rdelta])
+	fit!(gan, X, M, [iterations, cbit, verb, rdelta])
 
 Trains a GAN.
 
 gan - struct of type GAN
 X - data array with instances as columns
-L - number of samples to be selected from X and sampled from pz
+M - number of samples to be selected from X and sampled from pz
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 traindata - a dictionary for training progress control
 """
-function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
+function fit!(gan::GAN, X, M; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
 	traindata = nothing)
 	# settings
 	#Dopt = ADAM(params(gan.d))
@@ -117,8 +117,8 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 	# train the GAN
 	for i in 1:iterations
 		# sample data and generate codes
-		x = X[:,sample(1:N, L, replace=false)]
-		z = getcode(gan, L)
+		x = X[:,sample(1:N, M, replace=false)]
+		z = getcode(gan, M)
                 
         # discriminator training
         Dl = Dloss(gan, x,z)
@@ -264,7 +264,7 @@ mutable struct GANmodel
 	lambda::Real
 	threshold::Real
 	contamination::Real
-	L::Int
+	M::Int
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
@@ -274,19 +274,19 @@ mutable struct GANmodel
 end
 
 """
-	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
+	GANmodel(gsize, dsize, lambda, threshold, contamination, M, iterations, 
 	cbit, verbfit, [pz, activation, rdelta, Beta, tracked])
 
 Initialize a generative adversarial net model for classification with given parameters.
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
-	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
+	lambda::Real, threshold::Real, contamination::Real, M::Int, iterations::Int, 
 	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, rdelta = Inf,
 	Beta = 1.0, tracked = false)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation)
 	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
-	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit, 
+	model = GANmodel(gan, lambda, threshold, contamination, M, iterations, cbit, 
 		verbfit, rdelta, Beta, traindata)
 	return model
 end
@@ -352,7 +352,7 @@ function fit!(model::GANmodel, X, Y)
 	nX = X[:, Y.==0]
 
 	# train the GAN NN
-	fit!(model.gan, nX, model.L; iterations=model.iterations, 
+	fit!(model.gan, nX, model.M; iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
 	traindata = model.traindata)
 

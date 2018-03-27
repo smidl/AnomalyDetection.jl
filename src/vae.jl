@@ -38,8 +38,10 @@ sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:
 
 Sample from the last encoder layer.
 """
-sample_z(vae::VAE, X) = randn(size(mu(vae, X))) .* sigma(vae,X) + mu(vae,X)
-
+function sample_z(vae::VAE, X)
+	res = mu(vae, X)
+	return res + randn(size(res)) .* sigma(vae,X)
+end
 
 """
 	VAE(esize, dsize; [activation])
@@ -112,12 +114,13 @@ evalloss(vae::VAE, X, L, lambda) = print("loss: ", loss(vae, X, L, lambda).track
 	"\nKL: ", KL(vae, X).tracker.data, "\n\n")
 
 """
-	fit!(vae, X, L, [iterations, cbit, verb, lambda, rdelta, traindata])
+	fit!(vae, X, L, M, [iterations, cbit, verb, lambda, rdelta, traindata])
 
 Trains the VAE neural net.
 vae - a VAE object
 X - data array with instances as columns
 L - snumber of samples for KLD computation
+M - batchsize
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
@@ -125,31 +128,34 @@ lambda - scaling for the KLD loss
 rdelta - stopping condition for reconstruction error
 traindata - a dictionary for training progress control
 """
-function fit!(vae::VAE, X, L; iterations=1000, cbit = 200, verb = true, lambda = 1, 
+function fit!(vae::VAE, X, L, M; iterations=1000, cbit = 200, verb = true, lambda = 1, 
 	rdelta = Inf, traindata = nothing)
 	# settings
 	opt = ADAM(params(vae))
 
 	# train
 	for i in 1:iterations
+		# sample minibatch of X
+		x = X[:, sample(1:size(X,2), M, replace = false)]
+
 		# gradient computation and update
-		l = loss(vae, X, L, lambda)
+		l = loss(vae, x, L, lambda)
 		Flux.Tracker.back!(l)
 		opt()
 
 		# callback
 		if verb && i%cbit == 0
-			evalloss(vae, X, L, lambda)
+			evalloss(vae, x, L, lambda)
 		end
 
 		# save actual iteration data
 		if traindata != nothing
-			track!(vae, traindata, X, L, lambda)
+			track!(vae, traindata, x, L, lambda)
 		end
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = rerr(vae, X, L).tracker.data
+			re = rerr(vae, x, L).tracker.data
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,\n",
 					"reconstruction error $re < $rdelta")
@@ -266,7 +272,8 @@ mutable struct VAEmodel
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
-	L::Int # for sampling
+	L::Int # for better precision of classification
+	M::Int # batchsize
 	rdelta::Float64
 	Beta::Float64
 	traindata
@@ -280,13 +287,13 @@ Initialize a variational autoencoder model with given parameters.
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Int, verbfit::Bool, L::Int; activation = Flux.relu, rdelta = Inf, 
+	cbit::Int, verbfit::Bool, L::Int, M::Int; activation = Flux.relu, rdelta = Inf, 
 	Beta = 1.0, tracked = false)
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation)
 	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
 	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, 
-		L, rdelta, Beta, traindata)
+		L, M, rdelta, Beta, traindata)
 	return model
 end
 
@@ -351,7 +358,7 @@ function fit!(model::VAEmodel, X, Y)
 	nX = X[:, Y.==0]
 
 	# fit the VAE NN
-	fit!(model.vae, nX, model.L, iterations = model.iterations, 
+	fit!(model.vae, nX, model.L, model.M, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
 	rdelta = model.rdelta, traindata = model.traindata)
 

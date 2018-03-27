@@ -30,6 +30,7 @@ iterations = 2000
 cbit = 500 # after this number of iteratiosn, callback is printed
 verbfit = true
 L = 1 # samples for training and classification 
+M = 50 # batchsize 
 # set low for training but high for classification
 activation = Flux.relu
 rdelta = 1e-3 # reconstruction error threshold for training stopping
@@ -38,7 +39,7 @@ Beta = 1.0 # for automatic threshold computation, in [0, 1]
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
 model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
-    L, activation = activation, rdelta = rdelta, Beta = Beta, tracked = tracked)
+    L, M, activation = activation, rdelta = rdelta, Beta = Beta, tracked = tracked)
 
 # fit the model
 AnomalyDetection.evalloss(model, nX)
