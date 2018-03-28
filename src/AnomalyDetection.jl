@@ -9,12 +9,13 @@ using PyPlot
 import PyPlot.plot # so we can add new methods to plot()
 
 export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel, 
-	sVAE, sVAEmodel 
+	sVAE, sVAEmodel, fmGAN, fmGANmodel 
 
 include("vae.jl")
 include("ae.jl")
 include("svae.jl")
 include("gan.jl")
+include("fmgan.jl")
 include("utils.jl")
 
 end

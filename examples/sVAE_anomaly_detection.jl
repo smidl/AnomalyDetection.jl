@@ -149,7 +149,7 @@ for i in 1:n
 end
 
 figure()
-title("equal error rate vs lambda")
+title("equal error rate vs alpha")
 plot(alphavec, eervec)
 xlabel("alpha")
 ylabel("EER")

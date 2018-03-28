@@ -212,6 +212,13 @@ Generate n samples.
 """
 generate(gan::GAN, n::Int) = gan.g(getcode(gan, n)).data
 
+"""
+    discriminate(gan, X)
+
+Return discrimiantor score.
+"""
+discriminate(gan::GAN, X) = Flux.Tracker.data(gan.d(X))
+
 ######################
 ### classification ###
 ######################
@@ -305,6 +312,7 @@ classify(model::GANmodel, X::Array{Float64,2}) = classify(model.gan, X, model.th
 getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
 getcode(model::GANmodel) = getcode(model.gan)
 getcode(model::GANmodel, n) = getcode(model.gan, n)
+discriminate(model::GANmodel, X) = discriminate(model.gan, X)
 
 """
 	plot(model)
