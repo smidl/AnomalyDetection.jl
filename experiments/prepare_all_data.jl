@@ -1,12 +1,8 @@
 # creates folders from all loda datasets given the other makeset settings -
 # alpha, difficulty, frequency, variation and seed
 # either change the settings in the file or call the script with arguments
-# julia prepare_data.jl dataset alpha difficulty frequency variation seed
-# e. g. julia prepare_data.jl iris 0.7 easy 0.02 low 12345
-
-# either change the settings in the file or call the scrip with arguments
-# julia prepare_data.jl dataset alpha difficulty frequency variation seed
-# e. g. julia prepare_data.jl iris 0.7 easy 0.02 low 12345
+# julia prepare_all_data.jl alpha difficulty frequency variation seed
+# e. g. julia prepare_all_data.jl 0.7 easy 0.02 low 12345
 
 include("prepare_data.jl")
 
