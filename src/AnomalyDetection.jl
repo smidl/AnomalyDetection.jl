@@ -8,7 +8,8 @@ import Base.Iterators.repeated
 using PyPlot
 import PyPlot.plot # so we can add new methods to plot()
 
-export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel
+export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel, 
+	sVAE, sVAEmodel 
 
 include("vae.jl")
 include("ae.jl")

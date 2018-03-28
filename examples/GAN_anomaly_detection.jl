@@ -29,7 +29,7 @@ lambda = 0.5 # anomaly score parameter in [0, 1]
 # 0- ignores the reconstruction error score
 threshold = 0 # classification threshold, is recomputed (getthreshold or when using fit!)
 contamination = size(Y[Y.==1],1)/size(Y, 1) # contamination ratio
-m = 30 # batchsize
+L = 30 # batchsize
 iterations = 15000 # no of iterations
 cbit = 5000 # when should output be printed
 verbfit = true # if output should be produced
@@ -41,7 +41,7 @@ Beta = 1.0 # for automatic threshold computation, in [0, 1]
 # 1.0 = tight around normal samples
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
-model = GANmodel(gsize, dsize, lambda, threshold, contamination, m, iterations, cbit,
+model = GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, cbit,
     verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta, 
     tracked = tracked)
 
@@ -99,7 +99,7 @@ xx, yy = meshgrid(linspace(xlim[1], xlim[2], 30), linspace(ylim[1], ylim[2], 30)
 zz = zeros(size(xx))
 for i in 1:size(xx, 1)
     for j in 1:size(xx, 2)
-        zz[i,j] = model.gan.d([xx[i,j], yy[i,j]]).tracker.data[1]
+        zz[i,j] = AnomalyDetection.anomalyscore(model, [xx[i,j], yy[i,j]]).tracker.data[1]
     end
 end
 axsurf = ax[:contourf](xx, yy, zz)
@@ -119,6 +119,7 @@ lvec = linspace(0,1,n)
 eervec = zeros(n)
 for i in 1:n
     model.lambda = lvec[i]
+    AnomalyDetection.setthreshold!(model, X)
     tryhat, tsthat, trroc, tstroc = AnomalyDetection.rocstats(dataset.data, dataset.labels,
         dataset.data, dataset.labels, model, verb = false)
     eervec[i] = (false_positive_rate(tstroc) + false_negative_rate(tstroc))/2

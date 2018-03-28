@@ -41,7 +41,10 @@ sigma(svae::sVAE, X) = softplus(X[Int(size(svae.encoder.layers[end].W,1)/2+1):en
 
 Sample from the last encoder layer.
 """
-sample_z(svae::sVAE, X) = randn(size(mu(svae, X))) .* sigma(svae,X) + mu(svae,X)
+function sample_z(svae::sVAE, X) 
+    res = mu(svae,X)
+    return res + randn(size(res)) .* sigma(svae,X) 
+end
 
 """
 	sVAE(ensize, decsize, dissize; [activation])
@@ -140,12 +143,15 @@ Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(1-σ.(distrain(svae,qX, qZ)))) -
 sVAE discriminator loss, L is batchsize.
 """
 function Dloss(svae::sVAE, X, L::Int64)
+    N = size(X, 2)
+    latentdim = Int(size(svae.encoder.layers[end].W,1)/2)
+
     # sample q(x, z)
     qX = X[:, sample(1:N, L, replace = false)]
     qZ = Flux.Tracker.data(getcode(svae, qX))
 
     # sample p(x,z)
-    pZ = Flux.Tracker.data(randn(latentdim, N))
+    pZ = randn(latentdim, N)
     pX = Flux.Tracker.data(svae.decoder(pZ))
     
     return Dloss(svae, pX, pZ, qX, qZ)
@@ -310,15 +316,16 @@ generate(svae::sVAE, n::Int) = svae.decoder(randn(Int(size(svae.encoder.layers[e
     anomalyscore(svae, X, M, alpha)
 
 Compute anomaly score for X, M is sampling repetition.
+alpha - weighs between reconstruction error and discriminator term
 """
-anomalyscore(svae::sVAE, X, M, alpha) = alpha*rerr(vae, X, M) + (1-alpha)*mean(discriminate(svae, X, getcode(svae, X)))
+anomalyscore(svae::sVAE, X, M, alpha) = alpha*rerr(svae, X, M) + (1-alpha)*mean(discriminate(svae, X, getcode(svae, X)))
 
 """
     classify(svae, x, threshold, M, alpha)
 
 Classify an instance x using reconstruction error and threshold.
 """
-classify(svae::sVAE, x, threshold, M, alpha) = (anomalyscore(vae, x, M, alpha) > threshold)? 1 : 0
+classify(svae::sVAE, x, threshold, M, alpha) = (anomalyscore(svae, x, M, alpha) > threshold)? 1 : 0
 classify(svae::sVAE, x::Array{Float64,1}, threshold, M, alpha) = (anomalyscore(svae, x, M, alpha) > threshold)? 1 : 0
 classify(svae::sVAE, X::Array{Float64,2}, threshold, M, alpha) = reshape(mapslices(y -> classify(svae, y, threshold, M, alpha), X, 1), size(X,2))
 
@@ -373,7 +380,7 @@ Initialize a sVAE model with given parameters.
 function sVAEmodel(ensize::Array{Int64,1}, decsize::Array{Int64,1},
     dissize::Array{Int64,1}, lambda::Real, threshold::Real, contamination::Real, 
     iterations::Int, cbit::Int, verbfit::Bool, L::Int; M=1, activation = Flux.relu, 
-    rdelta = Inf, Beta = 1.0, xsigma = 1.0, tracked = false)
+    rdelta = Inf, alpha=0.5, Beta = 1.0, xsigma = 1.0, tracked = false)
     # construct the AE object
     svae = sVAE(ensize, decsize, dissize, activation = activation)
     (tracked)? traindata = Dict{Any, Any}() : traindata = nothing
@@ -394,11 +401,10 @@ Dloss(model::sVAEmodel, X) = Dloss(model.svae, X, model.L)
 VAEloss(model::sVAEmodel, X) = VAEloss(model.svae, X, model.L, model.lambda, xsigma = model.xsigma)
 rerr(model::sVAEmodel, X) = rerr(model.svae, X, model.M)
 evalloss(model::sVAEmodel, X) = evalloss(model.svae, X, model.L, model.lambda, model.M)
-getcode(model::sVAEmodel, X) = getcode(model.svae, X)
 generate(model::sVAEmodel) = generate(model.svae)
 generate(model::sVAEmodel, n) = generate(model.svae, n)
 anomalyscore(model::sVAEmodel, X) = anomalyscore(model.svae, X, model.M, model.alpha)
-classify(model::sVAEmodel, X) = classify(model.svae, x, model.threshold, model.M, model.alpha)
+classify(model::sVAEmodel, X) = classify(model.svae, X, model.threshold, model.M, model.alpha)
 getthreshold(model::sVAEmodel, x) = getthreshold(model.svae, x, model.M, model.alpha, model.contamination, Beta = model.Beta)
 
 """
