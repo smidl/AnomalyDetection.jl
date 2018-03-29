@@ -336,8 +336,9 @@ function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
         print("\n Training data performance: \n")
         print(trroc)
         print("precision: $(precision(trroc))\n")
-        print("recall: $(recall(trroc))\n")
         print("f1score: $(f1score(trroc))\n")
+        print("recall: $(recall(trroc))\n")
+        print("false positive rate: $(false_positive_rate(trroc))\n")
         print("equal error rate: $((false_positive_rate(trroc) + false_negative_rate(trroc))/2)\n")
     end
 
@@ -350,8 +351,9 @@ function rocstats(trX, trY, tstX, tstY, algorithm; verb = true)
         print("\n Testing data performance: \n")
         print(tstroc)
         print("precision: $(precision(tstroc))\n")
-        print("recall: $(recall(tstroc))\n")
         print("f1score: $(f1score(tstroc))\n")
+        print("recall: $(recall(tstroc))\n")
+        print("false positive rate: $(false_positive_rate(tstroc))\n")
         print("equal error rate: $((false_positive_rate(tstroc) + false_negative_rate(tstroc))/2)\n")
     end
 
@@ -367,9 +369,9 @@ respect correct label order.
 function correctlabels(algorithm, X, Y)
     # compute labels prediction
     Yhat = labels2bin(predict(algorithm, X));
-    cr = correctrate(Y, Yhat);
+    ROC = roc(Y, Yhat);
     # the labels may be switched if the ordering is incorrect
-    if cr < 0.5
+    if recall(ROC) < false_positive_rate(ROC)
         Yhat = switchlabels(Yhat);
     end
     return Yhat
