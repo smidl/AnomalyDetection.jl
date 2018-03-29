@@ -24,6 +24,7 @@ nlayers = 3
 # model constructor parameters
 esize = [indim; hiddendim; hiddendim; latentdim]; # encoder architecture
 dsize = [latentdim; hiddendim; hiddendim; indim]; # decoder architecture
+L = 30 # batchsize
 threshold = 0 # classification threshold, is recomputed when calling fit!
 contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1) # to set the decision threshold
 iterations = 5000
@@ -37,7 +38,7 @@ tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
 
 # model might have to be restarted if loss is > 0.01
-model = AEmodel(esize, dsize, threshold, contamination,
+model = AEmodel(esize, dsize, L, threshold, contamination,
     iterations, cbit, verbfit, activation = activation, rdelta = rdelta, 
     tracked = tracked)
 
