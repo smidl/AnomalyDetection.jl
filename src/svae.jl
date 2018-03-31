@@ -376,6 +376,24 @@ end
     cbit, verbfit, L, [M, activation, rdelta, alpha, Beta, xsigma, tracked])
 
 Initialize a sVAE model with given parameters.
+
+ensize - encoder architecture
+decsize - decoder architecture
+dissize - discriminator architecture
+lambda - weight of the data reconstruction term in the total loss
+threshold - anomaly score threshold for classification, is set automatically using contamination during fit
+contamination - percentage of anomalous samples in all data for automatic threshold computation
+iterations - number of training iterations
+cbit - current training progress is printed every cbit iterations
+verbfit - is progress printed?
+L - batchsize
+M [1] - number of samples taken during computation of reconstruction error, higher may produce more stable classification results
+activation [Flux.relu] - activation function
+rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+alpha [0.5] - weighs between the reconstruction error (1) and discriminator score (0) in classification
+Beta [1.0] - how tight around normal data is the automatically computed threshold
+xsigma [1.0] - static estiamte of data variance
+tracked [false] - is training progress (losses) stored?
 """
 function sVAEmodel(ensize::Array{Int64,1}, decsize::Array{Int64,1},
     dissize::Array{Int64,1}, lambda::Real, threshold::Real, contamination::Real, 

@@ -27,6 +27,7 @@ GAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = GAN(G, freeze(G), D, freeze(D), pz
 	GAN(gsize, dsize, [pz, activation])
 
 Constructor for the GAN object. 
+
 gsize - vector of Ints describing generator layers sizes
 dsize - vector of Ints describing discriminator layers sizes, including the last scalar layer 
 pz - code distribution
@@ -285,6 +286,21 @@ end
 	cbit, verbfit, [pz, activation, rdelta, Beta, tracked])
 
 Initialize a generative adversarial net model for classification with given parameters.
+
+gsize - generator architecture
+dsize - discriminator architecture
+lambda - weighs between the reconstruction error (1) and discriminator score (0) in classification
+threshold - anomaly score threshold for classification, is set automatically using contamination during fit
+contamination - percentage of anomalous samples in all data for automatic threshold computation
+L - batchsize
+iterations - number of training iterations
+cbit - current training progress is printed every cbit iterations
+verbfit - is progress printed?
+pz [randn] - code generating distribution
+activation [Flux.relu] - activation function
+rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+Beta [1.0] - how tight around normal data is the automatically computed threshold
+tracked [false] - is training progress (losses) stored?
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 

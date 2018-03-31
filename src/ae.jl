@@ -195,6 +195,19 @@ end
 	[activation, rdelta, Beta, tracked])
 
 Initialize an autoencoder model with given parameters.
+
+esize - encoder architecture
+dsize - decoder architecture
+L - batchsize
+threshold - anomaly score threshold for classification, is set automatically using contamination during fit
+contamination - percentage of anomalous samples in all data for automatic threshold computation
+iterations - number of training iterations
+cbit - current training progress is printed every cbit iterations
+verbfit - is progress printed?
+activation [Flux.relu] - activation function
+rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+Beta [1.0] - how tight around normal data is the automatically computed threshold
+tracked [false] - is training progress (losses) stored?
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	L::Int, threshold::Real, contamination::Real, iterations::Int, 
