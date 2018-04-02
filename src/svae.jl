@@ -182,7 +182,7 @@ function VAEloss(svae::sVAE, X, L, lambda; xsigma = 1.0)
     return -(mean(disfix(svae, qX, qZ)) - 
         #1/xsigma*lambda*Flux.mse(qX, pX) - # this converges the best
         1/xsigma*lambda*Flux.mse(qX, svae.decoder(Flux.Tracker.data(qZ))) - # but this is probably correct
-        mean(disfix(svae, pX, pZ)) - mean((zmu - pZ).^2./zsigma))
+        mean(disfix(svae, pX, pZ)) - lambda*mean((zmu - pZ).^2./zsigma))
 end
 
 """

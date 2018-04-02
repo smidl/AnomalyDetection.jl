@@ -2,7 +2,8 @@
 # julia prepare_single_data.jl dataset alpha difficulty frequency variation seed
 # e. g. julia prepare_single_data.jl iris 0.7 easy 0.02 low 12345
 
-include("prepare_data.jl")
+push!(LOAD_PATH, ".") 	
+using Experiments
 
 # settings
 nargs = size(ARGS, 1)
@@ -16,7 +17,10 @@ nargs = size(ARGS, 1)
 (nargs > 3)? frequency = parse(Float64, ARGS[4]) : frequency = 0.05 
 # low/high - should anomalies be clustered or not
 (nargs > 4)? variation = ARGS[5] : variation = "low"
+# number of repetitions
+(nargs > 5)? repetition = parse(Int64, ARGS[6]) : repetition = 0 
 # random seed 
-(nargs > 5)? seed = parse(Int64, ARGS[6]) : seed = false 
+(nargs > 6)? seed = parse(Int64, ARGS[7]) : seed = false 
 
-prepare_data(dataset_name, alpha, difficulty, frequency, variation, seed)
+Experiments.prepare_data(dataset_name, alpha, difficulty, frequency, variation, seed,
+	repetition = repetition, verb = true)

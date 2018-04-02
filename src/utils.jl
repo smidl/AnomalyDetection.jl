@@ -142,8 +142,8 @@ function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequenc
 
     # how many anomalous points to be sampled 
     aM, aN = size(anomalous)
-    trK = Int(ceil(trN*frequency)) 
-    tstK = Int(ceil(tstN*frequency)) 
+    trK = min(Int(round(trN*frequency)), Int(round(aN*alpha)))
+    tstK = min(Int(round(tstN*frequency)), Int(round(aN*(1-alpha)))) 
 
     # set seed
     if seed != false
@@ -163,9 +163,10 @@ function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequenc
 
     # now sample the anomalous data
     K = trK + tstK
-    if K > aN
-        error("not enough anomalous data to sample from")
-    end
+    #if K > aN
+        #error("not enough anomalous data to sample from")
+        #warning("not enough anomalous data to sample from")
+    #end
     if variation == "low"
         # in this setting, simply sample trK and tstK anomalous points
         # is this done differently in the original paper?
