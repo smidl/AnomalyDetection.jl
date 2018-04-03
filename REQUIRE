@@ -2,4 +2,7 @@ julia 0.6.0
 StatsBase
 Distances
 Flux
-ScikitLearn
+MultivariateStats
+JLD
+PyPlot
+MLBase

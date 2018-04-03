@@ -2,7 +2,7 @@ module AnomalyDetection
 
 #using StatsBase, Distances
 using Distances
-import ScikitLearn: @sk_import, fit!, predict
+#import ScikitLearn: @sk_import, fit!, predict
 using Flux
 import Base.Iterators.repeated
 using PyPlot
