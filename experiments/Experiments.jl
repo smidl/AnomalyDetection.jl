@@ -8,7 +8,8 @@ using Distances
 
 # paths
 # SET THESE!
-loda_path = "../../../data/Loda/public/datasets/numerical/"
+loda_master_path = "./Loda"
+loda_path = joinpath(loda_master_path, "public/datasets/numerical/")
 export_path = "./data" # master path where data will be stored
 
 include("utils.jl")

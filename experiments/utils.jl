@@ -20,6 +20,24 @@ comp_settings = Dict(
 ###############################
 
 """
+	downloadloda()
+
+Downloads the Loda datasets.
+"""
+function downloadloda()
+	mkpath(loda_master_path)
+	fname = joinpath(loda_master_path, "Loda.zip")
+	if !isfile(fname)
+		println("Downloading Loda datasets...")
+		download("http://webdav.agents.fel.cvut.cz/data/projects/stegodata/Loda.zip", 
+			fname))	
+	end
+	println("Extracting the archive...")
+	run(`unzip -o $fname -d $(loda_master_path)/`)
+	println("Done.\n")
+end
+
+"""
 	prepare_data(dataset_name, alpha, difficulty, frequency, variation, seed, [repetition, verb])
 
 Prepare a single experiment.
