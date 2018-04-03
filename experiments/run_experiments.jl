@@ -1,4 +1,8 @@
 # runs all the experiments!
+# run with a parameter stating number of samples taken from Loda data, e.g.
+# julia run_experiments.jl 2
+# which will be taken from all the datasets and all the algorithms will be run in these separate
+# folders
 push!(LOAD_PATH, ".")
 using Experiments
 

@@ -2,8 +2,8 @@
 ### general NN settings ###
 ###### run settings #######
 run_settings = Dict(
-	"hiddendim" => 16,
-	"latentdim" => 8,
+	"hiddendim" => 32,
+	"latentdim" => 16,
 	"activation" => Flux.relu,
 	"verbfit" => false,
 	"batchsizes" => [512]
