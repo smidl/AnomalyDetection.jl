@@ -2,11 +2,11 @@
 ### general NN settings ###
 ###### run settings #######
 run_settings = Dict(
-	"hiddendim" => 32,
-	"latentdim" => 16,
+	"hiddendim" => 16,
+	"latentdim" => 8,
 	"activation" => Flux.relu,
 	"verbfit" => false,
-	"batchsizes" => [512]
+	"batchsizes" => [256]
 	)
 
 ### precompilation settings ###
@@ -102,14 +102,14 @@ Train all the algorithms on data in folders given by data paths.
 If mode == "compile", it will run the function with dummy settings to precompile it.
 """
 function run_experiment(dpaths, mode)
-	@parallel for dpath in dpaths
+	for dpath in dpaths
 		subpaths = readdir(dpath) # list all subfolders
 		for subpath in joinpath.(dpath,subpaths)
 			# it may not (but should) be a proper subpath
 			if !isdir(subpath)
 				continue
 			end
-			@parallel for f in [trainAE, trainVAE, trainsVAE, trainGAN, trainfmGAN, trainkNN]
+			for f in [trainAE, trainVAE, trainsVAE, trainGAN, trainfmGAN, trainkNN]
 				f(subpath, mode)	
 			end
 		end
@@ -121,10 +121,10 @@ end
 
 Saves an algorithm output and input - params and anomaly scores.
 """
-function save_io(path, params, ascore, labels, loss, algo_name)
+function save_io(path, params, ascore, labels, loss, algo_name, nnparams)
 	mkpath(path)
 	save(joinpath(path,"io.jld"), "params", params, "anomaly_score", ascore, 
-		"labels", labels, "loss", loss, "algorithm", algo_name)   
+		"labels", labels, "loss", loss, "algorithm", algo_name, "NN_params", nnparams)   
 end
 
 ##########
@@ -220,7 +220,7 @@ function trainAE(path, mode)
     	if mode == "run"
 	    	# save anomaly scores, labels and settings
 	    	pname = joinpath(path, string("AE_", L))
-	    	save_io(pname, params, ascore, tstY, model.traindata, "AE")
+	    	save_io(pname, params, ascore, tstY, model.traindata, "AE", Flux.params(model.ae))
 	    end
 	end
 
@@ -331,7 +331,7 @@ function trainVAE(path, mode)
     	if mode == "run"
 	    	# save anomaly scores, labels and settings
 	    	pname = joinpath(path, string("VAE_$(L)_$(lambda)"))
-	    	save_io(pname, params, ascore, tstY, model.traindata, "VAE")
+	    	save_io(pname, params, ascore, tstY, model.traindata, "VAE", Flux.params(model.vae))
 	    end
 	end
 
@@ -452,7 +452,7 @@ function trainsVAE(path, mode)
 	    	if mode == "run"
 		    	# save anomaly scores, labels and settings
 		    	pname = joinpath(path, string("sVAE_$(L)_$(lambda)_$(alpha)"))
-		    	save_io(pname, params, ascore, tstY, model.traindata, "sVAE")
+		    	save_io(pname, params, ascore, tstY, model.traindata, "sVAE", Flux.params(model.svae))
 		    end
 	    end
 	end
@@ -563,7 +563,7 @@ function trainGAN(path, mode)
 	    	if mode == "run"
 		    	# save anomaly scores, labels and settings
 		    	pname = joinpath(path, string("GAN_$(L)_$(lambda)"))
-	    		save_io(pname, params, ascore, tstY, model.traindata, "GAN")
+	    		save_io(pname, params, ascore, tstY, model.traindata, "GAN", Flux.params(model.gan))
 	    	end
 	    end
 	end
@@ -678,7 +678,7 @@ function trainfmGAN(path, mode)
 			if mode == "run"
 		    	# save anomaly scores, labels and settings
 		    	pname = joinpath(path, string("fmGAN_$(L)_$(lambda)_$(alpha)"))
-		    	save_io(pname, params, ascore, tstY, model.traindata, "fmGAN")
+		    	save_io(pname, params, ascore, tstY, model.traindata, "fmGAN", Flux.params(model.fmgan))
 		    end
 	    end
 	end
@@ -739,7 +739,7 @@ function trainkNN(path, mode)
     	if mode == "run"
 	    	# save anomaly scores, labels and settings
 	    	pname = joinpath(path, string("kNN_$(k)"))
-	    	save_io(pname, params, ascore, tstY, Dict{Any, Any}(), "kNN")
+	    	save_io(pname, params, ascore, tstY, Dict{Any, Any}(), "kNN", [])
 	    end
 	end
 
