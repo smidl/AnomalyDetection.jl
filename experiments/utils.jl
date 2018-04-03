@@ -30,7 +30,7 @@ function downloadloda()
 	if !isfile(fname)
 		println("Downloading Loda datasets...")
 		download("http://webdav.agents.fel.cvut.cz/data/projects/stegodata/Loda.zip", 
-			fname))	
+			fname)
 	end
 	println("Extracting the archive...")
 	run(`unzip -o $fname -d $(loda_master_path)/`)
