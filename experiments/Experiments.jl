@@ -3,7 +3,8 @@ module Experiments
 using JLD
 push!(LOAD_PATH, "../src")
 using AnomalyDetection
-
+using Flux
+using Distances
 
 # paths
 # SET THESE!

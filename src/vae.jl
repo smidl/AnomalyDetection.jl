@@ -326,6 +326,7 @@ generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
 getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.M, model.contamination, Beta = model.Beta)
+anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M)
 
 """
 	plot(model)

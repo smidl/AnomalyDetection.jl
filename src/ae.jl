@@ -111,8 +111,10 @@ function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = I
 		if rdelta < Inf
 			re = l.tracker.data
 			if re < rdelta
-				println("Training ended prematurely after $i iterations,\n",
-					"reconstruction error $re < $rdelta")
+				if verb
+					println("Training ended prematurely after $i iterations,\n",
+						"reconstruction error $re < $rdelta")
+				end
 				break
 			end
 		end
@@ -225,6 +227,7 @@ end
 (model::AEmodel)(x) = model.ae(x)   
 loss(model::AEmodel, X) = loss(model.ae, X)
 evalloss(model::AEmodel, X) = evalloss(model.ae, X)
+anomalyscore(model::AEmodel, X) = anomalyscore(model.ae, X)
 classify(model::AEmodel, x) = classify(model.ae, x, model.threshold)
 getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination, Beta = model.Beta)
 

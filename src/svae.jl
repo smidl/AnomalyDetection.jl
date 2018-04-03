@@ -234,7 +234,7 @@ function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200,
         opt()
 
         # callback
-        if i%cbit == 0
+        if verb && i%cbit == 0
             evalloss(svae, X, L, lambda, M)
         end
 
