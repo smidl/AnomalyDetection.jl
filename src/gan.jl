@@ -330,32 +330,32 @@ getcode(model::GANmodel) = getcode(model.gan)
 getcode(model::GANmodel, n) = getcode(model.gan, n)
 discriminate(model::GANmodel, X) = discriminate(model.gan, X)
 
-"""
-	plot(model)
-
-Plot the model losses.
-"""
-function plot(model::GANmodel)
-	# plot model loss
-	if model.traindata == nothing
-		println("No data to plot, set tracked = true before training.")
-		return
-	else
-	    figure()
-	    title("model loss")
-	    y1, = plot(model.traindata["generator loss"], label = "generator loss")
-	    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
-	    ylabel("Gloss + Dloss")
-	    xlabel("iteration")
-	    ax = gca()
-	    
-	    ax2 = ax[:twinx]()
-	    y3, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "g")
-	    ylabel("reconstruction error")
-	    legend([y1, y2, y3], ["generator loss", "discriminator loss", "reconstruction error"])
-	    show()
-	end
-end
+#"""
+#	plot(model)
+#
+#Plot the model losses.
+#"""
+#function plot(model::GANmodel)
+#	# plot model loss
+#	if model.traindata == nothing
+#		println("No data to plot, set tracked = true before training.")
+#		return
+#	else
+#	    figure()
+#	    title("model loss")
+#	    y1, = plot(model.traindata["generator loss"], label = "generator loss")
+#	    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
+#	    ylabel("Gloss + Dloss")
+#	    xlabel("iteration")
+#	    ax = gca()
+#	    
+#	    ax2 = ax[:twinx]()
+#	    y3, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "g")
+#	    ylabel("reconstruction error")
+#	    legend([y1, y2, y3], ["generator loss", "discriminator loss", "reconstruction error"])
+#	    show()
+#	end
+#end
 
 """
 	setthreshold!(model, X)

@@ -425,32 +425,32 @@ anomalyscore(model::sVAEmodel, X) = anomalyscore(model.svae, X, model.M, model.a
 classify(model::sVAEmodel, X) = classify(model.svae, X, model.threshold, model.M, model.alpha)
 getthreshold(model::sVAEmodel, x) = getthreshold(model.svae, x, model.M, model.alpha, model.contamination, Beta = model.Beta)
 
-"""
-    plot(model)
-
-Plot the model losses.
-"""
-function plot(model::sVAEmodel)
-    # plot model loss
-    if model.traindata == nothing
-        println("No data to plot, set traindata = Dict{Any, Any}() to record training.")
-        return
-    else
-        figure()
-        title("model loss, lambda = $(model.lambda)")
-        y1, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
-        y2, = plot(model.traindata["VAE loss"], label = "VAE loss", c = "g")
-        ax = gca()
-        ylabel("discriminator loss + VAE loss")
-        xlabel("iteration")
-
-        ax2 = ax[:twinx]()
-        y3, = plot(model.traindata["reconstruction error"], c = "r", label = "reconstruction error")
-        ylabel("reconstruction error")
-        legend([y1, y3, y2], ["discriminator loss", "reconstruction error", "VAE loss"])
-        show()
-    end
-end
+#"""
+#    plot(model)
+#
+#Plot the model losses.
+#"""
+#function plot(model::sVAEmodel)
+#    # plot model loss
+#    if model.traindata == nothing
+#        println("No data to plot, set traindata = Dict{Any, Any}() to record training.")
+#        return
+#    else
+#        figure()
+#        title("model loss, lambda = $(model.lambda)")
+#        y1, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
+#        y2, = plot(model.traindata["VAE loss"], label = "VAE loss", c = "g")
+#        ax = gca()
+#        ylabel("discriminator loss + VAE loss")
+#        xlabel("iteration")
+#
+#        ax2 = ax[:twinx]()
+#        y3, = plot(model.traindata["reconstruction error"], c = "r", label = "reconstruction error")
+#        ylabel("reconstruction error")
+#        legend([y1, y3, y2], ["discriminator loss", "reconstruction error", "VAE loss"])
+#        show()
+#    end
+#end
 
 """
     setthreshold!(model, X)

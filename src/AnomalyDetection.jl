@@ -5,8 +5,8 @@ using Distances
 #import ScikitLearn: @sk_import, fit!, predict
 using Flux
 import Base.Iterators.repeated
-using PyPlot
-import PyPlot.plot # so we can add new methods to plot()
+#using PyPlot
+#import PyPlot.plot # so we can add new methods to plot()
 using MultivariateStats
 
 export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel, 

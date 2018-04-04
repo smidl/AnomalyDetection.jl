@@ -231,25 +231,25 @@ anomalyscore(model::AEmodel, X) = anomalyscore(model.ae, X)
 classify(model::AEmodel, x) = classify(model.ae, x, model.threshold)
 getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination, Beta = model.Beta)
 
-"""
-	plot(model)
-
-Plot the model loss.
-"""
-function plot(model::AEmodel)
-	# plot model loss
-	if model.traindata == nothing
-		println("No data to plot, set tracked = true before training.")
-		return
-	else
-	    figure()
-	    title("model loss")
-	    plot(model.traindata["loss"])
-	    xlabel("iteration")
-	    ylabel("loss")
-	    show()
-	end
-end
+#"""
+#	plot(model)
+#
+#Plot the model loss.
+#"""
+#function plot(model::AEmodel)
+#	# plot model loss
+#	if model.traindata == nothing
+#		println("No data to plot, set tracked = true before training.")
+#		return
+#	else
+#	    figure()
+#	    title("model loss")
+#	    plot(model.traindata["loss"])
+#	    xlabel("iteration")
+#	    ylabel("loss")
+#	    show()
+#	end
+#end
 
 """
 	setthreshold!(model::AEmodel, X)
