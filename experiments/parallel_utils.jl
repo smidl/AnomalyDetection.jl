@@ -115,7 +115,7 @@ function trainAE(path, dataset_name, iteration)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
     	# save anomaly scores, labels and settings
-    	pname = joinpath(path, iteration, string("AE_", L))
+    	pname = joinpath(path, string("$(iteration)/AE_", L))
     	save_io(pname, params, ascore, tstY, model.traindata, "AE", Flux.params(model.ae))
 	end
 
@@ -124,7 +124,7 @@ function trainAE(path, dataset_name, iteration)
 		pop!(AEparams["L"])
 	end
 
-	println("AE training on $(joinpath(path, iteration)) finished!")
+	println("AE training on $(joinpath(path, string(iteration))) finished!")
 end
 
 ###########
@@ -203,7 +203,7 @@ function trainVAE(path, dataset_name, iteration)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
     	# save anomaly scores, labels and settings
-    	pname = joinpath(path, iteration, string("VAE_$(L)_$(lambda)"))
+    	pname = joinpath(path, string("$(iteration)/VAE_$(L)_$(lambda)"))
     	save_io(pname, params, ascore, tstY, model.traindata, "VAE", Flux.params(model.vae))
 	end
 
@@ -212,7 +212,7 @@ function trainVAE(path, dataset_name, iteration)
 		pop!(VAEparams["L"])
 	end
 
-	println("VAE training on $(joinpath(path, iteration)) finished!")
+	println("VAE training on $(joinpath(path, string(iteration))) finished!")
 end
 
 ############
@@ -300,7 +300,7 @@ function trainsVAE(path, dataset_name, iteration)
 	    		for i in 1:size(tstX,2)];
 	    	
 	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, iteration, string("sVAE_$(L)_$(lambda)_$(alpha)"))
+	    	pname = joinpath(path, string("$(iteration)/sVAE_$(L)_$(lambda)_$(alpha)"))
 	    	save_io(pname, params, ascore, tstY, model.traindata, "sVAE", Flux.params(model.svae))
 	    end
 	end
@@ -310,7 +310,7 @@ function trainsVAE(path, dataset_name, iteration)
 	 	pop!(sVAEparams["L"])
 	end
 
-	println("sVAE training on $(joinpath(path, iteration)) finished!")
+	println("sVAE training on $(joinpath(path, string(iteration))) finished!")
 end
 
 ###########
@@ -387,7 +387,7 @@ function trainGAN(path, dataset_name, iteration)
 			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
 	    		for i in 1:size(tstX,2)];
 	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, iteration, string("GAN_$(L)_$(lambda)"))
+	    	pname = joinpath(path, string("$(iteration)/GAN_$(L)_$(lambda)"))
     		save_io(pname, params, ascore, tstY, model.traindata, "GAN", Flux.params(model.gan))
 	    end
 	end
@@ -397,7 +397,7 @@ function trainGAN(path, dataset_name, iteration)
 		pop!(GANparams["L"])
 	end
 
-	println("GAN training on $(joinpath(path, iteration)) finished!")
+	println("GAN training on $(joinpath(path, string(iteration))) finished!")
 end
 
 #############
@@ -477,7 +477,7 @@ function trainfmGAN(path, dataset_name, iteration)
 			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
 	    		for i in 1:size(tstX,2)];
 	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, iteration, string("fmGAN_$(L)_$(lambda)_$(alpha)"))
+	    	pname = joinpath(path, string("$(iteration)/fmGAN_$(L)_$(lambda)_$(alpha)"))
 	    	save_io(pname, params, ascore, tstY, model.traindata, "fmGAN", Flux.params(model.fmgan))
 	    end
 	end
@@ -487,7 +487,7 @@ function trainfmGAN(path, dataset_name, iteration)
 		pop!(fmGANparams["L"])
 	end
 
-	println("fmGAN training on $(joinpath(path, iteration)) finished!")
+	println("fmGAN training on $(joinpath(path, string(iteration))) finished!")
 end
 
 ###########
@@ -531,9 +531,9 @@ function trainkNN(path, dataset_name, mode)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
 		# save anomaly scores, labels and settings
-    	pname = joinpath(path, iteration, string("kNN_$(k)"))
+    	pname = joinpath(path, string("$(iteration)/kNN_$(k)"))
     	save_io(pname, params, ascore, tstY, Dict{Any, Any}(), "kNN", [])
     end
 
-	println("kNN training on $(joinpath(path, iteration)) finished!")
+	println("kNN training on $(joinpath(path, string(iteration))) finished!")
 end
