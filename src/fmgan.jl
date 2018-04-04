@@ -243,7 +243,7 @@ discriminate(fmgan::fmGAN, X) = Flux.Tracker.data(fmgan.d(X))
 Computes the anomaly score of X under given fmGAN using weighted average of reconstruction 
 error and discriminator score.
 """
-anomalyscore(fmgan::fmGAN, X, lambda) = (1 - lambda)*-mean(log.(fmgan.d(X))).tracker.data + lambda*rerr(fmgan, X, getcode(fmgan, size(X,2)))
+anomalyscore(fmgan::fmGAN, X, lambda) = (1 - lambda)*-Flux.Tracker.data(mean(log.(fmgan.d(X)))) + lambda*rerr(fmgan, X, getcode(fmgan, size(X,2)))
 
 """
 	classify(fmgan, x, threshold, lambda)

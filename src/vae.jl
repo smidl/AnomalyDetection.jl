@@ -109,9 +109,9 @@ loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + lambda*KL(vae, X)
 
 Print vae loss function values.	
 """
-evalloss(vae::VAE, X, M, lambda) = print("loss: ", loss(vae, X, M, lambda).tracker.data, 
-	"\nreconstruction error: ", rerr(vae, X, M).tracker.data, 
-	"\nKL: ", KL(vae, X).tracker.data, "\n\n")
+evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)), 
+	"\nreconstruction error: ", Flux.Tracker.data(rerr(vae, X, M))
+	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
 	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, traindata])
@@ -155,7 +155,7 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb = true, lam
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = rerr(vae, x, M).tracker.data
+			re = Flux.Tracker.data(rerr(vae, x, M))[1]
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,\n",
 					"reconstruction error $re < $rdelta")
@@ -249,7 +249,7 @@ function getthreshold(vae::VAE, x, M, contamination; Beta = 1.0)
 	# get reconstruction errors
 	xerr  = mapslices(y -> anomalyscore(vae, y, M), x, 1)
 	# create ordinary array from the tracked array
-	xerr = reshape([e.tracker.data for e in xerr], N)
+	xerr = reshape([Flux.Tracker.data(e) for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples

@@ -68,7 +68,7 @@ loss(ae::AE, X) = Flux.mse(ae(X), X)
 
 Print ae loss function values.	
 """
-evalloss(ae::AE, X) = println("loss: ", loss(ae, X).tracker.data, "\n")
+evalloss(ae::AE, X) = println("loss: ", Flux.Tracker.data(loss(ae, X)), "\n")
 
 """
 	fit!(ae, X, L, [iterations, cbit, verb, rdelta, tracked])
@@ -109,7 +109,7 @@ function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = I
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = l.tracker.data
+			re = Flux.Tracker.data(l)[1]
 			if re < rdelta
 				if verb
 					println("Training ended prematurely after $i iterations,\n",
@@ -164,7 +164,7 @@ function getthreshold(ae::AE, x, contamination; Beta = 1.0)
 	# get reconstruction errors
 	xerr  = mapslices(y -> loss(ae, y), x, 1)
 	# create ordinary array from the tracked array
-	xerr = reshape([e.tracker.data for e in xerr], N)
+	xerr = reshape([Flux.Tracker.data(e) for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
