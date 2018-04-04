@@ -43,8 +43,7 @@ function get_data(dataset_name, iteration)
 	basicset = AnomalyDetection.Basicset(joinpath(loda_path, dataset_name))
 	trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty, frequency, variation,
 		seed = seed)
-
-	return trdata, tstdata
+	return trdata, tstdata	
 end
 
 ##########
@@ -116,7 +115,7 @@ function trainAE(path, dataset_name, iteration)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
     	# save anomaly scores, labels and settings
-    	pname = joinpath(path, string("AE_", L))
+    	pname = joinpath(path, iteration, string("AE_", L))
     	save_io(pname, params, ascore, tstY, model.traindata, "AE", Flux.params(model.ae))
 	end
 
@@ -125,7 +124,7 @@ function trainAE(path, dataset_name, iteration)
 		pop!(AEparams["L"])
 	end
 
-	println("AE training on $(path) finished!")
+	println("AE training on $(joinpath(path, iteration)) finished!")
 end
 
 ###########
@@ -204,7 +203,7 @@ function trainVAE(path, dataset_name, iteration)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
     	# save anomaly scores, labels and settings
-    	pname = joinpath(path, string("VAE_$(L)_$(lambda)"))
+    	pname = joinpath(path, iteration, string("VAE_$(L)_$(lambda)"))
     	save_io(pname, params, ascore, tstY, model.traindata, "VAE", Flux.params(model.vae))
 	end
 
@@ -213,7 +212,7 @@ function trainVAE(path, dataset_name, iteration)
 		pop!(VAEparams["L"])
 	end
 
-	println("VAE training on $(path) finished!")
+	println("VAE training on $(joinpath(path, iteration)) finished!")
 end
 
 ############
@@ -301,7 +300,7 @@ function trainsVAE(path, dataset_name, iteration)
 	    		for i in 1:size(tstX,2)];
 	    	
 	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, string("sVAE_$(L)_$(lambda)_$(alpha)"))
+	    	pname = joinpath(path, iteration, string("sVAE_$(L)_$(lambda)_$(alpha)"))
 	    	save_io(pname, params, ascore, tstY, model.traindata, "sVAE", Flux.params(model.svae))
 	    end
 	end
@@ -311,7 +310,7 @@ function trainsVAE(path, dataset_name, iteration)
 	 	pop!(sVAEparams["L"])
 	end
 
-	println("sVAE training on $(path) finished!")
+	println("sVAE training on $(joinpath(path, iteration)) finished!")
 end
 
 ###########
@@ -388,7 +387,7 @@ function trainGAN(path, dataset_name, iteration)
 			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
 	    		for i in 1:size(tstX,2)];
 	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, string("GAN_$(L)_$(lambda)"))
+	    	pname = joinpath(path, iteration, string("GAN_$(L)_$(lambda)"))
     		save_io(pname, params, ascore, tstY, model.traindata, "GAN", Flux.params(model.gan))
 	    end
 	end
@@ -398,7 +397,7 @@ function trainGAN(path, dataset_name, iteration)
 		pop!(GANparams["L"])
 	end
 
-	println("GAN training on $(path) finished!")
+	println("GAN training on $(joinpath(path, iteration)) finished!")
 end
 
 #############
@@ -478,7 +477,7 @@ function trainfmGAN(path, dataset_name, iteration)
 			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
 	    		for i in 1:size(tstX,2)];
 	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, string("fmGAN_$(L)_$(lambda)_$(alpha)"))
+	    	pname = joinpath(path, iteration, string("fmGAN_$(L)_$(lambda)_$(alpha)"))
 	    	save_io(pname, params, ascore, tstY, model.traindata, "fmGAN", Flux.params(model.fmgan))
 	    end
 	end
@@ -488,7 +487,7 @@ function trainfmGAN(path, dataset_name, iteration)
 		pop!(fmGANparams["L"])
 	end
 
-	println("fmGAN training on $(path) finished!")
+	println("fmGAN training on $(joinpath(path, iteration)) finished!")
 end
 
 ###########
@@ -496,11 +495,11 @@ end
 ###########
 
 """
-	trainkNN(path, mode)
+	trainkNN(path, dataset_name, mode)
 
 Trains a kNN and classifies training data in path.
 """
-function trainkNN(path, mode)
+function trainkNN(path, dataset_name, mode)
 	# load data
 	trdata, tstdata = get_data(dataset_name, iteration)
 	trX = trdata.data;
@@ -532,9 +531,9 @@ function trainkNN(path, mode)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
 		# save anomaly scores, labels and settings
-    	pname = joinpath(path, string("kNN_$(k)"))
+    	pname = joinpath(path, iteration, string("kNN_$(k)"))
     	save_io(pname, params, ascore, tstY, Dict{Any, Any}(), "kNN", [])
     end
 
-	println("kNN training on $(path) finished!")
+	println("kNN training on $(joinpath(path, iteration)) finished!")
 end
