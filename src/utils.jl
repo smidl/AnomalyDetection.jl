@@ -8,18 +8,18 @@ using StatsBase: sample
 Structure representing the basic Loda anomaly dataset.
 """
 struct Basicset
-    normal::Array{Float64, 2}
-    easy::Array{Float64, 2}
-    medium::Array{Float64, 2}
-    hard::Array{Float64, 2}
-    very_hard::Array{Float64, 2}
+    normal::Array{Float, 2}
+    easy::Array{Float, 2}
+    medium::Array{Float, 2}
+    hard::Array{Float, 2}
+    very_hard::Array{Float, 2}
 end
 
 """
 Structure representing a dataset.
 """
 mutable struct Dataset
-    data::Array{Float64,2}
+    data::Array{Float,2}
     labels::Array{Int64,1}
 end
 
@@ -32,7 +32,7 @@ function txt2array(file::String)
     if isfile(file)
         x = readdlm(file)
     else
-        x = Array{Float64,2}(0,0)
+        x = Array{Float,2}(0,0)
     end
     return x
 end
@@ -75,7 +75,7 @@ end
 Scales down a 2 dimensional array so it has approx. standard normal distribution. 
 Instance = column. 
 """
-function normalize(Y::Array{Float64,2})
+function normalize(Y::Array{Float,2})
     M, N = size(Y)
     mu = mean(Y,2);
     sigma = var(Y,2);
@@ -100,7 +100,7 @@ end
 Scales down a 2 dimensional array so it has approx. standard normal distribution.
 """
 function normalize(Y::Array{Float32,2})
-    Y64 = convert(Array{Float64,2}, Y)
+    Y64 = convert(Array{Float,2}, Y)
     Y64 = scaley(Y64)
     return convert(Array{Float32,2}, Y64)
 end
@@ -118,7 +118,7 @@ frequency - ratio of anomalous to normal data\n
 variation - low/high - should anomalies be clustered or not\n
 seed - random seed
 """
-function makeset(dataset::Basicset, alpha::Float64, difficulty::String, frequency::Float64, variation::String;
+function makeset(dataset::Basicset, alpha::Float, difficulty::String, frequency::Float, variation::String;
                  seed=false)
     # first extract the basic normal and anomalous data
     normal = dataset.normal

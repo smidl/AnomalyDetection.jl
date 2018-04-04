@@ -236,8 +236,8 @@ anomalyscore(vae::VAE, X, M) = rerr(vae, X, M)
 Classify an instance x using reconstruction error and threshold.
 """
 classify(vae::VAE, x, threshold, M) = (anomalyscore(vae, x, M) > threshold)? 1 : 0
-classify(vae::VAE, x::Array{Float64,1}, threshold, M) = (anomalyscore(vae, x, M) > threshold)? 1 : 0
-classify(vae::VAE, X::Array{Float64,2}, threshold, M) = reshape(mapslices(y -> classify(vae, y, threshold, M), X, 1), size(X,2))
+classify(vae::VAE, x::Array{Float,1}, threshold, M) = (anomalyscore(vae, x, M) > threshold)? 1 : 0
+classify(vae::VAE, X::Array{Float,2}, threshold, M) = reshape(mapslices(y -> classify(vae, y, threshold, M), X, 1), size(X,2))
 
 """
 	getthreshold(vae, x, M, contamination, [beta])
@@ -274,8 +274,8 @@ mutable struct VAEmodel
 	verbfit::Bool
 	L::Int # batchsize
 	M::Int # reconstruction error repetition rate
-	rdelta::Float64
-	Beta::Float64
+	rdelta::Float
+	Beta::Float
 	traindata
 end
 

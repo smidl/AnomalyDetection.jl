@@ -326,8 +326,8 @@ anomalyscore(svae::sVAE, X, M, alpha) = alpha*rerr(svae, X, M) + (1-alpha)*mean(
 Classify an instance x using reconstruction error and threshold.
 """
 classify(svae::sVAE, x, threshold, M, alpha) = (anomalyscore(svae, x, M, alpha) > threshold)? 1 : 0
-classify(svae::sVAE, x::Array{Float64,1}, threshold, M, alpha) = (anomalyscore(svae, x, M, alpha) > threshold)? 1 : 0
-classify(svae::sVAE, X::Array{Float64,2}, threshold, M, alpha) = reshape(mapslices(y -> classify(svae, y, threshold, M, alpha), X, 1), size(X,2))
+classify(svae::sVAE, x::Array{Float,1}, threshold, M, alpha) = (anomalyscore(svae, x, M, alpha) > threshold)? 1 : 0
+classify(svae::sVAE, X::Array{Float,2}, threshold, M, alpha) = reshape(mapslices(y -> classify(svae, y, threshold, M, alpha), X, 1), size(X,2))
 
 """
     getthreshold(svae, x, M, alpha, contamination, [beta])
@@ -364,10 +364,10 @@ mutable struct sVAEmodel
     L::Int # batchsize
     M::Int # sampling rate for reconstruction error
     verbfit::Bool
-    rdelta::Float64
-    alpha::Float64
-    Beta::Float64
-    xsigma::Float64
+    rdelta::Float
+    alpha::Float
+    Beta::Float
+    xsigma::Float
     traindata
 end
 

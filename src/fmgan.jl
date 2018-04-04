@@ -252,8 +252,8 @@ Classify an instance x using the discriminator and error losses and a threshold 
 feature-matching GAN setting.
 """
 classify(fmgan::fmGAN, x, threshold, lambda) = (anomalyscore(fmgan, x, lambda) > threshold)? 1 : 0
-classify(fmgan::fmGAN, x::Array{Float64,1}, threshold, lambda) = (anomalyscore(fmgan, x, lambda) > threshold)? 1 : 0
-classify(fmgan::fmGAN, X::Array{Float64,2}, threshold, lambda) = reshape(mapslices(y -> classify(fmgan, y, threshold, lambda), X, 1), size(X,2))
+classify(fmgan::fmGAN, x::Array{Float,1}, threshold, lambda) = (anomalyscore(fmgan, x, lambda) > threshold)? 1 : 0
+classify(fmgan::fmGAN, X::Array{Float,2}, threshold, lambda) = reshape(mapslices(y -> classify(fmgan, y, threshold, lambda), X, 1), size(X,2))
 
 """
 	getthreshold(fmgan, x, contamination, lambda, [Beta])
@@ -289,9 +289,9 @@ mutable struct fmGANmodel
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
-	rdelta::Float64
-	alpha::Float64
-	Beta::Float64
+	rdelta::Float
+	alpha::Float
+	Beta::Float
 	traindata
 end
 
@@ -338,8 +338,8 @@ generate(model::fmGANmodel) = generate(model.fmgan)
 generate(model::fmGANmodel, n::Int) = generate(model.fmgan, n)
 anomalyscore(model::fmGANmodel, X) = anomalyscore(model.fmgan, X, model.lambda)
 classify(model::fmGANmodel, x) = classify(model.fmgan, x, model.threshold, model.lambda)
-classify(model::fmGANmodel, x::Array{Float64,1}) = classify(model.fmgan, x, model.threshold, model.lambda)
-classify(model::fmGANmodel, X::Array{Float64,2}) = classify(model.fmgan, X, model.threshold, model.lambda)
+classify(model::fmGANmodel, x::Array{Float,1}) = classify(model.fmgan, x, model.threshold, model.lambda)
+classify(model::fmGANmodel, X::Array{Float,2}) = classify(model.fmgan, X, model.threshold, model.lambda)
 getthreshold(model::fmGANmodel, X) = getthreshold(model.fmgan, X, model.contamination, model.lambda, Beta = model.Beta)
 getcode(model::fmGANmodel) = getcode(model.fmgan)
 getcode(model::fmGANmodel, n) = getcode(model.fmgan, n)

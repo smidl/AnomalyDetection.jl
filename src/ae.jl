@@ -151,8 +151,8 @@ anomalyscore(ae::AE, X) = loss(ae, X)
 Classify an instance x using reconstruction error and threshold.
 """
 classify(ae::AE, x, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
-classify(ae::AE, x::Array{Float64,1}, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
-classify(ae::AE, X::Array{Float64,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
+classify(ae::AE, x::Array{Float,1}, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
+classify(ae::AE, X::Array{Float,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
 
 """
 	getthreshold(ae, x, contamination, [Beta])
@@ -188,7 +188,7 @@ mutable struct AEmodel
 	cbit::Real
 	verbfit::Bool
 	rdelta::Real
-	Beta::Float64
+	Beta::Float
 	traindata
 end
 

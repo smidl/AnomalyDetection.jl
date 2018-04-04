@@ -27,8 +27,8 @@ reduced_dim - if this is true, for problems with dim > 10 this is reduced with P
 function kNN(k::Int; metric = Euclidean(), weights = "uniform", threshold = 0.5,
      reduced_dim = false)
     @assert weights in ["uniform", "distance"]
-    return kNN(k, Array{Float64,2}(0,0), Array{Int64, 1}(0), metric, weights, 
-        threshold, reduced_dim, (Array{Float64,2}(0,0), Array{Float64,1}(0)), false)
+    return kNN(k, Array{Float,2}(0,0), Array{Int64, 1}(0), metric, weights, 
+        threshold, reduced_dim, (Array{Float,2}(0,0), Array{Float,1}(0)), false)
 end
 
 """
@@ -53,7 +53,7 @@ end
 
 Computes the anomaly score for X.
 """
-function anomalyscore(knn::kNN, X::Array{Float64,2})
+function anomalyscore(knn::kNN, X::Array{Float,2})
     if !knn.fitted
         println("Call fit!(model, X, Y) before predict can be used!")
         return
@@ -71,7 +71,7 @@ function anomalyscore(knn::kNN, X::Array{Float64,2})
     dm = pairwise(knn.metric, _X, knn.data)
     
     # now create the output vector of labels
-    ascore = Array{Float64, 1}(N)
+    ascore = Array{Float, 1}(N)
     for n in 1:N
         dn = dm[n,:] 
         if knn.weights == "distance"
@@ -87,7 +87,7 @@ function anomalyscore(knn::kNN, X::Array{Float64,2})
     return ascore
 end
 
-anomalyscore(knn::kNN, x::Array{Float64, 1}) = anomalyscore(knn, reshape(x, size(x,1), 1))
+anomalyscore(knn::kNN, x::Array{Float, 1}) = anomalyscore(knn, reshape(x, size(x,1), 1))
 
 """
     classify(knn, x, threshold)
@@ -95,8 +95,8 @@ anomalyscore(knn::kNN, x::Array{Float64, 1}) = anomalyscore(knn, reshape(x, size
 Classify an instance x using the discriminator and a threshold.
 """
 classify(knn::kNN, x) = (anomalyscore(knn, x) .> knn.threshold)? 1 : 0
-classify(knn::kNN, x::Array{Float64,1}) = (anomalyscore(knn, x)[1] > knn.threshold)? 1 : 0
-classify(knn::kNN, X::Array{Float64,2}) = reshape(mapslices(y -> classify(knn, y), X, 1), size(X,2))
+classify(knn::kNN, x::Array{Float,1}) = (anomalyscore(knn, x)[1] > knn.threshold)? 1 : 0
+classify(knn::kNN, X::Array{Float,2}) = reshape(mapslices(y -> classify(knn, y), X, 1), size(X,2))
 
 """
     predict(knn, X)

@@ -9,6 +9,8 @@ import Base.Iterators.repeated
 #import PyPlot.plot # so we can add new methods to plot()
 using MultivariateStats
 
+const Float = Float64
+
 export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel, 
 	sVAE, sVAEmodel, fmGAN, fmGANmodel, kNN
 

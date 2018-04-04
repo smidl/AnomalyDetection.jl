@@ -7,12 +7,12 @@ push!(LOAD_PATH, ".")
 using Experiments
 
 # download loda datasets
-Experiments.downloadloda()
+#Experiments.downloadloda()
 
 # first export all the data
 (size(ARGS,1) >0)? repetition = parse(Int64, ARGS[1]) : repetition = 1
 println("Preparing experiment data....")
-#Experiments.prepare_experiment_data(repetition)
+Experiments.prepare_experiment_data(repetition)
 println("Done.\n")
 
 # extract all created data folders

@@ -239,8 +239,8 @@ anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-Flux.Tracker.data(mean(log.(ga
 Classify an instance x using the discriminator and a threshold.
 """
 classify(gan::GAN, x, threshold, lambda) = (anomalyscore(gan, x, lambda) > threshold)? 1 : 0
-classify(gan::GAN, x::Array{Float64,1}, threshold, lambda) = (anomalyscore(gan, x, lambda) > threshold)? 1 : 0
-classify(gan::GAN, X::Array{Float64,2}, threshold, lambda) = reshape(mapslices(y -> classify(gan, y, threshold, lambda), X, 1), size(X,2))
+classify(gan::GAN, x::Array{Float,1}, threshold, lambda) = (anomalyscore(gan, x, lambda) > threshold)? 1 : 0
+classify(gan::GAN, X::Array{Float,2}, threshold, lambda) = reshape(mapslices(y -> classify(gan, y, threshold, lambda), X, 1), size(X,2))
 
 """
 	getthreshold(gan, x, contamination, lambda, [Beta])
@@ -276,8 +276,8 @@ mutable struct GANmodel
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
-	rdelta::Float64
-	Beta::Float64
+	rdelta::Float
+	Beta::Float
 	traindata
 end
 
@@ -323,8 +323,8 @@ generate(model::GANmodel) = generate(model.gan)
 generate(model::GANmodel, n::Int) = generate(model.gan, n)
 anomalyscore(model::GANmodel, X) = anomalyscore(model.gan, X, model.lambda)
 classify(model::GANmodel, x) = classify(model.gan, x, model.threshold, model.lambda)
-classify(model::GANmodel, x::Array{Float64,1}) = classify(model.gan, x, model.threshold, model.lambda)
-classify(model::GANmodel, X::Array{Float64,2}) = classify(model.gan, X, model.threshold, model.lambda)
+classify(model::GANmodel, x::Array{Float,1}) = classify(model.gan, x, model.threshold, model.lambda)
+classify(model::GANmodel, X::Array{Float,2}) = classify(model.gan, X, model.threshold, model.lambda)
 getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
 getcode(model::GANmodel) = getcode(model.gan)
 getcode(model::GANmodel, n) = getcode(model.gan, n)
