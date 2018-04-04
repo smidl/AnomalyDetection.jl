@@ -110,7 +110,7 @@ loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + lambda*KL(vae, X)
 Print vae loss function values.	
 """
 evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)), 
-	"\nreconstruction error: ", Flux.Tracker.data(rerr(vae, X, M))
+	"\nreconstruction error: ", Flux.Tracker.data(rerr(vae, X, M)),
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
