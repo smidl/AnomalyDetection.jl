@@ -164,7 +164,7 @@ function getthreshold(ae::AE, x, contamination; Beta = 1.0)
 	# get reconstruction errors
 	xerr  = mapslices(y -> loss(ae, y), x, 1)
 	# create ordinary array from the tracked array
-	xerr = reshape([Flux.Tracker.data(e) for e in xerr], N)
+	xerr = reshape([Flux.Tracker.data(e)[1] for e in xerr], N)
 	# sort it
 	xerr = sort(xerr)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples

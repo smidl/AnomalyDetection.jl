@@ -11,7 +11,9 @@ Experiments.downloadloda()
 
 # first export all the data
 (size(ARGS,1) >0)? repetition = parse(Int64, ARGS[1]) : repetition = 1
+println("Preparing experiment data....")
 Experiments.prepare_experiment_data(repetition)
+println("Done.\n")
 
 # extract all created data folders
 fpaths = joinpath.(Experiments.export_path, readdir(Experiments.export_path))
