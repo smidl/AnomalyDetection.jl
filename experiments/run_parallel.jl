@@ -7,7 +7,7 @@ using AnomalyDetection
 @everywhere begin
 	loda_path = "/mnt/output/data/datasets/numerical"
 	export_path = "/mnt/output/anomaly" #master path where data will be stored
-	include(joinpath(Pkg.dir("AnomalyDetection"),"experiments","utils.jl"))
+	include(joinpath(Pkg.dir("AnomalyDetection"), "experiments/parallel_utils.jl"))
 end
 
 dpaths = joinpath.(export_path, readdir(export_path))
