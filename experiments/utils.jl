@@ -33,7 +33,9 @@ function downloadloda()
 			fname)
 	end
 	println("Extracting the archive...")
-	run(`unzip -o $fname -d $(loda_master_path)/`)
+	try
+		run(`unzip -o $fname -d $(loda_master_path)/`)
+	end
 	println("Done.\n")
 end
 
