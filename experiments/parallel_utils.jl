@@ -115,7 +115,7 @@ function trainAE(path, dataset_name, iteration)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
     	# save anomaly scores, labels and settings
-    	pname = joinpath(path, string("$(iteration)/AE_", L))
+    	pname = joinpath(path, string(iteration), string("AE_", L))
     	save_io(pname, params, ascore, tstY, model.traindata, "AE", Flux.params(model.ae))
 	end
 
