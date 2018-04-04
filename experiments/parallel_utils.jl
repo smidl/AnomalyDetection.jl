@@ -189,6 +189,7 @@ function trainVAE(path, dataset_name, iteration)
 		end
 		params["L"] = L
 		params["lambda"] = lambda
+		params["M"] = 1
 
 		# setup the model
 		model = AnomalyDetection.VAEmodel(params["esize"], params["dsize"], params["lambda"],	params["threshold"], 
@@ -281,7 +282,7 @@ function trainsVAE(path, dataset_name, iteration)
 		end
 		params["L"] = L
 		params["lambda"] = lambda
-
+		params["M"] = 1
 		# setup the model
 		model = AnomalyDetection.sVAEmodel(params["ensize"], params["decsize"], params["dissize"],
 		 params["lambda"],	params["threshold"], params["contamination"], 
