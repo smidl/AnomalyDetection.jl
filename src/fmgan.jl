@@ -265,7 +265,7 @@ function getthreshold(fmgan::fmGAN, X, contamination, lambda; Beta = 1.0)
 	# get anomaly score
 	ascore = mapslices(y -> anomalyscore(fmgan, y, lambda), X, 1)
 	# create ordinary array from the tracked array
-	ascore = reshape([s for s in ascore], N)
+	ascore = reshape([Flux.Tracker.data(s)[1] for s in ascore], N)
 	# sort it
 	ascore = sort(ascore)
 	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
