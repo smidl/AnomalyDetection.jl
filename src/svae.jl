@@ -245,7 +245,7 @@ function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200,
 
         # if stopping condition is present
         if rdelta < Inf
-            re = Flux.Tracker.data(rerr(svae, X, M))
+            re = Flux.Tracker.data(rerr(svae, X, M))[1]
             if re < rdelta
                 println("Training ended prematurely after $i iterations,\n",
                     "reconstruction error $re < $rdelta")
