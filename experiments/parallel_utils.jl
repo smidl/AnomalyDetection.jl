@@ -500,7 +500,7 @@ end
 
 Trains a kNN and classifies training data in path.
 """
-function trainkNN(path, dataset_name, mode)
+function trainkNN(path, dataset_name, iteration)
 	# load data
 	trdata, tstdata = get_data(dataset_name, iteration)
 	trX = trdata.data;
