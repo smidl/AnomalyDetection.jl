@@ -512,7 +512,7 @@ function trainkNN(path, dataset_name, iteration)
 	# set params to be saved later
 	params = Dict(
 		"k" => 1,
-		"metric" => string(Euclidean()),
+		"metric" => string(Distances.Euclidean()),
 		"weights" => "distance",
 		"threshold" => 0.5,
 		"reduced_dim" => true,
@@ -523,7 +523,7 @@ function trainkNN(path, dataset_name, iteration)
 	@parallel for k in kvec 
 		params["k"] = k
 		# setup the model
-		model = AnomalyDetection.kNN(params["k"], metric = Euclidean(), weights = params["weights"], 
+		model = AnomalyDetection.kNN(params["k"], metric = Distances.Euclidean(), weights = params["weights"], 
 			threshold = params["threshold"], reduced_dim = params["reduced_dim"])
 
 		# train the model
