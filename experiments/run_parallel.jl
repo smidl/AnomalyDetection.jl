@@ -14,4 +14,4 @@ repetition = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
 
 datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(s -> s != "url") 
 pmap(i -> i[1](joinpath(export_path,i[2]),i[2],i[3]),product([trainAE, trainVAE, trainsVAE, trainGAN, 
-	trainfmGAN, trainkNN], datasets, 1:repetition))
+	trainfmGAN, trainkNN], datasets, repetition))
