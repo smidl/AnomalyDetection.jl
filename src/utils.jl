@@ -1,9 +1,3 @@
-import Base.convert
-using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate, false_negative_rate
-#using ScikitLearn: @sk_import, fit!, predict
-using StatsBase: sample
-
-
 """
 Structure representing the basic Loda anomaly dataset.
 """
@@ -95,17 +89,6 @@ function normalize(Y::Array{Float,2})
 end
 
 """
-    normalize(Y)
-
-Scales down a 2 dimensional array so it has approx. standard normal distribution.
-"""
-function normalize(Y::Array{Float32,2})
-    Y64 = convert(Array{Float,2}, Y)
-    Y64 = scaley(Y64)
-    return convert(Array{Float32,2}, Y64)
-end
-
-"""
     trData, tstData, clusterdness = makeset(dataset, alpha, difficulty, frequency, variation, [normalize, seed])
 
 Sample a given dataset, return training and testing subsets and a measure of clusterdness. 
@@ -118,7 +101,7 @@ frequency - ratio of anomalous to normal data\n
 variation - low/high - should anomalies be clustered or not\n
 seed - random seed
 """
-function makeset(dataset::Basicset, alpha::Float, difficulty::String, frequency::Float, variation::String;
+function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::Real, variation::String;
                  seed=false)
     # first extract the basic normal and anomalous data
     normal = dataset.normal
@@ -422,3 +405,24 @@ softplus(X) = log.(exp.(X)+1)
 Creates a non-trainable copy of a Flux object.
 """
 freeze(m) = Flux.mapleaves(Flux.Tracker.data,m)
+
+"""
+    adapt(T, array)
+
+Convert array to type T.
+"""
+adapt(T, x::Array) = T.(x)
+
+"""
+    adapt(T, Flux.Dense)
+
+Convert params of Dense layer to type T.
+"""
+adapt(T, m::Flux.Dense) = Flux.Dense(adapt(T,m.W),adapt(T,m.b),m.σ)
+
+"""
+    adapt(T, Flux.Chain)
+
+Convert params of a whole chain to type of T.
+"""
+adapt(T, m::Flux.Chain) = Flux.Chain(map(l -> adapt(T,l), m.layers)...)

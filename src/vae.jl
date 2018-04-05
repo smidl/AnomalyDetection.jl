@@ -328,33 +328,6 @@ classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
 getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.M, model.contamination, Beta = model.Beta)
 anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M)
 
-#"""
-#	plot(model)
-#
-#Plot the model losses.
-#"""
-#function plot(model::VAEmodel)
-#	# plot model loss
-#	if model.traindata == nothing
-#		println("No data to plot, set tracked = true before training.")
-#		return
-#	else
-#	    figure()
-#	    title("model loss, lambda = $(model.lambda)")
-#	    y1, = plot(model.traindata["loss"], label = "loss")
-#	    y2, = plot(model.traindata["reconstruction error"], label = "reconstruction error")
-#	    ax = gca()
-#	    ylabel("loss + reconstruction error")
-#	    xlabel("iteration")
-#	    
-#	    ax2 = ax[:twinx]()
-#	    y3, = plot(model.traindata["KLD"], label = "KLD", c = "g")
-#	    ylabel("KLD")
-#	    legend([y1, y2, y3], ["loss", "reconstruction error", "KLD"])
-#	    show()
-#	end
-#end
-
 """
 	setthreshold!(model::VAEmodel, X)
 

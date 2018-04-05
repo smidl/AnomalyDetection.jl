@@ -19,6 +19,18 @@ end
 Flux.treelike(AE)
 
 """
+	aechain(chainsize, activation)
+
+Construct encoder/decoder.
+"""
+function aechain(chainsize, activation)
+	nlayers = size(chainsize,1)-1 # number of layers
+	activations = push!(Array{Any}([activation for i in 1:nlayers-1]), identity)
+	chain = Flux.Chain([Flux.Dense(chainsize[i], chainsize[i+1], activations[i]) for i in 1:nlayers]...)
+	return adapt(Float, chain) # finally retype all to a given float type
+end
+
+"""
 	AE(esize, dsize; [activation])
 
 Initialize an autoencoder with given encoder size and decoder size.
@@ -33,19 +45,11 @@ function AE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu
 	@assert esize[1] == dsize[end]
 
 	# construct the encoder
-	encoder = Dense(esize[1],esize[2],activation)
-	for i in 3:(size(esize,1)-1)
-	    encoder = Chain(encoder, Dense(esize[i-1],esize[i],activation))
-	end
-	encoder = Chain(encoder, Dense(esize[end-1], esize[end]))
+	encoder = aechain(esize, activation)
 	    
 	# construct the decoder
-	decoder = Dense(dsize[1],dsize[2],activation)
-	for i in 3:(size(dsize,1)-1)
-	    decoder = Chain(decoder, Dense(dsize[i-1],dsize[i],activation))
-	end
-	decoder = Chain(decoder, Dense(dsize[end-1], dsize[end]))
-	
+	decoder = aechain(dsize, activation)
+
 	# finally construct the ae struct
 	ae = AE(encoder, decoder)
 
@@ -230,26 +234,6 @@ evalloss(model::AEmodel, X) = evalloss(model.ae, X)
 anomalyscore(model::AEmodel, X) = anomalyscore(model.ae, X)
 classify(model::AEmodel, x) = classify(model.ae, x, model.threshold)
 getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination, Beta = model.Beta)
-
-#"""
-#	plot(model)
-#
-#Plot the model loss.
-#"""
-#function plot(model::AEmodel)
-#	# plot model loss
-#	if model.traindata == nothing
-#		println("No data to plot, set tracked = true before training.")
-#		return
-#	else
-#	    figure()
-#	    title("model loss")
-#	    plot(model.traindata["loss"])
-#	    xlabel("iteration")
-#	    ylabel("loss")
-#	    show()
-#	end
-#end
 
 """
 	setthreshold!(model::AEmodel, X)

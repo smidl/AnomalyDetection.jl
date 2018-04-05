@@ -1,5 +1,6 @@
 
 using PyPlot
+import PyPlot.plot
 using JLD
 using ScikitLearn: @sk_import, fit!, predict
 using ScikitLearn.Utils: meshgrid 
@@ -45,6 +46,26 @@ model = AEmodel(esize, dsize, L, threshold, contamination,
 AnomalyDetection.fit!(model, X, Y)
 AnomalyDetection.evalloss(model, nX)
 
+"""
+	plot(model)
+
+Plot the model loss.
+"""
+function plot(model::AEmodel)
+	# plot model loss
+	if model.traindata == nothing
+		println("No data to plot, set tracked = true before training.")
+		return
+	else
+	    figure()
+	    title("model loss")
+	    plot(model.traindata["loss"])
+	    xlabel("iteration")
+	    ylabel("loss")
+	    show()
+	end
+end
+
 # plot model loss
 plot(model)
 
@@ -62,8 +83,6 @@ yhat = AnomalyDetection.predict(model, X)
 # training data = testing data
 # this outputs labels
 tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
-
-using ScikitLearn.Utils: meshgrid
 
 # plot heatmap of the fit
 figure()
