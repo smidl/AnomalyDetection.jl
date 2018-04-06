@@ -58,18 +58,10 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 	@assert esize[1] == dsize[end]
 
 	# construct the encoder
-	encoder = Dense(esize[1],esize[2],activation)
-	for i in 3:(size(esize,1)-1)
-	    encoder = Chain(encoder, Dense(esize[i-1],esize[i],activation))
-	end
-	encoder = Chain(encoder, Dense(esize[end-1], esize[end]))
-	    
+	encoder = aechain(esize, activation)
+
 	# construct the decoder
-	decoder = Dense(dsize[1],dsize[2],activation)
-	for i in 3:(size(dsize,1)-1)
-	    decoder = Chain(decoder, Dense(dsize[i-1],dsize[i],activation))
-	end
-	decoder = Chain(decoder, Dense(dsize[end-1], dsize[end]))
+	decoder = aechain(dsize, activation)
 	
 	# finally construct the ae struct
 	vae = VAE(encoder, sample_z, decoder)

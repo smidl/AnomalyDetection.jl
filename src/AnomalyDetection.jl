@@ -4,8 +4,7 @@ import Base.convert
 using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate, 
 	false_negative_rate
 using StatsBase: sample
-using Adapt, Distances, Flux, MultivariateStats
-import Adapt: adapt
+using Adapt, FluxExtensions, Distances, Flux, MultivariateStats
 import Base.Iterators.repeated
 #using PyPlot
 #import PyPlot.plot # so we can add new methods to plot()

@@ -406,23 +406,23 @@ Creates a non-trainable copy of a Flux object.
 """
 freeze(m) = Flux.mapleaves(Flux.Tracker.data,m)
 
-"""
-    adapt(T, array)
+#"""
+#    adapt(T, array)
+#
+#Convert array to type T.
+#"""
+#adapt(T, x::Array) = T.(x)
 
-Convert array to type T.
-"""
-adapt(T, x::Array) = T.(x)
-
-"""
-    adapt(T, Flux.Dense)
-
-Convert params of Dense layer to type T.
-"""
-adapt(T, m::Flux.Dense) = Flux.Dense(adapt(T,m.W),adapt(T,m.b),m.σ)
+#"""
+#    adapt(T, Flux.Dense)
+#
+#Convert params of Dense layer to type T.
+#"""
+#adapt(T, m::Flux.Dense) = Flux.Dense(adapt(T,m.W),adapt(T,m.b),m.σ)
 
 """
     adapt(T, Flux.Chain)
 
 Convert params of a whole chain to type of T.
 """
-adapt(T, m::Flux.Chain) = Flux.Chain(map(l -> adapt(T,l), m.layers)...)
+adapt(T, m::Flux.Chain) = Flux.Chain(map(l -> FluxExtensions.adapt(T,l), m.layers)...)

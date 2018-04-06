@@ -19,16 +19,15 @@ end
 Flux.treelike(AE)
 
 """
-	aechain(chainsize, activation)
+	aelayerbuilder(lsize, activation, layer)
 
-Construct encoder/decoder.
+Construct encoder/decoder using FluxExtensions.
 """
-function aechain(chainsize, activation)
-	nlayers = size(chainsize,1)-1 # number of layers
-	activations = push!(Array{Any}([activation for i in 1:nlayers-1]), identity)
-	chain = Flux.Chain([Flux.Dense(chainsize[i], chainsize[i+1], activations[i]) for i in 1:nlayers]...)
-	return adapt(Float, chain) # finally retype all to a given float type
-end
+aelayerbuilder(lsize::Vector, activation, layer) = adapt(Float, 
+	FluxExtensions.layerbuilder(lsize, 
+	Array{Any}(fill(layer, size(lsize,1)-1)), 
+	Array{Any}([fill(activation, size(lsize,1)-2); identity]))
+	)
 
 """
 	AE(esize, dsize; [activation])
@@ -38,17 +37,18 @@ esize - vector of ints specifying the width anf number of layers of the encoder
 dsize - size of decoder
 activation - arbitrary activation function
 """
-function AE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu)
+function AE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu,
+		layer = Flux.Dense)
 	@assert size(esize, 1) >= 3
 	@assert size(dsize, 1) >= 3
 	@assert esize[end] == dsize[1] 
 	@assert esize[1] == dsize[end]
 
 	# construct the encoder
-	encoder = aechain(esize, activation)
-	    
+	encoder = aelayerbuilder(esize, activation, layer)
+
 	# construct the decoder
-	decoder = aechain(dsize, activation)
+	decoder = aelayerbuilder(dsize, activation, layer)
 
 	# finally construct the ae struct
 	ae = AE(encoder, decoder)
