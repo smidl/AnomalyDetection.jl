@@ -426,3 +426,14 @@ freeze(m) = Flux.mapleaves(Flux.Tracker.data,m)
 Convert params of a whole chain to type of T.
 """
 adapt(T, m::Flux.Chain) = Flux.Chain(map(l -> FluxExtensions.adapt(T,l), m.layers)...)
+
+"""
+    aelayerbuilder(lsize, activation, layer)
+
+Construct encoder/decoder using FluxExtensions.
+"""
+aelayerbuilder(lsize::Vector, activation, layer) = adapt(Float, 
+    FluxExtensions.layerbuilder(lsize, 
+    Array{Any}(fill(layer, size(lsize,1)-1)), 
+    Array{Any}([fill(activation, size(lsize,1)-2); identity]))
+    )

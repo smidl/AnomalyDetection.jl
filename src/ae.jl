@@ -19,17 +19,6 @@ end
 Flux.treelike(AE)
 
 """
-	aelayerbuilder(lsize, activation, layer)
-
-Construct encoder/decoder using FluxExtensions.
-"""
-aelayerbuilder(lsize::Vector, activation, layer) = adapt(Float, 
-	FluxExtensions.layerbuilder(lsize, 
-	Array{Any}(fill(layer, size(lsize,1)-1)), 
-	Array{Any}([fill(activation, size(lsize,1)-2); identity]))
-	)
-
-"""
 	AE(esize, dsize; [activation])
 
 Initialize an autoencoder with given encoder size and decoder size.

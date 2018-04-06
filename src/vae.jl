@@ -31,7 +31,7 @@ mu(vae::VAE, X) = X[1:Int(size(vae.encoder.layers[end].W,1)/2),:]
 
 Extract sigmas from the last encoder layer.
 """
-sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:]) + 1e-6
+sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:]) + Float(1e-6)
 
 """
 	sample_z(vae, X)
@@ -40,7 +40,7 @@ Sample from the last encoder layer.
 """
 function sample_z(vae::VAE, X)
 	res = mu(vae, X)
-	return res + randn(size(res)) .* sigma(vae,X)
+	return res + Float.(randn(size(res))) .* sigma(vae,X)
 end
 
 """
@@ -51,17 +51,18 @@ esize - vector of ints specifying the width anf number of layers of the encoder
 dsize - size of decoder
 activation - arbitrary activation function
 """
-function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu)
+function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu,
+		layer = Flux.Dense)
 	@assert size(esize, 1) >= 3
 	@assert size(dsize, 1) >= 3
 	@assert esize[end] == 2*dsize[1] 
 	@assert esize[1] == dsize[end]
 
 	# construct the encoder
-	encoder = aechain(esize, activation)
+	encoder = aelayerbuilder(esize, activation, layer)
 
 	# construct the decoder
-	decoder = aechain(dsize, activation)
+	decoder = aelayerbuilder(dsize, activation, layer)
 	
 	# finally construct the ae struct
 	vae = VAE(encoder, sample_z, decoder)
@@ -112,7 +113,7 @@ Trains the VAE neural net.
 vae - a VAE object
 X - data array with instances as columns
 L - batchsize
-M - snumber of samples for reconstruction error
+M - number of samples for reconstruction error
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
