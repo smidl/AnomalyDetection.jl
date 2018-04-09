@@ -74,9 +74,9 @@ iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
-traindata - dict to be filled with data of individual iterations
+history - MVHistory() to be filled with data of individual iterations
 """
-function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf, traindata = nothing)
+function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf, history = nothing)
 	# optimizer
 	opt = ADAM(params(ae))
 
@@ -96,8 +96,8 @@ function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = I
 		end
 
 		# save actual iteration data
-		if traindata != nothing
-			track!(ae, traindata, x)
+		if history != nothing
+			track!(ae, history, x, i)
 		end
 
 		# if stopping condition is present
@@ -115,16 +115,12 @@ function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = I
 end
 
 """
-	track!(ae, traindata, X)
+	track!(ae, history, X)
 
 Save current progress.
 """
-function track!(ae::AE, traindata, X)
-	if haskey(traindata, "loss")
-		push!(traindata["loss"], Flux.Tracker.data(loss(ae,X)))
-	else
-		traindata["loss"] = [Flux.Tracker.data(loss(ae, X))]
-	end
+function track!(ae::AE, history::MVHistory, X, i::Int)
+	push!(history, :loss, i, Flux.Tracker.data(loss(ae,X)))
 end
 
 #################
@@ -136,16 +132,16 @@ end
 
 Compute anomaly score for X.
 """
-anomalyscore(ae::AE, X) = loss(ae, X)
+anomalyscore(ae::AE, X::Array{Float, 1}) = Flux.Tracker.data(loss(ae, X))
+anomalyscore(ae::AE, X::Array{Float, 2}) = 
+	reshape(mapslices(y -> anomalyscore(ae, y), X, 1), size(X,2))
 
 """
 	classify(ae, x, threshold)
 
 Classify an instance x using reconstruction error and threshold.
 """
-classify(ae::AE, x, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
-classify(ae::AE, x::Array{Float,1}, threshold) = (anomalyscore(ae, x) > threshold)? 1 : 0
-classify(ae::AE, X::Array{Float,2}, threshold) = reshape(mapslices(y -> classify(ae, y, threshold), X, 1), size(X,2))
+classify(ae::AE, X, threshold) = Int.(anomalyscore(ae, X) .> threshold)
 
 """
 	getthreshold(ae, x, contamination, [Beta])
@@ -154,15 +150,14 @@ Compute threshold for AE classification based on known contamination level.
 """
 function getthreshold(ae::AE, x, contamination; Beta = 1.0)
 	N = size(x, 2)
+	Beta = Float(Beta)
 	# get reconstruction errors
-	xerr  = mapslices(y -> loss(ae, y), x, 1)
-	# create ordinary array from the tracked array
-	xerr = reshape([Flux.Tracker.data(e)[1] for e in xerr], N)
+	ascore = anomalyscore(ae, x)
 	# sort it
-	xerr = sort(xerr)
-	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
+	ascore = sort(ascore)
+	aN = Int(ceil(N*contamination)) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return Beta*xerr[end-aN] + (1-Beta)xerr[end-aN+1]
+	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
 end
 
 #############################################################################
@@ -182,7 +177,7 @@ mutable struct AEmodel
 	verbfit::Bool
 	rdelta::Real
 	Beta::Float
-	traindata
+	history
 end
 
 """
@@ -210,9 +205,9 @@ function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	tracked = false)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation)
-	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
+	(tracked)? history = MVHistory() : history = nothing
 	model = AEmodel(ae, L, threshold, contamination, iterations, cbit, verbfit, rdelta, 
-		Beta, traindata)
+		Beta, history)
 	return model
 end
 
@@ -245,10 +240,10 @@ function fit!(model::AEmodel, X, Y)
 	# train
 	fit!(model.ae, nX, model.L, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
-	traindata = model.traindata)
+	history = model.history)
 
 	# now set the threshold using contamination rate
-	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
+	model.contamination = size(Y[Y.==1],1)/size(Y,1)
 	setthreshold!(model, X)
 end
 
