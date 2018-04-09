@@ -55,8 +55,7 @@ Computes the anomaly score for X.
 """
 function anomalyscore(knn::kNN, X::Array{Float,2})
     if !knn.fitted
-        println("Call fit!(model, X, Y) before predict can be used!")
-        return
+        error("Call fit!(model, X, Y) before predict can be used!")
     end
     
     # if needed, perform the PCA

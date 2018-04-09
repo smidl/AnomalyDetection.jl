@@ -79,7 +79,7 @@ end
 
 KL divergence between the encoder parameters and unit gaussian.
 """
-KL(vae::VAE, X) = 1/2*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1, 1))
+KL(vae::VAE, X) = Float(1/2)*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1, 1))
 
 """
 	rerr(vae, X, M)
@@ -95,7 +95,7 @@ rerr(vae::VAE, X, M) = Flux.mse(mean([vae(X) for l in 1:M]), X)
 Loss function of the variational autoencoder. Lambda is scaling parameter of 
 the KLD, 1 = full KL, 0 = no KL (vanilla autoencoder).
 """
-loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + lambda*KL(vae, X)
+loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + Float(lambda)*KL(vae, X)
 
 """
 	evalloss(vae, X, M, lambda)
@@ -203,14 +203,14 @@ getcode(vae::VAE, X) = vae.sampler(vae, vae.encoder(X))
 
 Generate a sample from the posterior.
 """
-generate(vae::VAE) = vae.decoder(randn(Int(size(vae.encoder.layers[end].W,1)/2))).data
+generate(vae::VAE) = vae.decoder(Float.(randn(Int(size(vae.encoder.layers[end].W,1)/2)))).data
 
 """
 	generate(vae, n)
 
 Generate n samples.
 """
-generate(vae::VAE, n::Int) = vae.decoder(randn(Int(size(vae.encoder.layers[end].W,1)/2),n)).data
+generate(vae::VAE, n::Int) = vae.decoder(Float.(randn(Int(size(vae.encoder.layers[end].W,1)/2),n))).data
 
 ######################
 ### classification ###
@@ -239,6 +239,7 @@ Compute threshold for VAE classification based on known contamination level.
 """
 function getthreshold(vae::VAE, x, M, contamination; Beta = 1.0)
 	N = size(x, 2)
+	Beta = Float(Beta)
 	# get reconstruction errors
 	xerr  = mapslices(y -> anomalyscore(vae, y, M), x, 1)
 	# create ordinary array from the tracked array

@@ -13,9 +13,9 @@ batchsizes = [256]
 
 Saves an algorithm output and input - params and anomaly scores.
 """
-function save_io(path, params, ascore, labels, loss, algo_name, nnparams)
+function save_io(path, file, params, ascore, labels, loss, algo_name, nnparams)
 	mkpath(path)
-	FileIO.save(joinpath(path,"io.jld"), "params", params, "anomaly_score", ascore, 
+	FileIO.save(joinpath(path, file), "params", params, "anomaly_score", ascore, 
 		"labels", labels, "loss", loss, "algorithm", algo_name, "NN_params", nnparams)   
 end
 
@@ -496,11 +496,11 @@ end
 ###########
 
 """
-	trainkNN(path, dataset_name, mode)
+	trainkNN(dataset_name, iteration)
 
-Trains a kNN and classifies training data in path.
+Produces anomaly scores on training data using kNN.
 """
-function trainkNN(path, dataset_name, iteration)
+function trainkNN(dataset_name, iteration)
 	# load data
 	trdata, tstdata = get_data(dataset_name, iteration)
 	trX = trdata.data;
@@ -519,8 +519,9 @@ function trainkNN(path, dataset_name, iteration)
 		)
 
 	kvec = Int.(round.(linspace(1, 2*sqrt(trN), 5)))
+	path = 	joinpath(export_path, string("$(dataset_name)/kNN/$(iteration)"))
 
-	@parallel for k in kvec 
+	for k in kvec 
 		params["k"] = k
 		# setup the model
 		model = AnomalyDetection.kNN(params["k"], metric = Distances.Euclidean(), weights = params["weights"], 
@@ -532,9 +533,9 @@ function trainkNN(path, dataset_name, iteration)
 		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
     		for i in 1:size(tstX,2)];
 		# save anomaly scores, labels and settings
-    	pname = joinpath(path, string("$(iteration)/kNN_$(k)"))
-    	save_io(pname, params, ascore, tstY, Dict{Any, Any}(), "kNN", [])
+    	fname = "kNN_$(k).jld"
+    	save_io(path, fname, params, ascore, tstY, Dict{Any, Any}(), "kNN", [])
     end
 
-	println("kNN training on $(joinpath(path, string(iteration))) finished!")
+	println("kNN training on $(path) finished!")
 end

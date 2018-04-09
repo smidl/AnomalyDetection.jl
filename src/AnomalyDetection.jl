@@ -10,7 +10,7 @@ import Base.Iterators.repeated
 #import PyPlot.plot # so we can add new methods to plot()
 
 # Float 32 is almost 2x faster
-const Float = Float64
+const Float = Float32
 
 export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel, 
 	sVAE, sVAEmodel, fmGAN, fmGANmodel, kNN
