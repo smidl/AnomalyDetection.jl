@@ -1,4 +1,4 @@
-using Distances
+using Distance
 using Lazy
 using Iterators
 using FileIO

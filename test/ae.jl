@@ -60,7 +60,6 @@ dsize = [latentdim; hiddendim; xdim]
 	@test typeof(ascore) <: Array{AnomalyDetection.Float,1}
 	@test findmax(ascore)[2] == N
 	labels = AnomalyDetection.classify(model, X)
-	println(labels)
 	@test size(labels,1) == N
 	@test labels[end] == 1
 	@test minimum(labels[1:end-1] .== 0)

@@ -49,11 +49,11 @@ function fit!(knn::kNN, X, Y)
 end
 
 """
-    anomalyscore(knn, X)
+    anomalyscore(knn, X, k)
 
-Computes the anomaly score for X.
+Computes the anomaly score for X using k nearest neighbours.
 """
-function anomalyscore(knn::kNN, X::Array{Float,2})
+function anomalyscore(knn::kNN, X::Array{Float,2}, k)
     if !knn.fitted
         error("Call fit!(model, X, Y) before predict can be used!")
     end
@@ -75,18 +75,24 @@ function anomalyscore(knn::kNN, X::Array{Float,2})
         dn = dm[n,:] 
         if knn.weights == "distance"
             isort = sortperm(dn)
-            weights = 1./(dn[isort][1:knn.k] + 1e-3)
+            weights = 1./(dn[isort][1:k] + 1e-3)
             weights = weights/sum(weights)
-            ascore[n] = sum(weights.*(knn.labels[isort][1:knn.k]))
+            ascore[n] = sum(weights.*(knn.labels[isort][1:k]))
         else
-            ascore[n] = mean(knn.labels[sortperm(dn)][1:knn.k])
+            ascore[n] = mean(knn.labels[sortperm(dn)][1:k])
         end
     end
     
     return ascore
 end
+anomalyscore(knn::kNN, x::Array{Float, 1}, k) = anomalyscore(knn, reshape(x, size(x,1), 1), k)
 
-anomalyscore(knn::kNN, x::Array{Float, 1}) = anomalyscore(knn, reshape(x, size(x,1), 1))
+"""
+    anomalyscore(knn, X)
+
+Computes the anomaly score for X.
+"""
+anomalyscore(knn::kNN, X) = anomalyscore(knn, X, knn.k)
 
 """
     classify(knn, x, threshold)

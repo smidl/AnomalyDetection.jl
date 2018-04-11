@@ -76,7 +76,8 @@ verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - MVHistory() to be filled with data of individual iterations
 """
-function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf, history = nothing)
+function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf, 
+	history = nothing)
 	# optimizer
 	opt = ADAM(params(ae))
 
@@ -167,7 +168,7 @@ end
 """ 
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
-mutable struct AEmodel
+mutable struct AEmodel <: genmodel
 	ae::AE
 	L::Int
 	threshold::Real
@@ -202,9 +203,9 @@ tracked [false] - is training progress (losses) stored?
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	L::Int, threshold::Real, contamination::Real, iterations::Int, 
 	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf, Beta = 1.0,
-	tracked = false)
+	tracked = false, layer = Flux.Dense)
 	# construct the AE object
-	ae = AE(esize, dsize, activation = activation)
+	ae = AE(esize, dsize, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
 	model = AEmodel(ae, L, threshold, contamination, iterations, cbit, verbfit, rdelta, 
 		Beta, history)
@@ -218,6 +219,7 @@ evalloss(model::AEmodel, X) = evalloss(model.ae, X)
 anomalyscore(model::AEmodel, X) = anomalyscore(model.ae, X)
 classify(model::AEmodel, x) = classify(model.ae, x, model.threshold)
 getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination, Beta = model.Beta)
+params(model::AEmodel) = Flux.params(model.ae)
 
 """
 	setthreshold!(model::AEmodel, X)
@@ -243,8 +245,10 @@ function fit!(model::AEmodel, X, Y)
 	history = model.history)
 
 	# now set the threshold using contamination rate
-	model.contamination = size(Y[Y.==1],1)/size(Y,1)
-	setthreshold!(model, X)
+	if model.contamination > 0
+		model.contamination = size(Y[Y.==1],1)/size(Y,1)
+		setthreshold!(model, X)
+	end
 end
 
 """

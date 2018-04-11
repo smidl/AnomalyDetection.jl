@@ -44,7 +44,7 @@ function sample_z(vae::VAE, X)
 end
 
 """
-	VAE(esize, dsize; [activation])
+	VAE(esize, dsize; [activation, layer])
 
 Initialize a variational autoencoder with given encoder size and decoder size.
 esize - vector of ints specifying the width anf number of layers of the encoder
@@ -107,7 +107,7 @@ evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
-	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, traindata])
+	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, history])
 
 Trains the VAE neural net.
 vae - a VAE object
@@ -122,7 +122,7 @@ rdelta - stopping condition for reconstruction error
 traindata - a dictionary for training progress control
 """
 function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb = true, lambda = 1, 
-	rdelta = Inf, traindata = nothing)
+	rdelta = Inf, history = nothing)
 	# settings
 	opt = ADAM(params(vae))
 
@@ -142,8 +142,8 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb = true, lam
 		end
 
 		# save actual iteration data
-		if traindata != nothing
-			track!(vae, traindata, x, M, lambda)
+		if history != nothing
+			track!(vae, history, x, M, lambda, i)
 		end
 
 		# if stopping condition is present
@@ -159,31 +159,14 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb = true, lam
 end
 
 """
-	track!(vae, traindata, X, M, lambda)
+	track!(vae, history, X, M, lambda, it)
 
 Save current progress.
 """
-function track!(vae::VAE, traindata, X, M, lambda)
-	# loss
-	if haskey(traindata, "loss")
-		push!(traindata["loss"], Flux.Tracker.data(loss(vae, X, M, lambda)))
-	else
-		traindata["loss"] = [Flux.Tracker.data(loss(vae, X, M, lambda))]
-	end
-
-	# KLD
-	if haskey(traindata, "KLD")
-		push!(traindata["KLD"], Flux.Tracker.data(KL(vae, X)))
-	else
-		traindata["KLD"] = [Flux.Tracker.data(KL(vae, X))]
-	end
-
-	# reconstruction error
-	if haskey(traindata, "reconstruction error")
-		push!(traindata["reconstruction error"], Flux.Tracker.data(rerr(vae, X, M)))
-	else
-		traindata["reconstruction error"] = [Flux.Tracker.data(rerr(vae, X, M))]
-	end
+function track!(vae::VAE, history::MVHistory, X, M, lambda, i::Int)
+	push!(history, :loss, i, Flux.Tracker.data(loss(vae,X,M,lambda)))
+	push!(history, :KLD, i, Flux.Tracker.data(KL(vae,X)))
+	push!(history, :reconstruction_error, i, Flux.Tracker.data(rerr(vae,X, M)))
 end
 
 
@@ -258,7 +241,7 @@ end
 """ 
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
-mutable struct VAEmodel
+mutable struct VAEmodel <: genmodel
 	vae::VAE
 	lambda::Real
 	threshold::Real
@@ -270,12 +253,12 @@ mutable struct VAEmodel
 	M::Int # reconstruction error repetition rate
 	rdelta::Float
 	Beta::Float
-	traindata
+	history
 end
 
 """
 	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration, 
-	L, cbit, [M, activation, rdelta, Beta, tracked])
+	L, cbit, [M, activation, layer, rdelta, Beta, tracked])
 
 Initialize a variational autoencoder model with given parameters.
 
@@ -290,19 +273,20 @@ verbfit - is progress printed?
 L - batchsize
 M [1] - number of samples taken during computation of reconstruction error, higher may produce more stable classification results
 activation [Flux.relu] - activation function
+layer [Flux.dense] - layer type
 rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu, rdelta = Inf, 
-	Beta = 1.0, tracked = false)
+	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu, 
+	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false)
 	# construct the AE object
-	vae = VAE(esize, dsize, activation = activation)
-	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
+	vae = VAE(esize, dsize, activation = activation, layer = layer)
+	(tracked)? history = MVHistory() : history = nothing
 	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, 
-		L, M, rdelta, Beta, traindata)
+		L, M, rdelta, Beta, history)
 	return model
 end
 
@@ -343,11 +327,14 @@ function fit!(model::VAEmodel, X, Y)
 	# fit the VAE NN
 	fit!(model.vae, nX, model.L, M = model.M, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
-	rdelta = model.rdelta, traindata = model.traindata)
+	rdelta = model.rdelta, history = model.history)
 
-	# now set the threshold using contamination rate
-	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
-	setthreshold!(model, X)
+	if model.contamination > 0
+		# now set the threshold using contamination rate
+		model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
+		setthreshold!(model, X)
+		println("computing automatic threshold...")
+	end
 end
 
 """
