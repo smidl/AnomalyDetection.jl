@@ -204,16 +204,16 @@ generate(vae::VAE, n::Int) = vae.decoder(Float.(randn(Int(size(vae.encoder.layer
 
 Compute anomaly score for X.
 """
-anomalyscore(vae::VAE, X, M) = rerr(vae, X, M)
+anomalyscore(vae::VAE, X::Array{Float, 1}, M) = Flux.Tracker.data(rerr(vae, X, M))
+anomalyscore(vae::VAE, X::Array{Float, 2}, M) = 
+	reshape(mapslices(y -> anomalyscore(vae, y, M), X, 1), size(X,2))
 
 """
 	classify(vae, x, threshold, M)
 
 Classify an instance x using reconstruction error and threshold.
 """
-classify(vae::VAE, x, threshold, M) = (anomalyscore(vae, x, M) > threshold)? 1 : 0
-classify(vae::VAE, x::Array{Float,1}, threshold, M) = (anomalyscore(vae, x, M) > threshold)? 1 : 0
-classify(vae::VAE, X::Array{Float,2}, threshold, M) = reshape(mapslices(y -> classify(vae, y, threshold, M), X, 1), size(X,2))
+classify(vae::VAE, X, threshold, M) = Int.(anomalyscore(vae, X, M) .> threshold)
 
 """
 	getthreshold(vae, x, M, contamination, [beta])
@@ -224,14 +224,12 @@ function getthreshold(vae::VAE, x, M, contamination; Beta = 1.0)
 	N = size(x, 2)
 	Beta = Float(Beta)
 	# get reconstruction errors
-	xerr  = mapslices(y -> anomalyscore(vae, y, M), x, 1)
-	# create ordinary array from the tracked array
-	xerr = reshape([Flux.Tracker.data(e)[1] for e in xerr], N)
+	ascore  = anomalyscore(vae, x, M)
 	# sort it
-	xerr = sort(xerr)
-	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
+	ascore = sort(ascore)
+	aN = Int(ceil(N*contamination)) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return Beta*xerr[end-aN] + (1-Beta)*xerr[end-aN+1]
+	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
 end
 
 ##############################################################################
@@ -331,7 +329,7 @@ function fit!(model::VAEmodel, X, Y)
 
 	if model.contamination > 0
 		# now set the threshold using contamination rate
-		model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
+		model.contamination = size(Y[Y.==1],1)/size(Y,1)
 		setthreshold!(model, X)
 		println("computing automatic threshold...")
 	end
