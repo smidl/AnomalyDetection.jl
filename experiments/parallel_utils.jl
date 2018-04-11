@@ -5,7 +5,7 @@ hiddendim = 16
 latentdim = 8
 activation = Flux.relu
 verbfit = false
-batchsizes = [256]
+batchsizes = [20, 256]
 ###############################
 
 """
@@ -13,19 +13,36 @@ batchsizes = [256]
 
 Saves an algorithm output and input - params and anomaly scores.
 """
-function save_io(path, file, params, ascore, labels, loss, algo_name, nnparams)
+function save_io(path, file, mparams, trascore, trlabels, tstascore, tstlabels, loss, 
+	algo_name, nnparams)
 	mkpath(path)
-	FileIO.save(joinpath(path, file), "params", params, "anomaly_score", ascore, 
-		"labels", labels, "loss", loss, "algorithm", algo_name, "NN_params", nnparams)   
+	FileIO.save(joinpath(path, file), "params", mparams, "training_anomaly_score", trascore,
+		"training_labels", trlabels, "testing_anomaly_score", tstascore, 
+		"testing_labels", tstlabels, "loss", loss, "algorithm", algo_name, 
+		"NN_params", nnparams)   
 end
 
+# model-specific saving routines
+save_io(path, file, m, mparams, tras, trl, tstas, tstl, alg) =
+	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, alg, nothing)
+save_io(path, file, m::AnomalyDetection.kNN, mparams, tras, trl, tstas, tstl, alg) =
+	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, alg, nothing)
+save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas, tstl, alg) =
+	save_io(path, file, mparams, tras, trl, tstas, tstl, m.history, alg, Flux.params(m))
+
+"""
+	get_data(dataset_name, iteration)
+
+Returns training and testing dataset.
+"""
 function get_data(dataset_name, iteration)
 	# settings
 	# ratio of training to all data
 	alpha = 0.8 
 	# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
 	# some datasets dont have easy difficulty anomalies
-	if dataset_name in ["madelon", "gisette"]
+	if dataset_name in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
+		"isolet", "multiple-features", "statlog-shuttle"]
 		difficulty = "medium"
 	elseif dataset_name in ["vertebral-column"]
 		difficulty = "hard"
@@ -46,496 +63,235 @@ function get_data(dataset_name, iteration)
 	return trdata, tstdata	
 end
 
-##########
-### AE ###
-##########
+"""
+	getas(dataset_name, m, as)
+
+Produces anomaly scores on testing dataset.
+m = model
+as = anomaly score function
+"""
+function getas(data, m, as)
+	# get the data
+	(trdata, tstdata) = data 
+
+	# now loop over all ascoreargs
+	tras = as(m, trdata.data) 
+	tstas = as(m, tstdata.data) 
+	return tras, tstas
+end
 
 """
-	trainAE(path, dataset_name, iteration)
+	train(dataset_name, iteration, alg) 
 
-Trains an autoencoder.
+Extracts model parameters and iterables from global const PARAMS,
+creates, trains and predicts anomaly scores for model alg for each 
+parameter setting.
 """
-function trainAE(path, dataset_name, iteration)
-	# get the dataset
-	trdata, tstdata = get_data(dataset_name, iteration)
-	trX = trdata.data;
-	trY = trdata.labels;
-	tstX = tstdata.data;
-	tstY = tstdata.labels;
-	indim, trN = size(trX[:,trY.==0])
+function train(dataset_name, iteration, alg) 
+	data = get_data(dataset_name, iteration)
+	(trdata, tstdata) = data 
 
-	# over these parameters will be iterated
-	AEparams = Dict(
-			"L" => batchsizes # batchsize
-			)
-	
-	# set params to be saved later
-	params = Dict(
-			# set problem dimensions
-		"indim" => indim,
-		"hiddendim" => hiddendim,
-		"latentdim" => latentdim,
-		# model constructor parameters
-		"esize" => [indim; hiddendim; hiddendim; latentdim], # encoder architecture
-		"dsize" => [latentdim; hiddendim; hiddendim; indim], # decoder architecture
-		"L" => 0, # batchsize, will be iterated over
-		"threshold" => 0, # classification threshold, is recomputed when calling fit!
-		"contamination" => size(trY[trY.==1],1)/size(trY[trY.==0],1), # to set the decision threshold
-		"iterations" => 5000,
-		"cbit" => 1000, # when callback is printed
-		"verbfit" => verbfit, 
-		"activation" => string(activation),
-		"rdelta" => 1e-5, # reconstruction error threshold when training is stopped
-		"Beta" => 1.0, # for automatic threshold computation, in [0, 1] 
-		# 1.0 = tight around normal samples
-		"tracked" => true # do you want to store training progress?
-		# it can be later retrieved from model.traindata
-		)
+	# top level of the param tree
+	tp = deepcopy(PARAMS[Symbol(alg)])
 
-	# also, if batchsize is too large, add a batchsize param of the data size
-	poplast = false
-	if minimum(AEparams["L"]) > trN
-		push!(AEparams["L"], trN)
-		poplast = true
-	end
+	# data will be saved here
+	path = 	joinpath(export_path, string("$(dataset_name)/$(alg)/$(iteration)"))
 
-	for L in AEparams["L"]
-		if L > size(trX,2)
-			continue
+	# upgrade params according to data size
+	dataparams!(tp[:model], tp, data)
+
+	# outer loop over fit parameters
+	for fargs in tp[:fparams]
+		# create the io file name
+		ffname = alg
+			
+		# mparams is the dictionary of used parameters that will be saved
+		mparams = deepcopy(tp[:mparams]) # so that the original params are not owerwritten
+		# universal model constructor
+		model = tp[:model]([p for p in values(mparams[:args])]...; 
+			[p[1] => eval(p[2]) for p in mparams[:kwargs]]...)
+		# SortedDict causes problems during load(), now the order does not matter anymore
+		mparams[:args] = Dict(mparams[:args]) 
+
+		# update model parameters, filename and save actual values to mparams
+		ffname = updateparams!(model, ffname, fargs, mparams)
+
+		# fit the model
+		tp[:f](model, trdata.data, trdata.labels)
+
+		# inner loop over anomaly score parameters
+		for args in tp[:asparams]
+			# update model parameters, filename and save actual values to mparams
+			fname = updateparams!(model, ffname, args, mparams)
+
+			# get anomaly scores
+			tras, tstas = getas(data, model, tp[:as])
+			
+			# save input and output
+			fname = string(fname, ".jld")
+			save_io(path, fname, model, mparams, tras, trdata.labels, tstas, tstdata.labels, 
+				alg)
 		end
-		params["L"] = L
-		# setup the model
-		model = AnomalyDetection.AEmodel(params["esize"], params["dsize"], params["L"], params["threshold"], 
-			params["contamination"], params["iterations"], params["cbit"], params["verbfit"], 
-			activation = activation, rdelta = params["rdelta"], tracked = params["tracked"],
-			Beta = params["Beta"])
-		# train the model
-		AnomalyDetection.fit!(model, trX, trY)
-		# get anomaly scores on testing data
-		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
-    		for i in 1:size(tstX,2)];
-    	# save anomaly scores, labels and settings
-    	pname = joinpath(path, string(iteration), string("AE_", L))
-    	save_io(pname, params, ascore, tstY, model.traindata, "AE", Flux.params(model.ae))
 	end
-
-	# delete the last element of the 
-	if poplast
-		pop!(AEparams["L"])
-	end
-
-	println("AE training on $(joinpath(path, string(iteration))) finished!")
+	println("Training of $alg on $path finished!")
 end
 
-###########
-### VAE ###
-###########	
-
 """
-	trainVAE(path, dataset_name, iteration)
+	updateparams!(model, fname, args, mparams)
 
-Trains a VAE and classifies training data in path..
+Updates params of the model, values of params dictionary to be saved and the filename
+according to args iterable.	Outputs the modified filename.
 """
-function trainVAE(path, dataset_name, iteration)
-	# load data
-	trdata, tstdata = get_data(dataset_name, iteration)	
-	trX = trdata.data;
-	trY = trdata.labels;
-	tstX = tstdata.data;
-	tstY = tstdata.labels;
-	indim, trN = size(trX[:,trY.==0])
-
-	# this will be iterated over
-	VAEparams = Dict(
-		"L" => batchsizes,
-		"lambda" => [10.0^i for i in 0:-1:-4]
-		)
-
-	# also, if batchsize is too large, add a batchsize param of the data size
-	poplast = false
-	if minimum(VAEparams["L"]) > trN
-		push!(VAEparams["L"], trN)
-		poplast = true
+function updateparams!(model, fname, args, mparams)
+	for a in args
+		setfield!(model, a...)
+		fname = string(fname, "_$(a[1])-$(a[2])")
+		mparams[:args][a[1]] = a[2]
 	end
-
-	# set params to be saved later
-	params = Dict(
-		# set problem dimensions
-		"indim" => indim,
-		"hiddendim" => hiddendim,
-		"latentdim" => latentdim,
-		# model constructor parameters
-		"esize" => [indim; hiddendim; hiddendim; latentdim*2], # encoder architecture
-		"dsize" => [latentdim; hiddendim; hiddendim; indim], # decoder architecture
-		"lambda" => 1, # KLD weight in loss function
-		"L" => 0, # batchsize, will be iterated over
-		"threshold" => 0, # classification threshold, is recomputed when calling fit!
-		"contamination" => size(trY[trY.==1],1)/size(trY[trY.==0],1), # to set the decision threshold
-		"iterations" => 10000,
-		"cbit" => 5000, # when callback is printed
-		"verbfit" => verbfit, 
-		"M" => 1, # number of samples for reconstruction error, set higher for classification
-		"activation" => string(activation),
-		"rdelta" => 1e-5, # reconstruction error threshold when training is stopped
-		"Beta" => 1.0, # for automatic threshold computation, in [0, 1] 
-		# 1.0 = tight around normal samples
-		"tracked" => true # do you want to store training progress?
-		# it can be later retrieved from model.traindata
-		)
-	
-	for L in VAEparams["L"], lambda in VAEparams["lambda"]
-		if L > trN
-			continue
-		end
-		params["L"] = L
-		params["lambda"] = lambda
-		params["M"] = 1
-
-		# setup the model
-		model = AnomalyDetection.VAEmodel(params["esize"], params["dsize"], params["lambda"],	params["threshold"], 
-			params["contamination"], params["iterations"], params["cbit"], params["verbfit"],
-			params["L"], M = params["M"], activation = activation, rdelta = params["rdelta"], 
-			Beta = params["Beta"], tracked = params["tracked"])
-		# train the model
-		AnomalyDetection.fit!(model, trX, trY)
-		# get anomaly scores on testing data
-		params["M"] = 5
-		model.M = params["M"] # set higher for stable classification
-		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
-    		for i in 1:size(tstX,2)];
-    	# save anomaly scores, labels and settings
-    	pname = joinpath(path, string("$(iteration)/VAE_$(L)_$(lambda)"))
-    	save_io(pname, params, ascore, tstY, model.traindata, "VAE", Flux.params(model.vae))
-	end
-
-	# delete the last element of the 
-	if poplast
-		pop!(VAEparams["L"])
-	end
-
-	println("VAE training on $(joinpath(path, string(iteration))) finished!")
+	return fname
 end
 
-############
-### sVAE ###
-############	
-
 """
-	trainsVAE(path, dataset_name, iteration)
+	dataparams!(model, topparams, data)
 
-Trains a sVAE and classifies training data in path..
+Define operations needed to be done with params according to data prior to
+training (e.g. batchsize, input dimensions). Defaults to doing nothing.
 """
-function trainsVAE(path, dataset_name, iteration)
-	# load data
-	trdata, tstdata = get_data(dataset_name, iteration)
-	trX = trdata.data;
-	trY = trdata.labels;
-	tstX = tstdata.data;
-	tstY = tstdata.labels;
-	indim, trN = size(trX[:,trY.==0])
+dataparams!(model, topparams, data) = return nothing
 
-	# this will be iterated over
-	sVAEparams = Dict(
-	"L" => batchsizes,
-	"lambda" => push!([10.0^i for i in -2:2], 0.0), # data fit error term in loss
-	"alpha" => linspace(0,1,5) # data fit error term in anomaly score
-	)
-
-	# set params to be saved later
-	params = Dict(
-		# set problem dimensions
-		"indim" => indim,
-		"hiddendim" => hiddendim,
-		"latentdim" => latentdim,
-		# model constructor parameters
-		"ensize" => [indim; hiddendim; hiddendim; latentdim*2], # encoder architecture
-		"decsize" => [latentdim; hiddendim; hiddendim; indim], # decoder architecture
-		"dissize" => [indim + latentdim; hiddendim; hiddendim; 1], # discriminator architecture
-		"lambda" => 1, # data error weight for training
-		"threshold" => 0, # classification threshold, is recomputed when calling fit!
-		"contamination" => size(trY[trY.==1],1)/size(trY[trY.==0],1), # to set the decision threshold
-		"iterations" => 10000,
-		"cbit" => 5000, # when callback is printed
-		"verbfit" => verbfit, 
-		"L" => 0, # batchsize, will be iterated over
-		"M" => 1, # number of samples for reconstruction error, set higher for classification
-		"activation" => string(activation),
-		"rdelta" => 1e-5, # reconstruction error threshold when training is stopped
-		"alpha" => 0.5, # data error term for classification
-		"Beta" => 1.0, # for automatic threshold computation, in [0, 1] 
-		# 1.0 = tight around normal samples
-		"tracked" => true, # do you want to store training progress?
-		# it can be later retrieved from model.traindata
-		"xsigma" => 1.0 # static estimate of data variance
-		)
-
-	# also, if batchsize is too large, add a batchsize param of the data size
-	poplast = false
-	if minimum(sVAEparams["L"]) > trN
-		push!(sVAEparams["L"], trN)
-		poplast = true
-	end
-	
-	for L in sVAEparams["L"], lambda in sVAEparams["lambda"]
-		if L > trN
-			continue
-		end
-		params["L"] = L
-		params["lambda"] = lambda
-		params["M"] = 1
-		# setup the model
-		model = AnomalyDetection.sVAEmodel(params["ensize"], params["decsize"], params["dissize"],
-		 params["lambda"],	params["threshold"], params["contamination"], 
-		 params["iterations"], params["cbit"], params["verbfit"], params["L"], 
-		 M = params["M"], activation = activation, rdelta = params["rdelta"], 
-			tracked = params["tracked"], Beta = params["Beta"], xsigma = params["xsigma"])
-		# train the model
-		AnomalyDetection.fit!(model, trX, trY)
-		# get anomaly scores on testing data
-		params["M"] = 5
-		model.M = params["M"] # set higher for stable classification
-		for alpha in sVAEparams["alpha"]
-			params["alpha"] = alpha
-			model.alpha = alpha
-			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
-	    		for i in 1:size(tstX,2)];
-	    	
-	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, string("$(iteration)/sVAE_$(L)_$(lambda)_$(alpha)"))
-	    	save_io(pname, params, ascore, tstY, model.traindata, "sVAE", Flux.params(model.svae))
-	    end
-	end
-
-	# delete the last element of batchsizes
-	if poplast
-	 	pop!(sVAEparams["L"])
-	end
-
-	println("sVAE training on $(joinpath(path, string(iteration))) finished!")
+function dataparams!(model::Type{AnomalyDetection.kNN}, topparams, data) 
+	# for kNN model, set the ks according to data size
+	indim, trN = size(data[1].data[:,data[1].labels.==0])
+	topparams[:asparams] = product([:k => i for i in Int.(round.(linspace(1, 2*sqrt(trN), 5)))])
 end
 
-###########
-### GAN ###
-###########
+function dataparams!{model<:AnomalyDetection.genmodel}(m::Type{model}, topparams, data)
+	# change the esize and dsize params based on data size
+	indim, trN = size(data[1].data[:,data[1].labels.==0])
+	topparams[:mparams][:args][:esize][1] = indim
+	topparams[:mparams][:args][:dsize][end] = indim
 
-"""
-	trainGAN(path, dataset_name, iteration)
-
-Trains a GAN and classifies training data in path.
-"""
-function trainGAN(path, dataset_name, iteration)
-	# load data
-	trdata, tstdata = get_data(dataset_name, iteration)
-	trX = trdata.data;
-	trY = trdata.labels;
-	tstX = tstdata.data;
-	tstY = tstdata.labels;
-	indim, trN = size(trX[:,trY.==0])
-	
-	GANparams = Dict(
-	"L" => batchsizes, # batchsize
-	"lambda" => linspace(0,1,5) # weight of reconstruction error in anomalyscore
-	)
-
-	# set params to be saved later
-	params = Dict(
-			# set problem dimensions
-		"indim" => indim,
-		"hiddendim" => hiddendim,
-		"latentdim" => latentdim,
-		# model constructor parameters
-		"gsize" => [latentdim; hiddendim; hiddendim; indim], # generator architecture
-		"dsize" => [indim; hiddendim; hiddendim; 1], # discriminator architecture
-		"threshold" => 0, # classification threshold, is recomputed when calling fit!
-		"contamination" => size(trY[trY.==1],1)/size(trY[trY.==0],1), # to set the decision threshold
-		"lambda" => 0.5, # anomaly score rerr weight
-		"L" => 0, # batchsize
-		"iterations" => 10000,
-		"cbit" => 5000, # when callback is printed
-		"verbfit" => verbfit, 
-		"pz" => string(randn),
-		"activation" => string(activation),
-		"rdelta" => 1e-5, # reconstruction error threshold when training is stopped
-		"Beta" => 1.0, # for automatic threshold computation, in [0, 1] 
-		# 1.0 = tight around normal samples
-		"tracked" => true # do you want to store training progress?
-		# it can be later retrieved from model.traindata
-		)
-
-	# also, if batchsize is too large, add a batchsize param of the data size
-	poplast = false
-	if minimum(GANparams["L"]) > trN
-		push!(GANparams["L"], trN)
-		poplast = true
+	# also modify the batchsize if it is larger than the dataset size
+	# this is a little awkward but universal
+	# steps: 
+	# 1) if there is an L larger than datasize trN, create a new pair :L => trN
+	# 2) filter out those pairs where :L > trN
+	# 3) remove duplicates (if there are more pairs with :L > trN)
+	ls = Array{Any,1}([x for x in topparams[:fparams].xss])
+	for l in ls
+		map(x -> ((x[1]==:L && x[2] > trN)? push!(l, (x[1] => trN)) : (nothing)), l)
 	end
 
-	for L in GANparams["L"]
-		if L > trN
-			continue
-		end
-
-		# setup the model
-		model = AnomalyDetection.GANmodel(params["gsize"], params["dsize"], params["lambda"], params["threshold"], 
-			params["contamination"], L, params["iterations"], params["cbit"], 
-			params["verbfit"], pz = randn, activation = activation, rdelta = params["rdelta"], 
-			tracked = params["tracked"], Beta = params["Beta"])
-		# train the model
-		AnomalyDetection.fit!(model, trX, trY)
-		for lambda in GANparams["lambda"]
-			params["lambda"] = lambda
-			model.lambda = lambda
-			# get anomaly scores on testing data
-			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
-	    		for i in 1:size(tstX,2)];
-	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, string("$(iteration)/GAN_$(L)_$(lambda)"))
-    		save_io(pname, params, ascore, tstY, model.traindata, "GAN", Flux.params(model.gan))
-	    end
+	for i in 1:size(ls,1)
+	 	ls[i] = filter(x -> !(x[1]==:L && x[2] > trN), ls[i])
+	    ls[i] = unique(ls[i])
 	end
-
-	# delete the last element of batchsizes
-	if poplast
-		pop!(GANparams["L"])
-	end
-
-	println("GAN training on $(joinpath(path, string(iteration))) finished!")
+	topparams[:fparams] = product(ls...)
 end
 
-#############
-### fmGAN ###
-#############
-
-
-"""
-	trainfmGAN(path, mode)
-
-Trains a fmGAN and classifies training data in path..
-"""
-function trainfmGAN(path, dataset_name, iteration)
-	# load data
-	trdata, tstdata = get_data(dataset_name, iteration)
-	trX = trdata.data;
-	trY = trdata.labels;
-	tstX = tstdata.data;
-	tstY = tstdata.labels;
-	indim, trN = size(trX[:,trY.==0])
-	
-	fmGANparams = Dict(
-	"L" => batchsizes, # batchsize
-	"lambda" => linspace(0,1,5), # weight of reconstruction error in anomalyscore
-	"alpha" => push!([10.0^i for i in -2:2], 0.0) 
-	)
-
-	# set params to be saved later
-	params = Dict(
-			# set problem dimensions
-		"indim" => indim,
-		"hiddendim" => hiddendim,
-		"latentdim" => latentdim,
-		# model constructor parameters
-		"gsize" => [latentdim; hiddendim; hiddendim; indim], # generator architecture
-		"dsize" => [indim; hiddendim; hiddendim; 1], # discriminator architecture
-		"threshold" => 0, # classification threshold, is recomputed when calling fit!
-		"contamination" => size(trY[trY.==1],1)/size(trY[trY.==0],1), # to set the decision threshold
-		"lambda" => 0.5, # anomaly score rerr weight
-		"L" => 0, # batchsize
-		"iterations" => 10000,
-		"cbit" => 5000, # when callback is printed
-		"verbfit" => verbfit, 
-		"pz" => string(randn),
-		"activation" => string(activation),
-		"rdelta" => 1e-5, # reconstruction error threshold when training is stopped
-		"alpha" => 0.5, # weight of discriminator score in generator loss training
-		"Beta" => 1.0, # for automatic threshold computation, in [0, 1] 
-		# 1.0 = tight around normal samples
-		"tracked" => true # do you want to store training progress?
-		# it can be later retrieved from model.traindata
+const PARAMS = Dict(
+	### kNN ###
+	:kNN => Dict(
+		# this serves as model construction params and also to be saved
+		# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict( 
+				:k => 1
+				), 
+			# kwargs
+			:kwargs => Dict(
+				:metric => :(Distances.Euclidean()),
+				:weights => "distance",
+				:threshold => 0.5,
+				:reduced_dim => true	
+				)
+			),
+		# this is going to be iterated ver for the fit function
+		:fparams => product(),
+		# this is going to be iterated over for the anomalyscore function
+		:asparams => product([:k => i for i in [1, 3, 5, 11, 21]]),
+		# the model constructor
+		:model => AnomalyDetection.kNN,
+		# model fit function
+		:f => AnomalyDetection.fit!,
+		# anomaly score function
+		:as => AnomalyDetection.anomalyscore
+		),
+	### AE ###
+	:AE => Dict(
+	# this is going to serve as model construction params and also to be saved
+	# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict( 
+				:esize => [1; hiddendim; hiddendim; latentdim],
+				:dsize => [latentdim; hiddendim; hiddendim; 1],
+				:L => 0, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:iterations => 5000,
+				:cbit => 1000,
+				:verbfit => false
+				), 
+			# kwargs
+			:kwargs => Dict(
+				# input functions like this, they are evaluated later (only here)
+				:activation => :(Flux.relu),
+				:layer => :(Flux.Dense),
+				:tracked => true,
+				:rdelta => 1e-5
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:fparams => product([:L => i for i in batchsizes]),
+		# this is going to be iterated over for the anomalyscore function
+		:asparams => product(),
+		# the model constructor
+		:model => AnomalyDetection.AEmodel,
+		# model fit function
+		:f => AnomalyDetection.fit!,
+		# anomaly score function
+		:as => AnomalyDetection.anomalyscore
+		),
+	### VAE ###
+	:VAE => Dict(
+	# this is going to serve as model construction params and also to be saved
+	# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict( 
+				:esize => [1; hiddendim; hiddendim; latentdim*2],
+				:dsize => [latentdim; hiddendim; hiddendim; 1],
+				:lambda => 0, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:iterations => 5000,
+				:cbit => 1000,
+				:verbfit => false,
+				:L => 0 # replaced in training
+				), 
+			# kwargs
+			:kwargs => Dict(
+				:M => 1,
+				# input functions like this, they are evaluated later
+				:activation => :(Flux.relu), 
+				:layer => :(Flux.Dense),
+				:tracked => true,
+				:rdelta => 1e-5
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:fparams => product([:L => i for i in batchsizes], 
+#							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
+							[:lambda => i for i in [10.0^i for i in -4]]),
+		# this is going to be iterated over for the anomalyscore function
+		:asparams => product(),
+		# the model constructor
+		:model => AnomalyDetection.VAEmodel,
+		# model fit function
+		:f => AnomalyDetection.fit!,
+		# anomaly score function
+		:as => AnomalyDetection.anomalyscore
 		)
-
-	# also, if batchsize is too large, add a batchsize param of the data size
-	poplast = false
-	if minimum(fmGANparams["L"]) > trN
-		push!(fmGANparams["L"], trN)
-		poplast = true
-	end
-
-	for L in fmGANparams["L"], alpha in fmGANparams["alpha"]
-		if L > trN
-			continue
-		end
-		
-		# setup the model
-		model = AnomalyDetection.fmGANmodel(params["gsize"], params["dsize"], params["lambda"], params["threshold"], 
-			params["contamination"], L, params["iterations"], params["cbit"], 
-			params["verbfit"], pz = randn, activation = activation, rdelta = params["rdelta"], 
-			tracked = params["tracked"], Beta = params["Beta"], alpha = alpha)
-		# train the model
-		AnomalyDetection.fit!(model, trX, trY)
-		for lambda in fmGANparams["lambda"]
-			params["lambda"] = lambda
-			model.lambda = lambda
-			# get anomaly scores on testing data
-			ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
-	    		for i in 1:size(tstX,2)];
-	    	# save anomaly scores, labels and settings
-	    	pname = joinpath(path, string("$(iteration)/fmGAN_$(L)_$(lambda)_$(alpha)"))
-	    	save_io(pname, params, ascore, tstY, model.traindata, "fmGAN", Flux.params(model.fmgan))
-	    end
-	end
-
-	# delete the last element of batchsizes
-	if poplast
-		pop!(fmGANparams["L"])
-	end
-
-	println("fmGAN training on $(joinpath(path, string(iteration))) finished!")
-end
-
-###########
-### kNN ###
-###########
-
-"""
-	trainkNN(dataset_name, iteration)
-
-Produces anomaly scores on training data using kNN.
-"""
-function trainkNN(dataset_name, iteration)
-	# load data
-	trdata, tstdata = get_data(dataset_name, iteration)
-	trX = trdata.data;
-	trY = trdata.labels;
-	tstX = tstdata.data;
-	tstY = tstdata.labels;
-	indim, trN = size(trX)
-	
-	# set params to be saved later
-	params = Dict(
-		"k" => 1,
-		"metric" => string(Distances.Euclidean()),
-		"weights" => "distance",
-		"threshold" => 0.5,
-		"reduced_dim" => true,
-		)
-
-	kvec = Int.(round.(linspace(1, 2*sqrt(trN), 5)))
-	path = 	joinpath(export_path, string("$(dataset_name)/kNN/$(iteration)"))
-
-	for k in kvec 
-		params["k"] = k
-		# setup the model
-		model = AnomalyDetection.kNN(params["k"], metric = Distances.Euclidean(), weights = params["weights"], 
-			threshold = params["threshold"], reduced_dim = params["reduced_dim"])
-
-		# train the model
-		AnomalyDetection.fit!(model, trX, trY)
-		# get anomaly scores on testing data
-		ascore = [Flux.Tracker.data(AnomalyDetection.anomalyscore(model, tstX[:,i]))
-    		for i in 1:size(tstX,2)];
-		# save anomaly scores, labels and settings
-    	fname = "kNN_$(k).jld"
-    	save_io(path, fname, params, ascore, tstY, Dict{Any, Any}(), "kNN", [])
-    end
-
-	println("kNN training on $(path) finished!")
-end
+)
