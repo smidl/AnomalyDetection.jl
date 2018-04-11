@@ -73,5 +73,4 @@ M = 1
 	@test minimum(labels[1:end-1] .== 0)
 	sort!(ascore)
 	@test abs(ascore[end-1] - model.threshold) < 0.2
-	
 end 
