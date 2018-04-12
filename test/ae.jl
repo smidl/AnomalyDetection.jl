@@ -12,6 +12,7 @@ X = AnomalyDetection.Float.(X)
 nX = X[:,1:end-1]
 esize = [xdim; hiddendim; latentdim]
 dsize = [latentdim; hiddendim; xdim]
+Y = Int.(push!(zeros(N-1), 1))
 
 @testset "AE" begin
 	net = AE(esize, dsize,
@@ -52,10 +53,14 @@ dsize = [latentdim; hiddendim; xdim]
 	@test typeof(rX) <: Flux.TrackedArray{AnomalyDetection.Float,2}
 	l = AnomalyDetection.loss(model, nX)
 	@test size(l) == ()
-	AnomalyDetection.fit!(model, X, Int.(push!(zeros(N-1), 1)))
+	AnomalyDetection.fit!(model, nX)
 	@test size(get(model.history,:loss)[1],1) == 1000
 	@test l > AnomalyDetection.loss(model,nX)
-	@test X == X
+	@test nX == nX
+	AnomalyDetection.setcontamination!(model, Y)
+	@test model.contamination == 1/N
+	AnomalyDetection.setthreshold!(model, X, Y)
+	@test model.contamination == 1/N
 	ascore = AnomalyDetection.anomalyscore(model, X)
 	@test typeof(ascore) <: Array{AnomalyDetection.Float,1}
 	@test findmax(ascore)[2] == N
