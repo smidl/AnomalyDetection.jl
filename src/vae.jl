@@ -40,7 +40,7 @@ Sample from the last encoder layer.
 """
 function sample_z(vae::VAE, X)
 	res = mu(vae, X)
-	return res + Float.(randn(size(res))) .* sigma(vae,X)
+	return res .+ Float.(randn(size(res))) .* sigma(vae,X)
 end
 
 """
@@ -121,7 +121,7 @@ lambda - scaling for the KLD loss
 rdelta - stopping condition for reconstruction error
 traindata - a dictionary for training progress control
 """
-function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb = true, lambda = 1, 
+function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1, 
 	rdelta = Inf, history = nothing)
 	# settings
 	opt = ADAM(params(vae))
@@ -303,6 +303,7 @@ generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
 getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.M, model.contamination, Beta = model.Beta)
 anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M)
+params(model::VAEmodel) = params(model.vae)
 
 """
 	setthreshold!(model::VAEmodel, X)

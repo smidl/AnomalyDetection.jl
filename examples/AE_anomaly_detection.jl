@@ -1,6 +1,7 @@
 
-using PyPlot
-import PyPlot.plot
+using Plots
+plotly()
+import Plots: plot
 using JLD
 using ScikitLearn: @sk_import, fit!, predict
 using ScikitLearn.Utils: meshgrid 
@@ -53,22 +54,24 @@ Plot the model loss.
 """
 function plot(model::AEmodel)
 	# plot model loss
-	if model.traindata == nothing
+	if model.history == nothing
 		println("No data to plot, set tracked = true before training.")
 		return
 	else
-	    figure()
-	    title("model loss")
-	    plot(model.traindata["loss"])
-	    xlabel("iteration")
-	    ylabel("loss")
-	    show()
-	end
+        p = plot(model.history[:loss], title = "model loss", label = "loss", 
+            xlabel = "iteration", ylabel = "loss", seriestype = :line, 
+            markershape = :none)	
+        display(p)
+    end
 end
 
-# plot model loss
-plot(model)
+#plot(model)
+plot(model.history[:loss], title = "model loss", label = "loss", 
+            xlabel = "iteration", ylabel = "loss", seriestype = :line, 
+            markershape = :none)	
+gui()
 
+#        display(p)
 model(nX)
 
 nX
@@ -83,39 +86,3 @@ yhat = AnomalyDetection.predict(model, X)
 # training data = testing data
 # this outputs labels
 tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
-
-# plot heatmap of the fit
-figure()
-title("classification results")
-scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r")
-ax = gca()
-ylim = ax[:get_ylim]()
-xlim = ax[:get_xlim]()
-xx, yy = meshgrid(linspace(xlim[1], xlim[2], 30), linspace(ylim[1], ylim[2], 30))
-zz = zeros(size(xx))
-for i in 1:size(xx, 1)
-    for j in 1:size(xx, 2)
-        zz[i,j] = AnomalyDetection.loss(model, [xx[i,j], yy[i,j]]).tracker.data
-    end
-end
-axsurf = ax[:contourf](xx, yy, zz)
-cb = colorbar(axsurf, fraction = 0.05, shrink = 0.5, pad = 0.1)
-scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r", label = "predicted positive")
-scatter(X[1, tryhat.==0], X[2, tryhat.==0], c = "g", label = "predicted negative")
-legend(loc = "upper right")
-show()
-
-# what are the codes?
-figure()
-title("code distribution")
-z1 = model.ae.encoder(X[:,1:30]).data
-z2 = model.ae.encoder(X[:,31:60]).data
-z3 = model.ae.encoder(X[:,61:90]).data
-za = model.ae.encoder(X[:,91:end]).data
-
-scatter(z1[1,:], z1[2,:], label = "first cluster")
-scatter(z2[1,:], z2[2,:], label = "second cluster")
-scatter(z3[1,:], z3[2,:], label = "third cluster")
-scatter(za[1,:], za[2,:], s = 10, label = "anomalous data")
-legend()
-show()
