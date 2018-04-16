@@ -369,6 +369,37 @@ Return labels and ROC statistics.
 """
 rocstats(trdata::Dataset, tstdata::Dataset, algorithm; verb = true) = 
  rocstats(trdata.data, trdata.labels, tstdata.data, tstdata.labels, algorithm; verb = true)
+"""
+    getroccurve(ascorevec, labels)
+
+Returns data for drawing the roc curve
+"""
+function getroccurve(ascorevec, labels)
+    N = size(labels,1)
+    @assert N == size(ascorevec,1)
+    fprvec = Array{Float64,1}(N+1)
+    recvec = Array{Float64,1}(N+1)
+    p = sum(labels)
+    n = N - p
+    fpr = 1.0
+    rec = 1.0
+    fprvec[1] = fpr # fp/n
+    recvec[1] = rec # tp/p
+    sortidx = sortperm(ascorevec)
+    for i in 2:(N+1)
+        if (labels[sortidx[i-1]] == 0)
+            _fpr = fpr - 1/n
+            (rec >= _fpr)? fpr = _fpr : rec -= 1/p 
+        else
+            _rec = rec -1/p
+            (_rec >= fpr)? rec = _rec : fpr -= 1/n 
+        end
+        fprvec[i] = fpr
+        recvec[i] = rec
+    end
+    
+    return recvec, fprvec
+end
 
 """
     mprint(string, [verb])

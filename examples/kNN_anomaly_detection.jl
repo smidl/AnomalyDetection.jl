@@ -24,6 +24,8 @@ Beta = 1.0
 model = kNN(k, contamination, metric = metric, distances = distances,
     reduced_dim = reduced_dim, Beta = Beta)
 
+size(nX)
+
 AnomalyDetection.fit!(model, nX);
 AnomalyDetection.setthreshold!(model, X);
 
@@ -53,25 +55,23 @@ if !isinteractive()
     gui()
 end
 
-# 
-using MLBase: recall, false_positive_rate
-kvec = [1, 2, 3, 4, 5, 6, 7, 9, 11, 15]
-nk = size(kvec,1)
-recvec = Array{Float64,1}(nk)
-fprvec = Array{Float64,1}(nk)
-for i in 1:nk
-    model.k = kvec[i]
-    _,_,_,tstroc = AnomalyDetection.rocstats(X,Y,X,Y,model, verb = false)
-    recvec[i] = recall(tstroc)
-    fprvec[i] = false_positive_rate(tstroc)
+# plot the roc curve as well
+ascore = AnomalyDetection.anomalyscore(model, X);
+recvec, fprvec = AnomalyDetection.getroccurve(ascore, Y)
+
+function plotroc(args...)
+    # plot the diagonal line
+    p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
+    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate",
+    title = "ROC")
+    for arg in args
+        plot!(arg[1], arg[2], label = arg[3], lw = 2)
+    end
+    return p
 end
 
-p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
-    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate")
-plot!(fprvec, recvec, label = "roc")
-
-
-display(p)
+plargs = [(fprvec, recvec, "kNN")]
+display(plotroc(plargs...))
 if !isinteractive()
     gui()
 end

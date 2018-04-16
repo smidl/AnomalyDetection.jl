@@ -135,3 +135,24 @@ display(p)
 if !isinteractive()
     gui()
 end
+
+# plot the roc curve as well
+ascore = AnomalyDetection.anomalyscore(model, X);
+recvec, fprvec = AnomalyDetection.getroccurve(ascore, Y)
+
+function plotroc(args...)
+    # plot the diagonal line
+    p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
+    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate",
+    title = "ROC")
+    for arg in args
+        plot!(arg[1], arg[2], label = arg[3], lw = 2)
+    end
+    return p
+end
+
+plargs = [(fprvec, recvec, "VAE")]
+display(plotroc(plargs...))
+if !isinteractive()
+    gui()
+end

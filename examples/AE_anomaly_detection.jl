@@ -85,8 +85,6 @@ yhat = AnomalyDetection.predict(model, X)
 # this outputs labels
 tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
 
-AnomalyDetection.anomalyscore(model, X[:,61:90])
-
 # plot heatmap of the fit
 xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
@@ -122,6 +120,27 @@ scatter!(z3[1,:], z3[2,:], label = "third cluster")
 scatter!(za[1,:], za[2,:], markersize = 3, label = "anomalous data")
 
 display(p)
+if !isinteractive()
+    gui()
+end
+
+# plot the roc curve as well
+ascore = AnomalyDetection.anomalyscore(model, X);
+recvec, fprvec = AnomalyDetection.getroccurve(ascore, Y)
+
+function plotroc(args...)
+    # plot the diagonal line
+    p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
+    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate",
+    title = "ROC")
+    for arg in args
+        plot!(arg[1], arg[2], label = arg[3], lw = 2)
+    end
+    return p
+end
+
+plargs = [(fprvec, recvec, "AE")]
+display(plotroc(plargs...))
 if !isinteractive()
     gui()
 end
