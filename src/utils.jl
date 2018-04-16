@@ -468,3 +468,14 @@ aelayerbuilder(lsize::Vector, activation, layer) = adapt(Float,
     Array{Any}(fill(layer, size(lsize,1)-1)), 
     Array{Any}([fill(activation, size(lsize,1)-2); identity]))
     )
+
+"""
+    discriminatorbuilder(lsize, activation, layer)
+
+Construct discriminator with last sigmoid output.
+"""
+discriminatorbuilder(lsize::Vector, activation, layer) = adapt(Float, 
+    FluxExtensions.layerbuilder(lsize, 
+    Array{Any}(fill(layer, size(lsize,1)-1)), 
+    Array{Any}([fill(activation, size(lsize,1)-2); σ]))
+    )

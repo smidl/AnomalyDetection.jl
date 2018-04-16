@@ -15,6 +15,8 @@ struct GAN
 	pz # code distribution
 end
 
+# make it trainable
+Flux.treelike(GAN)
 
 """
 	GAN(generator, discriminator)
@@ -33,25 +35,18 @@ dsize - vector of Ints describing discriminator layers sizes, including the last
 pz - code distribution
 activation - activation function common to all layers
 """
-function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu)
+function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu, 
+	layer = Flux.Dense)
 	@assert size(gsize,1) >= 3
 	@assert size(dsize,1) >= 3
 	@assert dsize[end] == 1
 	@assert gsize[end] == dsize[1]
 
 	# generator
-	generator = Dense(gsize[1], gsize[2], activation)
-	for i in 3:(size(gsize,1)-1)
-		generator = Chain(generator, Dense(gsize[i-1], gsize[i], activation))
-	end
-	generator = Chain(generator, Dense(gsize[end-1], gsize[end]))
+	generator = aelayerbuilder(gsize, activation, layer)
 
 	# discriminator
-	discriminator = Dense(dsize[1], dsize[2], activation)
-	for i in 3:(size(dsize,1)-1)
-		discriminator = Chain(discriminator, Dense(dsize[i-1], dsize[i], activation))
-	end
-	discriminator = Chain(discriminator, Dense(dsize[end-1], dsize[end], σ))
+	discriminator = discriminatorbuilder(dsize, activation, layer)
 
 	return GAN(generator, discriminator, pz=pz)
 end
@@ -65,7 +60,7 @@ end
 
 Discriminator loss.
 """
-Dloss(gan::GAN, X, Z) = - 0.5*(mean(log.(gan.d(X))) + mean(log.(1 - gan.d(gan.gg(Z)))))
+Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X))) + mean(log.(1 - gan.d(gan.gg(Z)))))
 
 """
 	Gloss(gan, Z)
@@ -91,7 +86,7 @@ evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(gan, X, Z)), "\n\n")
 
 """
-	fit!(gan, X, L, [iterations, cbit, verb, rdelta])
+	fit!(gan, X, L, [iterations, cbit, verb, rdelta, history])
 
 Trains a GAN.
 
@@ -102,13 +97,13 @@ iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
-traindata - a dictionary for training progress control
+history - for storing of training progress
 """
 function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
-	traindata = nothing)
+	history = nothing)
 	# settings
 	#Dopt = ADAM(params(gan.d))
-	Dopt = SGD(params(gan.d))
+	Dopt = ADAM(params(gan.d))
 	Gopt = ADAM(params(gan.g))
 	
 	# problem size
@@ -121,15 +116,15 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 		x = X[:,sample(1:N, L, replace=false)]
 		z = getcode(gan, L)
                 
-        # discriminator training
-        Dl = Dloss(gan, x,z)
-        Flux.Tracker.back!(Dl)
-        Dopt()
-		
+		# discriminator training
+		Dl = Dloss(gan, x,z)
+		Flux.Tracker.back!(Dl)
+		Dopt()
+
 		# generator training	
-        Gl = Gloss(gan, z)
-        Flux.Tracker.back!(Gl)
-        Gopt()
+		Gl = Gloss(gan, z)
+		Flux.Tracker.back!(Gl)
+		Gopt()
 	
 		# callback
 		if verb && i%cbit==0
@@ -137,8 +132,8 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 		end
 
 		# save actual iteration data
-		if traindata != nothing
-			track!(gan, traindata, x, z)
+		if history != nothing
+			track!(gan, history, x, z)
 		end
 
 		# if a stopping condition is present
@@ -154,31 +149,14 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 end
 
 """
-	track!(gan, traindata, X, Z)
+	track!(gan, history, X, Z)
 
 Save current progress.
 """
-function track!(gan::GAN, traindata, X, Z)
-	# Dloss
-	if haskey(traindata, "discriminator loss")
-		push!(traindata["discriminator loss"], Flux.Tracker.data(Dloss(gan, X, Z)))
-	else
-		traindata["discriminator loss"] = [Flux.Tracker.data(Dloss(gan, X, Z))]
-	end
-
-	# Gloss
-	if haskey(traindata, "generator loss")
-		push!(traindata["generator loss"], Flux.Tracker.data(Gloss(gan, Z)))
-	else
-		traindata["generator loss"] = [Flux.Tracker.data(Gloss(gan, Z))]
-	end
-
-	# reconstruction error
-	if haskey(traindata, "reconstruction error")
-		push!(traindata["reconstruction error"], Flux.Tracker.data(rerr(gan, X, Z)))
-	else
-		traindata["reconstruction error"] = [Flux.Tracker.data(rerr(gan, X, Z))]
-	end
+function track!(gan::GAN, history, X, Z)
+	push!(history, :discriminator_loss, Flux.Tracker.data(Dloss(gan, X, Z)))
+	push!(history, :generator_loss, Flux.Tracker.data(Gloss(gan, Z)))
+	push!(history, :reconstruction_error, Flux.Tracker.data(rerr(gan, X, Z)))
 end
 
 ############################
@@ -190,14 +168,14 @@ end
 
 Generate a sample code from GAN.
 """
-getcode(gan::GAN) = gan.pz(size(params(gan.g)[1],2))
+getcode(gan::GAN) = Float.(gan.pz(size(params(gan.g)[1],2)))
 
 """
 	getcode(gan, N)
 
 Generate codes from GAN.
 """
-getcode(gan::GAN, n::Int) = gan.pz(size(params(gan.g)[1],2), n)
+getcode(gan::GAN, n::Int) = Float.(gan.pz(size(params(gan.g)[1],2), n))
 
 """
 	generate(gan)
@@ -229,18 +207,17 @@ discriminate(gan::GAN, X) = Flux.Tracker.data(gan.d(X))
 
 Computes the anomaly score of X under given GAN.
 """
-#anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-mean(log.(gan.d(X))) + lambda*Flux.mse(mean(generate(gan, size(X,2)),2), mean(X,2))
-#anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-mean(log.(gan.d(X))) + lambda*Flux.mse(generate(gan, size(X,2)), X)
-anomalyscore(gan::GAN, X, lambda) = (1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X)))) + lambda*rerr(gan, X, getcode(gan, size(X,2)))
+anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) = Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X)))) + 
+	 Float(lambda)*Flux.Tracker.data(rerr(gan, X, getcode(gan, size(X,2))))
+anomalyscore(gan::GAN, X::Array{Float, 2}, lambda) = 
+	reshape(mapslices(y -> anomalyscore(gan, y, lambda), X, 1), size(X,2))
 
 """
 	classify(gan, x, threshold, lambda)
 
 Classify an instance x using the discriminator and a threshold.
 """
-classify(gan::GAN, x, threshold, lambda) = (anomalyscore(gan, x, lambda) > threshold)? 1 : 0
-classify(gan::GAN, x::Array{Float,1}, threshold, lambda) = (anomalyscore(gan, x, lambda) > threshold)? 1 : 0
-classify(gan::GAN, X::Array{Float,2}, threshold, lambda) = reshape(mapslices(y -> classify(gan, y, threshold, lambda), X, 1), size(X,2))
+classify(gan::GAN, X, threshold, lambda) = Int.(anomalyscore(gan, X, lambda) .> Float(threshold))
 
 """
 	getthreshold(gan, x, contamination, lambda, [Beta])
@@ -249,15 +226,14 @@ Compute threshold for GAN classification based on known contamination level.
 """
 function getthreshold(gan::GAN, X, contamination, lambda; Beta = 1.0)
 	N = size(X, 2)
-	# get anomaly score
-	ascore = mapslices(y -> anomalyscore(gan, y, lambda), X, 1)
-	# create ordinary array from the tracked array
-	ascore = reshape([Flux.Tracker.data(s)[1] for s in ascore], N)
+	Beta = Float(Beta)
+	# get reconstruction errors
+	ascore  = anomalyscore(gan, X, lambda)
 	# sort it
 	ascore = sort(ascore)
-	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
+	aN = Int(ceil(N*contamination)) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return Beta*ascore[end-aN] + (1-Beta)ascore[end-aN+1]
+	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
 end
 
 ##############################################################################
@@ -267,7 +243,7 @@ end
 """ 
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
-mutable struct GANmodel
+mutable struct GANmodel <: genmodel
 	gan::GAN
 	lambda::Real
 	threshold::Real
@@ -278,12 +254,12 @@ mutable struct GANmodel
 	verbfit::Bool
 	rdelta::Float
 	Beta::Float
-	traindata
+	history
 end
 
 """
 	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
-	cbit, verbfit, [pz, activation, rdelta, Beta, tracked])
+	cbit, verbfit, [pz, activation, layer, rdelta, Beta, tracked])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
@@ -298,19 +274,21 @@ cbit - current training progress is printed every cbit iterations
 verbfit - is progress printed?
 pz [randn] - code generating distribution
 activation [Flux.relu] - activation function
+layer [Flux.Dense] - layer type
 rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
-	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, rdelta = Inf,
+	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, 
+	layer = Flux.Dense, rdelta = Inf,
 	Beta = 1.0, tracked = false)
 	# construct the AE object
-	gan = GAN(gsize, dsize, pz = pz, activation = activation)
-	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
+	gan = GAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
+	(tracked)? history = MVHistory() : history = nothing
 	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit, 
-		verbfit, rdelta, Beta, traindata)
+		verbfit, rdelta, Beta, history)
 	return model
 end
 
@@ -329,6 +307,7 @@ getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contaminatio
 getcode(model::GANmodel) = getcode(model.gan)
 getcode(model::GANmodel, n) = getcode(model.gan, n)
 discriminate(model::GANmodel, X) = discriminate(model.gan, X)
+params(model::GANmodel) = Flux.params(model.gan)
 
 #"""
 #	plot(model)
@@ -367,22 +346,15 @@ function setthreshold!(model::GANmodel, X)
 end
 
 """
-	fit!(model, X, Y)
+	fit!(model, X)
 
 Trains a GANmodel.
 """
-function fit!(model::GANmodel, X, Y)
-	# train the NN only on normal samples
-	nX = X[:, Y.==0]
-
+function fit!(model::GANmodel, X)
 	# train the GAN NN
-	fit!(model.gan, nX, model.L; iterations=model.iterations, 
+	fit!(model.gan, X, model.L; iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
-	traindata = model.traindata)
-
-	# now set the threshold using contamination rate
-	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
-	setthreshold!(model, X)
+	history = model.history)
 end
 
 """
