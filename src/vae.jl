@@ -50,6 +50,7 @@ Initialize a variational autoencoder with given encoder size and decoder size.
 esize - vector of ints specifying the width anf number of layers of the encoder
 dsize - size of decoder
 activation - arbitrary activation function
+lyer - type of layer
 """
 function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu,
 		layer = Flux.Dense)
@@ -143,7 +144,7 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 
 		# save actual iteration data
 		if history != nothing
-			track!(vae, history, x, M, lambda, i)
+			track!(vae, history, x, M, lambda)
 		end
 
 		# if stopping condition is present
@@ -159,14 +160,14 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 end
 
 """
-	track!(vae, history, X, M, lambda, it)
+	track!(vae, history, X, M, lambda)
 
 Save current progress.
 """
-function track!(vae::VAE, history::MVHistory, X, M, lambda, i::Int)
-	push!(history, :loss, i, Flux.Tracker.data(loss(vae,X,M,lambda)))
-	push!(history, :KLD, i, Flux.Tracker.data(KL(vae,X)))
-	push!(history, :reconstruction_error, i, Flux.Tracker.data(rerr(vae,X, M)))
+function track!(vae::VAE, history::MVHistory, X, M, lambda)
+	push!(history, :loss, Flux.Tracker.data(loss(vae,X,M,lambda)))
+	push!(history, :KLD, Flux.Tracker.data(KL(vae,X)))
+	push!(history, :reconstruction_error, Flux.Tracker.data(rerr(vae,X, M)))
 end
 
 

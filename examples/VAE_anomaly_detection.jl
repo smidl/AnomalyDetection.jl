@@ -121,10 +121,11 @@ if !isinteractive()
 end
 
 # what are the codes?
-z1 = model.vae.encoder(X[:,1:30]).data
-z2 = model.vae.encoder(X[:,31:60]).data
-z3 = model.vae.encoder(X[:,61:90]).data
-za = model.vae.encoder(X[:,91:end]).data
+z1 = AnomalyDetection.getcode(model, X[:,1:30]).data
+z2 = AnomalyDetection.getcode(model, X[:,31:60]).data
+z3 = AnomalyDetection.getcode(model, X[:,61:90]).data
+za = AnomalyDetection.getcode(model, X[:,91:end]).data
+
 
 p = scatter(z1[1,:], z1[2,:], label = "first cluster", title = "code distribution")
 scatter!(z2[1,:], z2[2,:], label = "second cluster")
@@ -134,6 +135,7 @@ scatter!(za[1,:], za[2,:], markersize = 3, label = "anomalous data")
 display(p)
 if !isinteractive()
     gui()
+
 end
 
 # plot the roc curve as well

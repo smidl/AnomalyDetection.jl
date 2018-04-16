@@ -98,7 +98,7 @@ function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = I
 
 		# save actual iteration data
 		if history != nothing
-			track!(ae, history, x, i)
+			track!(ae, history, x)
 		end
 
 		# if stopping condition is present
@@ -120,8 +120,8 @@ end
 
 Save current progress.
 """
-function track!(ae::AE, history::MVHistory, X, i::Int)
-	push!(history, :loss, i, Flux.Tracker.data(loss(ae,X)))
+function track!(ae::AE, history::MVHistory, X)
+	push!(history, :loss, Flux.Tracker.data(loss(ae,X)))
 end
 
 #################
