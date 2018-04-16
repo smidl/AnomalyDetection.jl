@@ -1,50 +1,57 @@
 
-using PyPlot
+using Plots
+plotly()
+clibrary(:Plots)
 using JLD
-using Distances
 code_path = "../src/"
 push!(LOAD_PATH, code_path)
 using AnomalyDetection
-using MultivariateStats
-using ScikitLearn.Utils: meshgrid
 
 dataset = load("toy_data_3.jld")["data"]
 
-X = dataset.data;
+X = AnomalyDetection.Float.(dataset.data);
 Y = dataset.labels;
-tstX = X + randn(size(X))/10;
+nX = X[:, Y.==0]
 
 # model parameters
-k = 3 # number of nearest neighbors
-metric = Euclidean() # any of metric from Distance package
-weights = "distance" # "distance" # uniform/distance
+k = 11 # number of nearest neighbors
+metric = Distances.Euclidean() # any of metric from Distance package
+distances = "all" # "all"/"last" - use average of all or just the k-th nearest neighbour
+contamination = size(Y[Y.==1],1)/size(Y,1)
 reduced_dim = false # if dim > 10, use PCA to reduce it
+Beta = 1.0
 #model = kNN(k, metric = metric, weights = weights, reduced_dim = reduced_dim)
-model = kNN(k, metric = metric, weights = weights, reduced_dim = reduced_dim)
+model = kNN(k, contamination, metric = metric, distances = distances,
+    reduced_dim = reduced_dim, Beta = Beta)
 
-AnomalyDetection.fit!(model, X, Y);
+AnomalyDetection.fit!(model, nX);
+AnomalyDetection.setthreshold!(model, X);
 
 # this fits the model and produces predicted labels
-tryhat, tstyhat = AnomalyDetection.rocstats(X, Y, tstX, Y, model);
+tryhat, tstyhat = AnomalyDetection.rocstats(X, Y, X, Y, model);
 
 # plot heatmap of the fit
-figure()
-scatter(tstX[1,:], tstX[2,:], c = "r")
-ax = gca()
-_ylim = ax[:get_ylim]()
-_xlim = ax[:get_xlim]()
-xx, yy = meshgrid(linspace(_xlim[1], _xlim[2], 30), linspace(_ylim[1], _ylim[2], 30))
-zz = zeros(size(xx))
-for i in 1:size(xx, 1)
-    for j in 1:size(xx, 2)
-        zz[i,j] = AnomalyDetection.predict(model, [xx[i,j], yy[i,j]])[1]
+xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
+yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
+p = scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = :red, label = "predicted positive",
+    xlims=xl, ylims = yl, title = "classification results")
+scatter!(X[1, tryhat.==0], X[2, tryhat.==0], c = :green, label = "predicted negative",
+    legend = (0.7, 0.7))
+
+x = linspace(xl[1], xl[2], 30)
+y = linspace(yl[1], yl[2], 30)
+zz = zeros(size(y,1),size(x,1))
+for i in 1:size(y, 1)
+    for j in 1:size(x, 1)
+        zz[i,j] = AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
     end
 end
-axsurf = ax[:contourf](xx, yy, zz)
-cb = colorbar(axsurf, fraction = 0.05, shrink = 0.5, pad = 0.1)
-scatter(tstX[1, tryhat.==1], tstX[2, tryhat.==1], c = "r", label = "predicted positive")
-scatter(tstX[1, tstyhat.==0], tstX[2, tstyhat.==0], c = "g", label = "predicted negative")
-show()
+contourf!(x, y, zz, c = :viridis)
+
+display(p)
+if !isinteractive()
+    gui()
+end
 
 # 
 using MLBase: recall, false_positive_rate
@@ -54,17 +61,17 @@ recvec = Array{Float64,1}(nk)
 fprvec = Array{Float64,1}(nk)
 for i in 1:nk
     model.k = kvec[i]
-    _,_,_,tstroc = AnomalyDetection.rocstats(X,Y,tstX,Y,model, verb = false)
+    _,_,_,tstroc = AnomalyDetection.rocstats(X,Y,X,Y,model, verb = false)
     recvec[i] = recall(tstroc)
     fprvec[i] = false_positive_rate(tstroc)
 end
 
-figure()
-plot(linspace(0,1,100), linspace(0,1,100), "--", c = "gray", alpha = 0.5)
-xlim([0, 1])
-ylim([0, 1])
-xlabel("false positive rate")
-ylabel("true positive rate")
-scatter(fprvec, recvec)
-plot(fprvec, recvec)
-show()
+p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
+    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate")
+plot!(fprvec, recvec, label = "roc")
+
+
+display(p)
+if !isinteractive()
+    gui()
+end

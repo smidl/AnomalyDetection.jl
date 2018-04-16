@@ -1,18 +1,7 @@
 # input data setup
-xdim = 2
-latentdim = 4
-hiddendim = 8
-N = 10
-L = 5
-# set seed and create normal data with one anomaly
-srand(123)
-X = randn(xdim, N)
-X[:,end] += 10.0
-X = AnomalyDetection.Float.(X)
-nX = X[:,1:end-1]
 esize = [xdim; hiddendim; latentdim]
 dsize = [latentdim; hiddendim; xdim]
-Y = Int.(push!(zeros(N-1), 1))
+L = 5
 
 @testset "AE" begin
 	net = AE(esize, dsize,
@@ -30,7 +19,6 @@ Y = Int.(push!(zeros(N-1), 1))
 	AnomalyDetection.fit!(net, nX, L, iterations=100, cbit = 100, rdelta = Inf, verb= false)
 	@test size(get(history,:loss)[1],1) == 1000
 	@test l > AnomalyDetection.loss(net,nX)
-	@test X == X
 	@test typeof(AnomalyDetection.anomalyscore(net, X[:,1])) <: AnomalyDetection.Float
 	ascore = AnomalyDetection.anomalyscore(net, X)
 	@test typeof(ascore) <: Array{AnomalyDetection.Float,1}
@@ -56,10 +44,7 @@ Y = Int.(push!(zeros(N-1), 1))
 	AnomalyDetection.fit!(model, nX)
 	@test size(get(model.history,:loss)[1],1) == 1000
 	@test l > AnomalyDetection.loss(model,nX)
-	@test nX == nX
-	AnomalyDetection.setcontamination!(model, Y)
-	@test model.contamination == 1/N
-	AnomalyDetection.setthreshold!(model, X, Y)
+	AnomalyDetection.setthreshold!(model, X)
 	@test model.contamination == 1/N
 	ascore = AnomalyDetection.anomalyscore(model, X)
 	@test typeof(ascore) <: Array{AnomalyDetection.Float,1}

@@ -1,42 +1,48 @@
 """
-kNN model structure for binary classification. Uses brute force distance computation,
-that should be changed for better performance.
+kNN model structure for anomaly detection. Uses brute force distance computation,
+that should be changed for better performance. Anomaly score is computed as 
+an average of distances to k nearest neighbours.
 """
 mutable struct kNN
     k
-    data
-    labels 
+    data::Array{Float, 2}
     metric # distance metric
-    weights # uniform, distance
-    threshold # decission threshold for classification
+    distances # all/last
+    contamination # contamination rate
+    threshold # decision threshold for classification
     reduced_dim # if this is true, reduce dimensionality of data if > 10 (PCA)
     PCA # tuple containing (P, mu) of the PCA
     fitted
+    Beta::Float
 end
 
 """
-   kNN(k, [metric, weights, reduced_dim])
+   kNN(k, contamination, [metric, distances, reduced_dim, threshold, Beta])
 
 kNN model constructor. 
 
 k - number of nearest neighbours taken into consideration
+contamination - ratior of contaminated to all samples
 metric - for distance computation, using Distances package
-weights - uniform/distance
+distances - use average of all k-nearest or just the kth-nearest neighbour distance
 reduced_dim - if this is true, for problems with dim > 10 this is reduced with PCA
+threshold - classification threshold
+Beta - for automatic threshold computation
 """
-function kNN(k::Int; metric = Euclidean(), weights = "uniform", threshold = 0.5,
-     reduced_dim = false)
-    @assert weights in ["uniform", "distance"]
-    return kNN(k, Array{Float,2}(0,0), Array{Int64, 1}(0), metric, weights, 
-        threshold, reduced_dim, (Array{Float,2}(0,0), Array{Float,1}(0)), false)
+function kNN(k::Int, contamination::Real; metric = Euclidean(), distances = "all", 
+        threshold = 0.0, reduced_dim = false, Beta = 1.0)
+    @assert distances in ["all", "last"]
+    return kNN(k, Array{Float,2}(0,0), metric, distances, contamination, threshold,
+        reduced_dim, (Array{Float,2}(0,0), Array{Float,1}(0)), false, Beta)
 end
 
 """
-    fit!(knn, X, Y)
+    fit!(knn, X)
 
 Fit method for kNN.
 """
-function fit!(knn::kNN, X, Y)
+function fit!(knn::kNN, X)
+    X=Float.(X)
     if knn.reduced_dim
         m = fit(PCA, X, maxoutdim = 10)
         knn.data = transform(m,X)
@@ -44,8 +50,11 @@ function fit!(knn::kNN, X, Y)
     else
         knn.data = X
     end
-    knn.labels = Y
     knn.fitted = true
+    if size(X,2) < knn.k
+        warn("k is higher than data dimension, setting lower...")
+        knn.k = size(X,2)
+    end
 end
 
 """
@@ -73,19 +82,16 @@ function anomalyscore(knn::kNN, X::Array{Float,2}, k)
     ascore = Array{Float, 1}(N)
     for n in 1:N
         dn = dm[n,:] 
-        if knn.weights == "distance"
-            isort = sortperm(dn)
-            weights = 1./(dn[isort][1:k] + 1e-3)
-            weights = weights/sum(weights)
-            ascore[n] = sum(weights.*(knn.labels[isort][1:k]))
+        if knn.distances == "last"
+            ascore[n] = sort(dn)[k]
         else
-            ascore[n] = mean(knn.labels[sortperm(dn)][1:k])
+            ascore[n] = mean(sort(dn)[1:k])
         end
     end
     
     return ascore
 end
-anomalyscore(knn::kNN, x::Array{Float, 1}, k) = anomalyscore(knn, reshape(x, size(x,1), 1), k)
+anomalyscore(knn::kNN, x::Array{Float, 1}, k) = anomalyscore(knn, reshape(x, size(x,1), 1), k)[1]
 
 """
     anomalyscore(knn, X)
@@ -99,9 +105,32 @@ anomalyscore(knn::kNN, X) = anomalyscore(knn, X, knn.k)
 
 Classify an instance x using the discriminator and a threshold.
 """
-classify(knn::kNN, x) = (anomalyscore(knn, x) .> knn.threshold)? 1 : 0
-classify(knn::kNN, x::Array{Float,1}) = (anomalyscore(knn, x)[1] > knn.threshold)? 1 : 0
-classify(knn::kNN, X::Array{Float,2}) = reshape(mapslices(y -> classify(knn, y), X, 1), size(X,2))
+classify(knn::kNN, X) = Int.(anomalyscore(knn, X) .> knn.threshold)
+
+"""
+    getthreshold(knn, x, [Beta])
+
+Compute threshold for kNN classification based on known contamination level.
+"""
+function getthreshold(knn::kNN, x)
+    N = size(x, 2)
+    # get reconstruction errors
+    ascore = anomalyscore(knn, x)
+    # sort it
+    ascore = sort(ascore)
+    aN = Int(ceil(N*knn.contamination)) # number of contaminated samples
+    # get the threshold - could this be done more efficiently?
+    (aN > 0)? (return knn.Beta*ascore[end-aN] + (1-knn.Beta)*ascore[end-aN+1]) : (return ascore[end])
+end
+
+"""
+    setthreshold!(knn, X)
+
+Set model classification threshold based ratior of labels in Y.
+"""
+function setthreshold!(knn::kNN, X)
+    knn.threshold = getthreshold(knn, X)
+end
 
 """
     predict(knn, X)

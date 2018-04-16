@@ -12,7 +12,7 @@ using AnomalyDetection
 
 dataset = load("toy_data_3.jld")["data"]
 
-X = dataset.data
+X = AnomalyDetection.Float.(dataset.data)
 Y = dataset.labels
 nX = X[:, Y.==0]
 
@@ -44,7 +44,7 @@ model = AEmodel(esize, dsize, L, threshold, contamination,
     tracked = tracked)
 
 AnomalyDetection.fit!(model, nX)
-AnomalyDetection.setthreshold!(model, X, Y)
+AnomalyDetection.setthreshold!(model, X)
 AnomalyDetection.evalloss(model, nX)
 
 """
@@ -85,6 +85,8 @@ yhat = AnomalyDetection.predict(model, X)
 # this outputs labels
 tryhat, tsthat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
 
+AnomalyDetection.anomalyscore(model, X[:,61:90])
+
 # plot heatmap of the fit
 xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
@@ -98,7 +100,7 @@ y = linspace(yl[1], yl[2], 30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
-        zz[i,j] = Flux.Tracker.data(AnomalyDetection.loss(model, [y[i], x[j]]))
+        zz[i,j] = AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
     end
 end
 contourf!(x, y, zz, c = :viridis)

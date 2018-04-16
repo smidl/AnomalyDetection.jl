@@ -222,27 +222,16 @@ getthreshold(model::AEmodel, x) = getthreshold(model.ae, x, model.contamination,
 params(model::AEmodel) = Flux.params(model.ae)
 
 """
-	setcontamination!(model, Y)
-
-Compute the threshold for ae based on the ratio of positive and negative labels in Y.
-"""
-function setcontamination!(model::AEmodel, Y)
-	# compute the contamination rate
-	model.contamination = size(Y[Y.==1],1)/size(Y,1)
-end
-
-"""
-	setthreshold!(model::AEmodel, X, Y)
+	setthreshold!(model::AEmodel, X)
 
 Set model classification threshold based ratior of labels in Y.
 """
-function setthreshold!(model::AEmodel, X, Y)
-	setcontamination!(model, Y)
+function setthreshold!(model::AEmodel, X)
 	model.threshold = getthreshold(model, X)
 end
 
 """
-	fit!(model::AEmodel, X, Y)
+	fit!(model::AEmodel, X)
 
 Fit the AE model, instances are columns of X, X are normal samples!!!.	
 """

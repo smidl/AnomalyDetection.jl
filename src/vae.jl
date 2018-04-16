@@ -303,7 +303,7 @@ generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
 getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.M, model.contamination, Beta = model.Beta)
 anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M)
-params(model::VAEmodel) = params(model.vae)
+params(model::VAEmodel) = Flux.params(model.vae)
 
 """
 	setthreshold!(model::VAEmodel, X)
@@ -319,21 +319,11 @@ end
 
 Fit the VAE model, instances are columns of X.	
 """
-function fit!(model::VAEmodel, X, Y) 
-	# train the NN only on normal samples
-	nX = X[:, Y.==0]
-
+function fit!(model::VAEmodel, X) 
 	# fit the VAE NN
-	fit!(model.vae, nX, model.L, M = model.M, iterations = model.iterations, 
+	fit!(model.vae, X, model.L, M = model.M, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
 	rdelta = model.rdelta, history = model.history)
-
-	if model.contamination > 0
-		# now set the threshold using contamination rate
-		model.contamination = size(Y[Y.==1],1)/size(Y,1)
-		setthreshold!(model, X)
-		println("computing automatic threshold...")
-	end
 end
 
 """
