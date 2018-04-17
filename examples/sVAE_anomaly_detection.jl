@@ -80,7 +80,6 @@ function plot(model::sVAEmodel)
     end
 end
 
-
 # plot model loss
 display(plot(model))
 if !isinteractive()

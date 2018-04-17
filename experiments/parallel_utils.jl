@@ -1,11 +1,11 @@
 ###########################
 ### general NN settings ###
 ###### run settings #######
-hiddendim = 16
-latentdim = 8
-activation = Flux.relu
-verbfit = false
-batchsizes = [20, 256]
+const hiddendim = 16
+const latentdim = 8
+const activation = Flux.relu
+const verbfit = false
+const batchsizes = [20, 256]
 ###############################
 
 """
@@ -134,6 +134,7 @@ asfp = an iterable of as parameters with which the model will be updated in the 
 function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 	# extract datasets
 	(trdata, tstdata) = data
+	ndata = trdata.data[:,trdata.labels .== 0] # normal training data
 
 	# outer loop over fit parameters
 	for fargs in ffp	
@@ -146,22 +147,22 @@ function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 		mparams[:args] = Dict(mparams[:args]) 
 
 		# update model parameters, filename and save actual values to mparams
-		fname = updateparams!(model, fname, fargs, mparams)
+		_fname = updateparams!(model, fname, fargs, mparams)
 
-		# fit the model
-		ff(model, trdata.data, trdata.labels)
+		# fit the model on normal data
+		ff(model, ndata)
 
 		# inner loop over anomaly score parameters
 		for args in asfp
 			# update model parameters, filename and save actual values to mparams
-			_fname = updateparams!(model, fname, args, mparams)
+			__fname = updateparams!(model, _fname, args, mparams)
 
 			# get anomaly scores
 			tras, tstas = getas(data, model, asf)
 			
 			# save input and output
-			_fname = string(_fname, ".jld")
-			save_io(outpath, _fname, model, mparams, tras, trdata.labels, tstas, 
+			__fname = string(__fname, ".jld")
+			save_io(outpath, __fname, model, mparams, tras, trdata.labels, tstas, 
 				tstdata.labels)
 		end
 	end
@@ -228,14 +229,15 @@ const PARAMS = Dict(
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
 			:args => DataStructures.OrderedDict( 
-				:k => 1
+				:k => 1, # will be replaced from the asfparams
+				:contamination => 0.0 # useless
 				), 
 			# kwargs
 			:kwargs => Dict(
 				:metric => :(Distances.Euclidean()),
-				:weights => "distance",
-				:threshold => 0.5,
-				:reduced_dim => true	
+				:distances => "all",
+				:threshold => 0.0, # useless
+				:reduced_dim => true
 				)
 			),
 		# this is going to be iterated ver for the fit function
@@ -261,9 +263,9 @@ const PARAMS = Dict(
 				:L => 0, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
-				:iterations => 5000,
-				:cbit => 1000,
-				:verbfit => false
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit
 				), 
 			# kwargs
 			:kwargs => Dict(
@@ -297,9 +299,9 @@ const PARAMS = Dict(
 				:lambda => 0, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
-				:iterations => 5000,
-				:cbit => 1000,
-				:verbfit => false,
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit,
 				:L => 0 # replaced in training
 				), 
 			# kwargs
@@ -320,6 +322,49 @@ const PARAMS = Dict(
 		:asfparams => product(),
 		# the model constructor
 		:model => AnomalyDetection.VAEmodel,
+		# model fit function
+		:ff => AnomalyDetection.fit!,
+		# anomaly score function
+		:asf => AnomalyDetection.anomalyscore
+		),
+	### sVAE ###
+	:sVAE => Dict(
+	# this is going to serve as model construction params and also to be saved
+	# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict( 
+				:ensize => [1; hiddendim; hiddendim; latentdim*2],
+				:decsize => [latentdim; hiddendim; hiddendim; 1],
+				:dissize => [1 + latentdim; hiddendim; hiddendim; 1],
+				:lambda => 0, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit,
+				:L => 0 # replaced in training
+				), 
+			# kwargs
+			:kwargs => Dict(
+				:M => 1,
+				# input functions like this, they are evaluated later
+				:activation => :(Flux.relu), 
+				:layer => :(Flux.Dense),
+				:tracked => true,
+				:rdelta => 1e-5,
+				:alpha => 0, # will be replaced in training
+				:xsigma => 1.0
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:ffparams => product([:L => i for i in batchsizes], 
+#							[:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
+							[:lambda => i for i in [1.0]]),
+		# this is going to be iterated over for the anomalyscore function
+		:asfparams => product([:alpha => i for i in linspace(0,1,6)]),
+		# the model constructor
+		:model => AnomalyDetection.sVAEmodel,
 		# model fit function
 		:ff => AnomalyDetection.fit!,
 		# anomaly score function
