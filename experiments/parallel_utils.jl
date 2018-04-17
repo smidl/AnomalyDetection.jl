@@ -220,6 +220,17 @@ function dataparams!(m::Type{AnomalyDetection.sVAEmodel}, topparams, data)
 	databatchsize!(trN, topparams)
 end
 
+function dataparams!(m::Type{AnomalyDetection.GANmodel}, topparams, data)
+	# change the esize and dsize params based on data size
+	indim, trN = size(data[1].data[:,data[1].labels.==0])
+	topparams[:mparams][:args][:esize][end] = indim
+	topparams[:mparams][:args][:dsize][1] = indim
+	
+	# modify the batchsizes
+	databatchsize!(trN, topparams)
+end
+
+
 """
 	databatchsize!(N, topparams)
 
@@ -390,6 +401,44 @@ const PARAMS = Dict(
 		:asfparams => product([:alpha => i for i in linspace(0,1,6)]),
 		# the model constructor
 		:model => AnomalyDetection.sVAEmodel,
+		# model fit function
+		:ff => AnomalyDetection.fit!,
+		# anomaly score function
+		:asf => AnomalyDetection.anomalyscore
+		),
+	### GAN ###
+	:GAN => Dict(
+	# this is going to serve as model construction params and also to be saved
+	# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict( 
+				:gsize => [latentdim; hiddendim; hiddendim; 1],
+				:dsize => [1; hiddendim; hiddendim; 1],
+				:lambda => 0, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit,
+				:L => 0 # replaced in training
+				), 
+			# kwargs
+			:kwargs => Dict(
+				# input functions like this, they are evaluated later
+				:activation => :(Flux.relu), 
+				:layer => :(Flux.Dense),
+				:tracked => true,
+				:rdelta => 1e-5,
+				:pz => :(randn)
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:ffparams => product([:L => i for i in batchsizes],
+		# this is going to be iterated over for the anomalyscore function
+		:asfparams => product([:lambda => i for i in linspace(0,1,6)]),
+		# the model constructor
+		:model => AnomalyDetection.GANmodel,
 		# model fit function
 		:ff => AnomalyDetection.fit!,
 		# anomaly score function
