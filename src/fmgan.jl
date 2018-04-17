@@ -17,7 +17,7 @@ struct fmGAN
 end
 
 # make it trainable
-Flux.treelike(GAN)
+Flux.treelike(fmGAN)
 
 """
 	fmGAN(generator, discriminator)

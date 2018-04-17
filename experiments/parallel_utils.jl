@@ -223,13 +223,12 @@ end
 function dataparams!(m::Type{AnomalyDetection.GANmodel}, topparams, data)
 	# change the esize and dsize params based on data size
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
-	topparams[:mparams][:args][:esize][end] = indim
+	topparams[:mparams][:args][:gsize][end] = indim
 	topparams[:mparams][:args][:dsize][1] = indim
 	
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
-
 
 """
 	databatchsize!(N, topparams)
@@ -418,10 +417,10 @@ const PARAMS = Dict(
 				:lambda => 0, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
+				:L => 0, # replaced in training
 				:iterations => 10000,
 				:cbit => 10000,
-				:verbfit => verbfit,
-				:L => 0 # replaced in training
+				:verbfit => verbfit
 				), 
 			# kwargs
 			:kwargs => Dict(
@@ -434,7 +433,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => product([:L => i for i in batchsizes],
+		:ffparams => product([:L => i for i in batchsizes]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => product([:lambda => i for i in linspace(0,1,6)]),
 		# the model constructor
