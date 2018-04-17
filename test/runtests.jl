@@ -17,7 +17,7 @@ nX = X[:,1:end-1]
 Y = Int.(push!(zeros(N-1), 1))
 
 # run either all tests or just thos specified in command-line call
-includes = ["knn", "ae", "vae", "gan"]
+includes = ["knn", "ae", "vae", "gan", "fmgan"]
 (size(ARGS,1) > 0)? includes = intersect(includes, ARGS) : println("Running all tests...")
 @testset "ALL" begin
 	for incl in includes

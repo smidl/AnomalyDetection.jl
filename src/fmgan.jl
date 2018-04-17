@@ -25,33 +25,26 @@ Basic fmGAN constructor.
 fmGAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = fmGAN(G, freeze(G), D, freeze(D), pz)
 
 """
-	fmGAN(gsize, dsize, [pz, activation])
+	fmGAN(gsize, dsize, [pz, activation, layer])
 
 Constructor for the fmGAN object. 
 gsize - vector of Ints describing generator layers sizes
 dsize - vector of Ints describing discriminator layers sizes, including the last scalar layer 
 pz - code distribution
 activation - activation function common to all layers
+layer - layer type
 """
-function fmGAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu)
+function fmGAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu, layer = Flux.Dense)
 	@assert size(gsize,1) >= 3
 	@assert size(dsize,1) >= 3
 	@assert dsize[end] == 1
 	@assert gsize[end] == dsize[1]
 
 	# generator
-	generator = Dense(gsize[1], gsize[2], activation)
-	for i in 3:(size(gsize,1)-1)
-		generator = Chain(generator, Dense(gsize[i-1], gsize[i], activation))
-	end
-	generator = Chain(generator, Dense(gsize[end-1], gsize[end]))
+	generator = aelayerbuilder(gsize, activation, layer)
 
 	# discriminator
-	discriminator = Dense(dsize[1], dsize[2], activation)
-	for i in 3:(size(dsize,1)-1)
-		discriminator = Chain(discriminator, Dense(dsize[i-1], dsize[i], activation))
-	end
-	discriminator = Chain(discriminator, Dense(dsize[end-1], dsize[end], σ))
+	discriminator = discriminatorbuilder(dsize, activation, layer)
 
 	return fmGAN(generator, discriminator, pz=pz)
 end
@@ -65,7 +58,7 @@ end
 
 Discriminator loss.
 """
-Dloss(fmgan::fmGAN, X, Z) = - 0.5*(mean(log.(fmgan.d(X))) + mean(log.(1 - fmgan.d(fmgan.gg(Z)))))
+Dloss(fmgan::fmGAN, X, Z) = - Float(0.5)*(mean(log.(fmgan.d(X))) + mean(log.(1 - fmgan.d(fmgan.gg(Z)))))
 
 """
 	Gloss(fmgan, Z)
@@ -108,13 +101,13 @@ iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
-traindata - a dictionary for training progress control
+history - a dictionary for training progress control
 """
 function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb = true, rdelta = Inf,
-	traindata = nothing)
+	history = nothing)
 	# settings
 	#Dopt = ADAM(params(fmgan.d))
-	Dopt = SGD(params(fmgan.d))
+	Dopt = ADAM(params(fmgan.d))
 	Gopt = ADAM(params(fmgan.g))
 	
 	# problem size
@@ -133,7 +126,7 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
         Dopt()
 		
 		# generator training	
-        Gl = fmloss(fmgan, x, z) + alpha*Gloss(fmgan, z)
+        Gl = fmloss(fmgan, x, z) + Float(alpha)*Gloss(fmgan, z)
         Flux.Tracker.back!(Gl)
         Gopt()
 	
@@ -143,8 +136,8 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
 		end
 
 		# save actual iteration data
-		if traindata != nothing
-			track!(fmgan, traindata, x, z)
+		if history != nothing
+			track!(fmgan, history, x, z)
 		end
 
 		# if a stopping condition is present
@@ -160,38 +153,15 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
 end
 
 """
-	track!(fmgan, traindata, X, Z)
+	track!(fmgan, history, X, Z)
 
 Save current progress of feature-matching fmGAN training.
 """
-function track!(fmgan::fmGAN, traindata, X, Z)
-	# Dloss
-	if haskey(traindata, "discriminator loss")
-		push!(traindata["discriminator loss"], Flux.Tracker.data(Dloss(fmgan, X, Z)))
-	else
-		traindata["discriminator loss"] = [Flux.Tracker.data(Dloss(fmgan, X, Z))]
-	end
-
-	# Gloss
-	if haskey(traindata, "generator loss")
-		push!(traindata["generator loss"], Flux.Tracker.data(Gloss(fmgan, Z)))
-	else
-		traindata["generator loss"] = [Flux.Tracker.data(Gloss(fmgan, Z))]
-	end
-
-	# feature matching loss
-	if haskey(traindata, "feature-matching loss")
-		push!(traindata["feature-matching loss"], Flux.Tracker.data(fmloss(fmgan, X, Z)))
-	else
-		traindata["feature-matching loss"] = [Flux.Tracker.data(fmloss(fmgan, X, Z))]
-	end
-
-	# reconstruction error
-	if haskey(traindata, "reconstruction error")
-		push!(traindata["reconstruction error"], Flux.Tracker.data(rerr(fmgan, X, Z)))
-	else
-		traindata["reconstruction error"] = [Flux.Tracker.data(rerr(fmgan, X, Z))]
-	end
+function track!(fmgan::fmGAN, history, X, Z)
+	push!(history, :discriminator_loss, Flux.Tracker.data(Dloss(fmgan, X, Z)))
+	push!(history, :generator_loss, Flux.Tracker.data(Gloss(fmgan, Z)))
+	push!(history, :feature_matching_loss, Flux.Tracker.data(fmloss(fmgan, X, Z)))
+	push!(history, :reconstruction_error, Flux.Tracker.data(rerr(fmgan, X, Z)))
 end
 
 ############################
@@ -203,14 +173,14 @@ end
 
 Generate a sample code from fmGAN.
 """
-getcode(fmgan::fmGAN) = fmgan.pz(size(params(fmgan.g)[1],2))
+getcode(fmgan::fmGAN) = Float.(fmgan.pz(size(params(fmgan.g)[1],2)))
 
 """
 	getcode(fmgan, N)
 
 Generate codes from fmGAN.
 """
-getcode(fmgan::fmGAN, n::Int) = fmgan.pz(size(params(fmgan.g)[1],2), n)
+getcode(fmgan::fmGAN, n::Int) = Float.(fmgan.pz(size(params(fmgan.g)[1],2), n))
 
 """
 	generate(fmgan)
@@ -243,7 +213,11 @@ discriminate(fmgan::fmGAN, X) = Flux.Tracker.data(fmgan.d(X))
 Computes the anomaly score of X under given fmGAN using weighted average of reconstruction 
 error and discriminator score.
 """
-anomalyscore(fmgan::fmGAN, X, lambda) = (1 - lambda)*-Flux.Tracker.data(mean(log.(fmgan.d(X)))) + lambda*rerr(fmgan, X, getcode(fmgan, size(X,2)))
+anomalyscore(fmgan::fmGAN, X::Array{Float, 1}, lambda) = 
+	Flux.Tracker.data(Float(1 - lambda)*-mean(log.(fmgan.d(X))) + 
+	Float(lambda)*rerr(fmgan, X, getcode(fmgan, size(X,2))))
+anomalyscore(fmgan::fmGAN, X::Array{Float, 2}, lambda) = 
+	reshape(mapslices(y -> anomalyscore(fmgan, y, lambda), X, 1), size(X,2))
 
 """
 	classify(fmgan, x, threshold, lambda)
@@ -251,9 +225,7 @@ anomalyscore(fmgan::fmGAN, X, lambda) = (1 - lambda)*-Flux.Tracker.data(mean(log
 Classify an instance x using the discriminator and error losses and a threshold in a 
 feature-matching GAN setting.
 """
-classify(fmgan::fmGAN, x, threshold, lambda) = (anomalyscore(fmgan, x, lambda) > threshold)? 1 : 0
-classify(fmgan::fmGAN, x::Array{Float,1}, threshold, lambda) = (anomalyscore(fmgan, x, lambda) > threshold)? 1 : 0
-classify(fmgan::fmGAN, X::Array{Float,2}, threshold, lambda) = reshape(mapslices(y -> classify(fmgan, y, threshold, lambda), X, 1), size(X,2))
+classify(fmgan::fmGAN, X, threshold, lambda) = Int.(anomalyscore(fmgan, X, lambda) .> Float(threshold))
 
 """
 	getthreshold(fmgan, x, contamination, lambda, [Beta])
@@ -262,15 +234,14 @@ Compute threshold for fmGAN classification based on known contamination level.
 """
 function getthreshold(fmgan::fmGAN, X, contamination, lambda; Beta = 1.0)
 	N = size(X, 2)
+	Beta = Float(Beta)
 	# get anomaly score
-	ascore = mapslices(y -> anomalyscore(fmgan, y, lambda), X, 1)
-	# create ordinary array from the tracked array
-	ascore = reshape([Flux.Tracker.data(s)[1] for s in ascore], N)
+	ascore = anomalyscore(fmgan, X, lambda)
 	# sort it
 	ascore = sort(ascore)
-	aN = max(Int(floor(N*contamination)),1) # number of contaminated samples
+	aN = Int(ceil(N*contamination)) # number of contaminated samples
 	# get the threshold - could this be done more efficiently?
-	return Beta*ascore[end-aN] + (1-Beta)ascore[end-aN+1]
+	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
 end
 
 ################################################################################
@@ -280,7 +251,7 @@ end
 """ 
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
-mutable struct fmGANmodel
+mutable struct fmGANmodel <:genmodel
 	fmgan::fmGAN
 	lambda::Real
 	threshold::Real
@@ -292,7 +263,7 @@ mutable struct fmGANmodel
 	rdelta::Float
 	alpha::Float
 	Beta::Float
-	traindata
+	history
 end
 
 """
@@ -319,18 +290,20 @@ tracked [false] - is training progress (losses) stored?
 """
 function fmGANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
-	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, rdelta = Inf,
+	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, 
+	layer = Flux.Dense, rdelta = Inf,
 	alpha = 1.0, Beta = 1.0, tracked = false)
 	# construct the fmGAN object
-	fmgan = fmGAN(gsize, dsize, pz = pz, activation = activation)
-	(tracked)? traindata = Dict{Any, Any}() : traindata = nothing
+	fmgan = fmGAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
+	(tracked)? history = MVHistory() : history = nothing
 	model = fmGANmodel(fmgan, lambda, threshold, contamination, L, iterations, cbit, 
-		verbfit, rdelta, alpha, Beta, traindata)
+		verbfit, rdelta, alpha, Beta, history)
 	return model
 end
 
 # reimplement some methods of fmGAN
 Dloss(model::fmGANmodel, X, Z) = Dloss(model.fmgan, X, Z)
+Gloss(model::fmGANmodel, Z) = Gloss(model.fmgan, Z)
 fmloss(model::fmGANmodel, X, Z) = fmloss(model.fmgan, X, Z)
 rerr(model::fmGANmodel, X, Z) = rerr(model.fmgan, X, Z)
 evalloss(model::fmGANmodel, X, Z) = evalloss(model.fmgan, X, Z) 
@@ -338,8 +311,6 @@ generate(model::fmGANmodel) = generate(model.fmgan)
 generate(model::fmGANmodel, n::Int) = generate(model.fmgan, n)
 anomalyscore(model::fmGANmodel, X) = anomalyscore(model.fmgan, X, model.lambda)
 classify(model::fmGANmodel, x) = classify(model.fmgan, x, model.threshold, model.lambda)
-classify(model::fmGANmodel, x::Array{Float,1}) = classify(model.fmgan, x, model.threshold, model.lambda)
-classify(model::fmGANmodel, X::Array{Float,2}) = classify(model.fmgan, X, model.threshold, model.lambda)
 getthreshold(model::fmGANmodel, X) = getthreshold(model.fmgan, X, model.contamination, model.lambda, Beta = model.Beta)
 getcode(model::fmGANmodel) = getcode(model.fmgan)
 getcode(model::fmGANmodel, n) = getcode(model.fmgan, n)
@@ -394,22 +365,15 @@ function setthreshold!(model::fmGANmodel, X)
 end
 
 """
-	fit!(model, X, Y)
+	fit!(model, X)
 
 Trains a fmGANmodel.
 """
-function fit!(model::fmGANmodel, X, Y)
-	# train the NN only on normal samples
-	nX = X[:, Y.==0]
-
+function fit!(model::fmGANmodel, X)
 	# train the fmGAN NN
-	fit!(model.fmgan, nX, model.L; alpha = model.alpha, iterations=model.iterations, 
+	fit!(model.fmgan, X, model.L; alpha = model.alpha, iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
-	traindata = model.traindata)
-
-	# now set the threshold using contamination rate
-	model.contamination = size(Y[Y.==1],1)/size(Y[Y.==0],1)
-	setthreshold!(model, X)
+	history = model.history)
 end
 
 """
