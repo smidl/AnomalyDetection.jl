@@ -37,7 +37,7 @@ activation = Flux.leakyrelu # should work better than relu
 layer = Flux.Dense
 rdelta = 1e-5 # stop training after this reconstruction error is achieved
 # this parameter is basically useless in the case of GANs
-alpha = 1.0 # weight of the classical generator loss in the total loss 
+alpha = 1e-1 # weight of the classical generator loss in the total loss 
 # used to train generator
 Beta = 1.0 # for automatic threshold computation, in [0, 1] 
 # 1.0 = tight around normal samples

@@ -19,6 +19,7 @@ runexperiment(datasets[2], 2, "AE")
 runexperiment(datasets[3], 1, "VAE")
 runexperiment(datasets[4], 1, "sVAE")
 runexperiment(datasets[5], 4, "GAN")
+runexperiment(datasets[6], 5, "fmGAN")
 
 #pmap(i -> i[1](joinpath(export_path,i[2]),i[2],i[3]),product([trainAE, trainVAE, trainsVAE, trainGAN, 
 #	trainfmGAN, trainkNN], datasets, repetition))

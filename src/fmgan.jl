@@ -10,9 +10,10 @@ The architecture is the same as with ordinary fmGAN.
 """
 struct fmGAN
 	g # generator
-	gg # non-trainable generator copy
+	gg # non-trainable generator view
 	d # discriminator
-	dd # non-trainable discriminator copy
+	dd # non-trainable discriminator view
+	fmd # discriminator view for feature matching (first to last-but-one layers)
 	pz # code distribution
 end
 
@@ -24,7 +25,8 @@ Flux.treelike(fmGAN)
 
 Basic fmGAN constructor.
 """
-fmGAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = fmGAN(G, freeze(G), D, freeze(D), pz)
+fmGAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = fmGAN(G, freeze(G), D, freeze(D), 
+	freeze(Flux.Chain(D.layers[1:end-1]...)), pz)
 
 """
 	fmGAN(gsize, dsize, [pz, activation, layer])
@@ -74,7 +76,7 @@ Gloss(fmgan::fmGAN, Z) = - mean(log.(fmgan.dd(fmgan.g(Z))))
 
 Feature matching loss computed on the penultimate discriminator layer.
 """
-fmloss(fmgan::fmGAN, X, Z) = Flux.mse(fmgan.dd.layers[1](X), fmgan.dd.layers[1](fmgan.g(Z)))
+fmloss(fmgan::fmGAN, X, Z) = Flux.mse(fmgan.fmd(X), fmgan.fmd(fmgan.g(Z)))
 
 """
 	rerr(fmgan, X, Z)
@@ -262,9 +264,9 @@ mutable struct fmGANmodel <:genmodel
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
-	rdelta::Float
-	alpha::Float
-	Beta::Float
+	rdelta
+	alpha
+	Beta
 	history
 end
 

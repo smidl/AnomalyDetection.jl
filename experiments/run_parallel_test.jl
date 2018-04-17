@@ -20,7 +20,9 @@ datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filt
 #@time runexperiment(datasets[2], 2, "AE")
 #@time runexperiment(datasets[3], 1, "VAE")
 #@time runexperiment(datasets[4], 1, "sVAE")
-@time runexperiment(datasets[5], 4, "GAN")
+#@time runexperiment(datasets[5], 4, "GAN")
+@time runexperiment(datasets[6], 5, "fmGAN")
+
 #c = trainAE(datasets[1],4)
 #pmap(i -> i[1](i[2],i[3]),product([trainAE], datasets, 1:iteration))
 #pmap(i -> i[1](joinpath(export_path,i[2]),i[2],i[3]),product([trainkNN], datasets, iteration))
