@@ -3,8 +3,9 @@ StatsBase
 Distances
 Flux
 MultivariateStats
+FileIO
 JLD
-MLBase
 IterTools
 ValueHistories
 DataStructures
+Lazy

@@ -59,7 +59,8 @@ function get_data(dataset_name, iteration)
 
 	# this might fail for url
 	basicset = AnomalyDetection.Basicset(joinpath(loda_path, dataset_name))
-	trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty, frequency, variation,
+	trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty, 
+		frequency, variation,
 		seed = seed)
 	return trdata, tstdata	
 end
@@ -195,7 +196,7 @@ dataparams!(model, topparams, data) = return nothing
 function dataparams!(model::Type{AnomalyDetection.kNN}, topparams, data) 
 	# for kNN model, set the ks according to data size
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
-	topparams[:asfparams] = product([:k => i for i in Int.(round.(linspace(1, 2*sqrt(trN), 5)))])
+	topparams[:asfparams] = IterTools.product([:k => i for i in Int.(round.(linspace(1, 2*sqrt(trN), 5)))])
 end
 
 function dataparams!{model<:AnomalyDetection.genmodel}(m::Type{model}, topparams, data)
@@ -265,7 +266,7 @@ function databatchsize!(N, topparams)
 	 	ls[i] = filter(x -> !(x[1]==:L && x[2] > N), ls[i])
 	    ls[i] = unique(ls[i])
 	end
-	topparams[:ffparams] = product(ls...)
+	topparams[:ffparams] = IterTools.product(ls...)
 end
 
 const PARAMS = Dict(
@@ -288,9 +289,9 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated ver for the fit function
-		:ffparams => product(),
+		:ffparams => IterTools.product(),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => product([:k => i for i in [1, 3, 5, 11, 21]]),
+		:asfparams => IterTools.product([:k => i for i in [1, 3, 5, 11, 21]]),
 		# the model constructor
 		:model => AnomalyDetection.kNN,
 		# model fit function
@@ -324,9 +325,9 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => product([:L => i for i in batchsizes]),
+		:ffparams => IterTools.product([:L => i for i in batchsizes]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => product(),
+		:asfparams => IterTools.product(),
 		# the model constructor
 		:model => AnomalyDetection.AEmodel,
 		# model fit function
@@ -362,10 +363,10 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => product([:L => i for i in batchsizes], 
+		:ffparams => IterTools.product([:L => i for i in batchsizes], 
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => product(),
+		:asfparams => IterTools.product(),
 		# the model constructor
 		:model => AnomalyDetection.VAEmodel,
 		# model fit function
@@ -404,10 +405,10 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => product([:L => i for i in batchsizes], 
+		:ffparams => IterTools.product([:L => i for i in batchsizes], 
  							 [:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => product([:alpha => i for i in linspace(0,1,6)]),
+		:asfparams => IterTools.product([:alpha => i for i in linspace(0,1,6)]),
 		# the model constructor
 		:model => AnomalyDetection.sVAEmodel,
 		# model fit function
@@ -443,9 +444,9 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => product([:L => i for i in batchsizes]),
+		:ffparams => IterTools.product([:L => i for i in batchsizes]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => product([:lambda => i for i in linspace(0,1,6)]),
+		:asfparams => IterTools.product([:lambda => i for i in linspace(0,1,6)]),
 		# the model constructor
 		:model => AnomalyDetection.GANmodel,
 		# model fit function
@@ -482,10 +483,10 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => product([:L => i for i in batchsizes],
+		:ffparams => IterTools.product([:L => i for i in batchsizes],
 							 [:alpha => i for i in [0; [10.0^i for i in -4:2:4]]]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => product([:lambda => i for i in linspace(0,1,6)]),
+		:asfparams => IterTools.product([:lambda => i for i in linspace(0,1,6)]),
 		# the model constructor
 		:model => AnomalyDetection.fmGANmodel,
 		# model fit function
