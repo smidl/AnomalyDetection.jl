@@ -16,6 +16,8 @@ struct fmGAN
 	pz # code distribution
 end
 
+# make it trainable
+Flux.treelike(GAN)
 
 """
 	fmGAN(generator, discriminator)
@@ -315,6 +317,7 @@ getthreshold(model::fmGANmodel, X) = getthreshold(model.fmgan, X, model.contamin
 getcode(model::fmGANmodel) = getcode(model.fmgan)
 getcode(model::fmGANmodel, n) = getcode(model.fmgan, n)
 discriminate(model::fmGANmodel, X) = discriminate(model.fmgan, X)
+params(model::fmGANmodel) = Flux.params(model.fmgan)
 
 """
 	setthreshold!(model, X)

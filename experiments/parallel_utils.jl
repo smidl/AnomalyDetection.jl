@@ -203,19 +203,44 @@ function dataparams!{model<:AnomalyDetection.genmodel}(m::Type{model}, topparams
 	topparams[:mparams][:args][:esize][1] = indim
 	topparams[:mparams][:args][:dsize][end] = indim
 
-	# also modify the batchsize if it is larger than the dataset size
+	# modify the batchsizes
+	databatchsize!(trN, topparams)
+end
+
+function dataparams!(m::Type{AnomalyDetection.sVAEmodel}, topparams, data)
+	# change the esize and dsize params based on data size
+	indim, trN = size(data[1].data[:,data[1].labels.==0])
+	topparams[:mparams][:args][:ensize][1] = indim
+	topparams[:mparams][:args][:decsize][end] = indim
+	# indim + latentdim
+	topparams[:mparams][:args][:dissize][1] = indim + 
+		topparams[:mparams][:args][:decsize][1] 
+	
+	# modify the batchsizes
+	databatchsize!(trN, topparams)
+end
+
+"""
+	databatchsize!(N, topparams)
+
+Modify batchsize L according to data size.
+N - number of instances
+topparams - top of parameter tree
+"""
+function databatchsize!(N, topparams)
+	# modify the batchsize if it is larger than the dataset size
 	# this is a little awkward but universal
 	# steps: 
-	# 1) if there is an L larger than datasize trN, create a new pair :L => trN
+	# 1) if there is an L larger than datasize N, create a new pair :L => trN
 	# 2) filter out those pairs where :L > trN
 	# 3) remove duplicates (if there are more pairs with :L > trN)
 	ls = Array{Any,1}([x for x in topparams[:ffparams].xss])
 	for l in ls
-		map(x -> ((x[1]==:L && x[2] > trN)? push!(l, (x[1] => trN)) : (nothing)), l)
+		map(x -> ((x[1]==:L && x[2] > N)? push!(l, (x[1] => N)) : (nothing)), l)
 	end
 
 	for i in 1:size(ls,1)
-	 	ls[i] = filter(x -> !(x[1]==:L && x[2] > trN), ls[i])
+	 	ls[i] = filter(x -> !(x[1]==:L && x[2] > N), ls[i])
 	    ls[i] = unique(ls[i])
 	end
 	topparams[:ffparams] = product(ls...)

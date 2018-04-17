@@ -338,10 +338,10 @@ mutable struct sVAEmodel <: genmodel
     L::Int # batchsize
     M::Int # sampling rate for reconstruction error
     verbfit::Bool
-    rdelta::Float
-    alpha::Float
-    Beta::Float
-    xsigma::Float
+    rdelta
+    alpha
+    Beta
+    xsigma
     history
 end
 
