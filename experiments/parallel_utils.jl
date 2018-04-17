@@ -5,7 +5,7 @@ const hiddendim = 16
 const latentdim = 8
 const activation = Flux.relu
 const verbfit = false
-const batchsizes = [20, 256]
+const batchsizes = [256]
 ###############################
 
 """
@@ -14,22 +14,22 @@ const batchsizes = [20, 256]
 Saves an algorithm output and input - params and anomaly scores.
 """
 function save_io(path, file, mparams, trascore, trlabels, tstascore, tstlabels, loss, 
-	alg_label, nnparams)
+	alg_label, nnparams, fittime, predicttime)
 	mkpath(path)
 	FileIO.save(joinpath(path, file), "params", mparams, "training_anomaly_score", trascore,
 		"training_labels", trlabels, "testing_anomaly_score", tstascore, 
 		"testing_labels", tstlabels, "loss", loss, "algorithm", alg_label, 
-		"NN_params", nnparams)   
+		"NN_params", nnparams, "fit_time", fittime, "predict_time", predicttime)   
 end
 
 # model-specific saving routines
-save_io(path, file, m, mparams, tras, trl, tstas, tstl) =
-	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing)
+save_io(path, file, m, mparams, tras, trl, tstas, tstl, ft, pt) =
+	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
 save_io(path, file, m::AnomalyDetection.kNN, mparams, tras, trl, tstas, tstl) =
-	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing)
+	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
 save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas, tstl, alg) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, m.history, string(m),
-		map(Flux.Tracker.data, Flux.params(m)))
+		map(Flux.Tracker.data, Flux.params(m)), ft, pt)
 
 """
 	get_data(dataset_name, iteration)
@@ -101,6 +101,7 @@ function runexperiment(dataset_name, iteration, alg)
 	# upgrade params according to data size
 	dataparams!(tp[:model], tp, data)
 
+	# run the experiment
 	experiment(data, tp[:model], tp[:mparams], tp[:ff], tp[:ffparams],
 		tp[:asf], tp[:asfparams], path, alg)
 
@@ -150,7 +151,7 @@ function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 		_fname = updateparams!(model, fname, fargs, mparams)
 
 		# fit the model on normal data
-		ff(model, ndata)
+		_,ft,_,_,_ = @timed ff(model, ndata)
 
 		# inner loop over anomaly score parameters
 		for args in asfp
@@ -158,12 +159,12 @@ function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 			__fname = updateparams!(model, _fname, args, mparams)
 
 			# get anomaly scores
-			tras, tstas = getas(data, model, asf)
+			(tras, tstas), pt, _, _, _ = @timed getas(data, model, asf)
 			
 			# save input and output
 			__fname = string(__fname, ".jld")
 			save_io(outpath, __fname, model, mparams, tras, trdata.labels, tstas, 
-				tstdata.labels)
+				tstdata.labels, ft, pt)
 		end
 	end
 end
@@ -362,8 +363,7 @@ const PARAMS = Dict(
 			),
 		# this is going to be iterated over for the fit function
 		:ffparams => product([:L => i for i in batchsizes], 
-#							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
-							[:lambda => i for i in [10.0^i for i in -4]]),
+							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => product(),
 		# the model constructor
@@ -405,8 +405,7 @@ const PARAMS = Dict(
 			),
 		# this is going to be iterated over for the fit function
 		:ffparams => product([:L => i for i in batchsizes], 
-#							[:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
-							[:lambda => i for i in [1.0]]),
+ 							 [:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => product([:alpha => i for i in linspace(0,1,6)]),
 		# the model constructor
