@@ -76,12 +76,11 @@ function anomalyscore(knn::kNN, X::Array{Float,2}, k)
     
     # compute the distance matrix
     M, N = size(_X)
-    dm = pairwise(knn.metric, _X, knn.data)
     
     # now create the output vector of labels
     ascore = Array{Float, 1}(N)
     for n in 1:N
-        dn = dm[n,:] 
+        dn = vec(pairwise(knn.metric, reshape(_X[:,N], M, 1), knn.data))
         if knn.distances == "last"
             ascore[n] = sort(dn)[k]
         else
