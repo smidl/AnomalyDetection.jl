@@ -316,45 +316,6 @@ getcode(model::fmGANmodel) = getcode(model.fmgan)
 getcode(model::fmGANmodel, n) = getcode(model.fmgan, n)
 discriminate(model::fmGANmodel, X) = discriminate(model.fmgan, X)
 
-#"""
-#	plot(model)
-#
-#Plot the model losses.
-#"""
-#function plot(model::fmGANmodel)
-#	# plot model loss
-#	if model.traindata == nothing
-#		println("No data to plot, set tracked = true before training.")
-#		return
-#	else
-#	    figure()
-#	    title("model loss")
-#	    if model.alpha>0.0
-#		    y1, = plot(model.traindata["generator loss"], label = "generator loss", c = "b")
-#   	    ylabel("Gloss + Dloss")
-#		else
-#		   ylabel("Dloss")
-#		end
-#	    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss", c = "g")
-#
-#	    xlabel("iteration")
-#	    ax = gca()
-#	    
-#	    ax2 = ax[:twinx]()
-#	    y3, = plot(model.traindata["feature-matching loss"], label = "feature-matching loss", c = "m")
-#	    y4, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "r")
-#	    ylabel("FMloss + reconstruction error")
-#	    if model.alpha>0.0
-#		    legend([y1, y2, y3, y4], ["generator loss",   "discriminator loss",
-#		    	"feature-matching loss", "reconstruction error"])
-#		else
-#			legend([y2, y3, y4], ["discriminator loss", 
-#	    	"feature-matching loss", "reconstruction error"])
-#		end
-#	    show()
-#	end
-#end
-
 """
 	setthreshold!(model, X)
 
