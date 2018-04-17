@@ -301,40 +301,11 @@ generate(model::GANmodel) = generate(model.gan)
 generate(model::GANmodel, n::Int) = generate(model.gan, n)
 anomalyscore(model::GANmodel, X) = anomalyscore(model.gan, X, model.lambda)
 classify(model::GANmodel, x) = classify(model.gan, x, model.threshold, model.lambda)
-classify(model::GANmodel, x::Array{Float,1}) = classify(model.gan, x, model.threshold, model.lambda)
-classify(model::GANmodel, X::Array{Float,2}) = classify(model.gan, X, model.threshold, model.lambda)
 getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
 getcode(model::GANmodel) = getcode(model.gan)
 getcode(model::GANmodel, n) = getcode(model.gan, n)
 discriminate(model::GANmodel, X) = discriminate(model.gan, X)
 params(model::GANmodel) = Flux.params(model.gan)
-
-#"""
-#	plot(model)
-#
-#Plot the model losses.
-#"""
-#function plot(model::GANmodel)
-#	# plot model loss
-#	if model.traindata == nothing
-#		println("No data to plot, set tracked = true before training.")
-#		return
-#	else
-#	    figure()
-#	    title("model loss")
-#	    y1, = plot(model.traindata["generator loss"], label = "generator loss")
-#	    y2, = plot(model.traindata["discriminator loss"], label = "discriminator loss")
-#	    ylabel("Gloss + Dloss")
-#	    xlabel("iteration")
-#	    ax = gca()
-#	    
-#	    ax2 = ax[:twinx]()
-#	    y3, = plot(model.traindata["reconstruction error"], label = "reconstruction error", c = "g")
-#	    ylabel("reconstruction error")
-#	    legend([y1, y2, y3], ["generator loss", "discriminator loss", "reconstruction error"])
-#	    show()
-#	end
-#end
 
 """
 	setthreshold!(model, X)

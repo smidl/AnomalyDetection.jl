@@ -50,7 +50,8 @@ M = 1
 	@test typeof(rX) <: Flux.TrackedArray{AnomalyDetection.Float,2}
 	l = AnomalyDetection.loss(model, nX)
 	@test size(l) == ()
-	AnomalyDetection.fit!(model, X, Int.(push!(zeros(N-1), 1)))
+	AnomalyDetection.fit!(model, nX)
+	AnomalyDetection.setthreshold!(model, X)
 	@test size(get(model.history,:loss)[1],1) == 1000
 	@test l > AnomalyDetection.loss(model,nX)
 	ascore = AnomalyDetection.anomalyscore(model, X)
