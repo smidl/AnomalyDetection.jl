@@ -1,9 +1,4 @@
 module AnomalyDetection
-try 
-	Pkg.installed("FluxExtensions")
-catch
-	Pkg.clone("https://github.com/pevnak/FluxExtensions.jl.git")
-end
 import Base.convert
 using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate, 
 	false_negative_rate
