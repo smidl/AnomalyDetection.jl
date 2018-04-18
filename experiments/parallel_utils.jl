@@ -25,9 +25,10 @@ end
 # model-specific saving routines
 save_io(path, file, m, mparams, tras, trl, tstas, tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
-save_io(path, file, m::AnomalyDetection.kNN, mparams, tras, trl, tstas, tstl) =
+save_io(path, file, m::AnomalyDetection.kNN, mparams, tras, trl, tstas, tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
-save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas, tstl, alg) =
+save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas, 
+	tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, m.history, string(m),
 		map(Flux.Tracker.data, Flux.params(m)), ft, pt)
 
@@ -365,6 +366,7 @@ const PARAMS = Dict(
 		# this is going to be iterated over for the fit function
 		:ffparams => IterTools.product([:L => i for i in batchsizes], 
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
+							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => IterTools.product(),
 		# the model constructor
@@ -406,7 +408,8 @@ const PARAMS = Dict(
 			),
 		# this is going to be iterated over for the fit function
 		:ffparams => IterTools.product([:L => i for i in batchsizes], 
- 							 [:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
+							 [:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
+# 							 [:lambda => i for i in [0.0]]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => IterTools.product([:alpha => i for i in linspace(0,1,6)]),
 		# the model constructor
@@ -485,6 +488,7 @@ const PARAMS = Dict(
 		# this is going to be iterated over for the fit function
 		:ffparams => IterTools.product([:L => i for i in batchsizes],
 							 [:alpha => i for i in [0; [10.0^i for i in -4:2:4]]]),
+#							 [:alpha => i for i in [0]]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => IterTools.product([:lambda => i for i in linspace(0,1,6)]),
 		# the model constructor
