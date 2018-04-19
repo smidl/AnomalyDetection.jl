@@ -369,6 +369,7 @@ Return labels and ROC statistics.
 """
 rocstats(trdata::Dataset, tstdata::Dataset, algorithm; verb = true) = 
  rocstats(trdata.data, trdata.labels, tstdata.data, tstdata.labels, algorithm; verb = true)
+
 """
     getroccurve(ascorevec, labels)
 
@@ -377,8 +378,8 @@ Returns data for drawing the roc curve
 function getroccurve(ascorevec, labels)
     N = size(labels,1)
     @assert N == size(ascorevec,1)
-    fprvec = Array{Float64,1}(N+1)
-    recvec = Array{Float64,1}(N+1)
+    fprvec = Array{AnomalyDetection.Float,1}(N+2)
+    recvec = Array{AnomalyDetection.Float,1}(N+2)
     p = sum(labels)
     n = N - p
     fpr = 1.0
@@ -387,19 +388,35 @@ function getroccurve(ascorevec, labels)
     recvec[1] = rec # tp/p
     sortidx = sortperm(ascorevec)
     for i in 2:(N+1)
-        if (labels[sortidx[i-1]] == 0)
-            _fpr = fpr - 1/n
-            (rec >= _fpr)? fpr = _fpr : rec -= 1/p 
+        (labels[sortidx[i-1]] == 0)? (fpr = fpr - 1/n) : (rec = rec -1/p)
+        if (fpr <= rec)
+            fprvec[i] = fpr
+            recvec[i] = rec
         else
-            _rec = rec -1/p
-            (_rec >= fpr)? rec = _rec : fpr -= 1/n 
+            fprvec[i] = 1-fpr
+            recvec[i] = 1-rec
         end
-        fprvec[i] = fpr
-        recvec[i] = rec
     end
+    
+    # sort them
+    isort = sortperm(fprvec)
+    recvec = recvec[isort]
+    fprvec = fprvec[isort]
+    
+    # avoid regression
+    for i in 2:(N+2)
+        if recvec[i] < recvec[i-1]
+            recvec[i] = recvec[i-1]
+        end
+    end
+    
+    # ensure zeros
+    recvec[1] = 0.0
+    fprvec[1] = 0.0
     
     return recvec, fprvec
 end
+
 
 """
     mprint(string, [verb])

@@ -14,7 +14,7 @@ end
 
 iteration = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
 
-datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(s -> s != "url") 
+datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(s -> s != "url") filter(x -> x != "gisette")
 
 #@time runexperiment(datasets[1], 3, "kNN")
 #@time runexperiment(datasets[2], 2, "AE")
@@ -23,8 +23,10 @@ datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filt
 #@time runexperiment(datasets[5], 4, "GAN")
 #@time runexperiment(datasets[6], 5, "fmGAN")
 
-#pmap(x -> runexperiment(x[1], x[3], x[2]), 
-#	product(datasets, ["kNN", "AE", "VAE", "sVAE", "GAN", "fmGAN"], iteration))
 
-pmap(x -> runexperiment(x[2], x[3], x[1]), 
-	product(["kNN", "AE", "VAE", "sVAE", "GAN", "fmGAN"], datasets, iteration))
+pmap(x -> runexperiment(x[1], x[3], x[2]), 
+	#product(datasets, ["VAE", "kNN", "AE", "GAN", "VAE", "sVAE", "fmGAN"], iteration))
+	product(datasets, ["AE", "GAN", "fmGAN", "VAE", "sVAE"], iteration))
+
+#pmap(x -> runexperiment(x[2], x[3], x[1]), 
+#	product(["kNN", "AE", "VAE", "sVAE", "GAN", "fmGAN"], datasets, iteration))
