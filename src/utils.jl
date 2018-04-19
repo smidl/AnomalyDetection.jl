@@ -417,6 +417,18 @@ function getroccurve(ascorevec, labels)
     return recvec, fprvec
 end
 
+"""
+    auc(x,y)
+
+Computes the are under curve (x,y).
+"""
+function auc(x,y)
+    # compute the increments
+    dx = x[2:end] - x[1:end-1]
+    dy = y[2:end] - y[1:end-1]
+    
+    return dot(y[1:end-1],dx) + dot(dx,dy)/2
+end
 
 """
     mprint(string, [verb])

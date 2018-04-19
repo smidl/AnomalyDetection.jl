@@ -9,7 +9,7 @@ using AnomalyDetection
 """
 	plotroc(args...)
 
-Plot roc curves, where args is an iterable of triples (fprate, recall, "algname").
+Plot roc curves, where args is an iterable of triples (fprate, tprate, label).
 """
 function plotroc(args...)
     # plot the diagonal line
