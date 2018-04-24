@@ -378,6 +378,10 @@ Returns data for drawing the roc curve
 function getroccurve(ascorevec, labels)
     N = size(labels,1)
     @assert N == size(ascorevec,1)
+    if isnan(ascorevec[1])
+        warn("Anomaly score is NaN, check your inputs!")
+    end
+    
     fprvec = Array{AnomalyDetection.Float,1}(N+2)
     recvec = Array{AnomalyDetection.Float,1}(N+2)
     p = sum(labels)
@@ -398,6 +402,10 @@ function getroccurve(ascorevec, labels)
         end
     end
     
+    # ensure zeros
+    recvec[end] = 0.0
+    fprvec[end] = 0.0
+    
     # sort them
     isort = sortperm(fprvec)
     recvec = recvec[isort]
@@ -409,10 +417,6 @@ function getroccurve(ascorevec, labels)
             recvec[i] = recvec[i-1]
         end
     end
-    
-    # ensure zeros
-    recvec[1] = 0.0
-    fprvec[1] = 0.0
     
     return recvec, fprvec
 end

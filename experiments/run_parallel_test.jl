@@ -26,7 +26,7 @@ datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filt
 
 pmap(x -> runexperiment(x[1], x[3], x[2]), 
 	#product(datasets, ["VAE", "kNN", "AE", "GAN", "VAE", "sVAE", "fmGAN"], iteration))
-	product(datasets, ["AE", "GAN", "fmGAN", "VAE", "sVAE"], iteration))
+	product(datasets, ["GAN", "fmGAN"], iteration))
 
 #pmap(x -> runexperiment(x[2], x[3], x[1]), 
 #	product(["kNN", "AE", "VAE", "sVAE", "GAN", "fmGAN"], datasets, iteration))
