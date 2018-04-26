@@ -129,13 +129,14 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
     	if isnan(Dl)
 			warn("Discriminator loss is NaN, ending fit.")
 			return
-		end    Flux.Tracker.back!(Dl)
+		end    
+		Flux.Tracker.back!(Dl)
         Dopt()
 		
 		# generator training	
         Gl = fmloss(fmgan, x, z) + Float(alpha)*Gloss(fmgan, z)
       	if isnan(Gl)
-			warn("Genernator loss is NaN, ending fit.")
+			warn("Generator loss is NaN, ending fit.")
 			return
 		end
 		Flux.Tracker.back!(Gl)

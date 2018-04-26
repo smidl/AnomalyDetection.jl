@@ -28,14 +28,14 @@ GAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = GAN(G, freeze(G), D, freeze(D), pz
 """
 	GAN(gsize, dsize, [pz, activation])
 
-Constructor for the GAN object. 
+Constructor for the GAN object.
 
 gsize - vector of Ints describing generator layers sizes
-dsize - vector of Ints describing discriminator layers sizes, including the last scalar layer 
+dsize - vector of Ints describing discriminator layers sizes, including the last scalar layer
 pz - code distribution
 activation - activation function common to all layers
 """
-function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu, 
+function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense)
 	@assert size(gsize,1) >= 3
 	@assert size(dsize,1) >= 3
@@ -60,14 +60,14 @@ end
 
 Discriminator loss.
 """
-Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X) + eps(Float))) + mean(log.(1 - gan.d(gan.gg(Z))) + eps(Float)))
+Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X) + eps(Float))) + mean(log.(1 - gan.d(gan.gg(Z)) + eps(Float))))
 
 """
 	Gloss(gan, Z)
 
 Generator loss.
 """
-Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z))) + eps(Float))
+Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z)) + eps(Float)))
 
 """
 	rerr(gan, X, Z)
@@ -81,8 +81,8 @@ rerr(gan::GAN, X, Z) = Flux.mse(gan.g(Z), X) # which of these is better?
 """
 	evalloss(gan, X, Z)
 """
-evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss(gan, X, Z)),  
-	"\ngenerator loss: ", Flux.Tracker.data(Gloss(gan, Z)), 
+evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss(gan, X, Z)),
+	"\ngenerator loss: ", Flux.Tracker.data(Gloss(gan, Z)),
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(gan, X, Z)), "\n\n")
 
 """
@@ -105,7 +105,7 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 	#Dopt = ADAM(params(gan.d))
 	Dopt = ADAM(params(gan.d))
 	Gopt = ADAM(params(gan.g))
-	
+
 	# problem size
 	N = size(X,2)
 	zdim = size(params(gan.g)[1],2)
@@ -115,7 +115,7 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 		# sample data and generate codes
 		x = X[:,sample(1:N, L, replace=false)]
 		z = getcode(gan, L)
-                
+
 		# discriminator training
 		Dl = Dloss(gan, x,z)
 		if isnan(Dl)
@@ -125,10 +125,10 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 		Flux.Tracker.back!(Dl)
 		Dopt()
 
-		# generator training	
+		# generator training
 		Gl = Gloss(gan, z)
 		if isnan(Gl)
-			warn("Genernator loss is NaN, ending fit.")
+			warn("Generator loss is NaN, ending fit.")
 			return
 		end
 		Flux.Tracker.back!(Gl)
@@ -146,7 +146,7 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 
 		# if a stopping condition is present
 		if rdelta < Inf
-			re = rerr(gan, x, z) 
+			re = rerr(gan, x, z)
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,
 					\nreconstruction error $re < $rdelta")
@@ -170,7 +170,7 @@ end
 ############################
 ### auxilliary functions ###
 ############################
- 
+
 """
 	getcode(gan)
 
@@ -215,9 +215,9 @@ discriminate(gan::GAN, X) = Flux.Tracker.data(gan.d(X))
 
 Computes the anomaly score of X under given GAN.
 """
-anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) = Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X)))) + 
+anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) = Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X)))) +
 	 Float(lambda)*Flux.Tracker.data(rerr(gan, X, getcode(gan, size(X,2))))
-anomalyscore(gan::GAN, X::Array{Float, 2}, lambda) = 
+anomalyscore(gan::GAN, X::Array{Float, 2}, lambda) =
 	reshape(mapslices(y -> anomalyscore(gan, y, lambda), X, 1), size(X,2))
 
 """
@@ -248,7 +248,7 @@ end
 ### A SK-learn like model based on GAN with the same methods and some new. ###
 ##############################################################################
 
-""" 
+"""
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
 mutable struct GANmodel <: genmodel
@@ -266,7 +266,7 @@ mutable struct GANmodel <: genmodel
 end
 
 """
-	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
+	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations,
 	cbit, verbfit, [pz, activation, layer, rdelta, Beta, tracked])
 
 Initialize a generative adversarial net model for classification with given parameters.
@@ -288,14 +288,14 @@ Beta [1.0] - how tight around normal data is the automatically computed threshol
 tracked [false] - is training progress (losses) stored?
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
-	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
-	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, 
+	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int,
+	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense, rdelta = Inf,
 	Beta = 1.0, tracked = false)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
-	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit, 
+	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit,
 		verbfit, rdelta, Beta, history)
 	return model
 end
@@ -304,7 +304,7 @@ end
 Dloss(model::GANmodel, X, Z) = Dloss(model.gan, X, Z)
 Gloss(model::GANmodel, Z) = Gloss(model.gan, Z)
 rerr(model::GANmodel, X, Z) = rerr(model.gan, X, Z)
-evalloss(model::GANmodel, X, Z) = evalloss(model.gan, X, Z) 
+evalloss(model::GANmodel, X, Z) = evalloss(model.gan, X, Z)
 generate(model::GANmodel) = generate(model.gan)
 generate(model::GANmodel, n::Int) = generate(model.gan, n)
 anomalyscore(model::GANmodel, X) = anomalyscore(model.gan, X, model.lambda)
@@ -331,7 +331,7 @@ Trains a GANmodel.
 """
 function fit!(model::GANmodel, X)
 	# train the GAN NN
-	fit!(model.gan, X, model.L; iterations=model.iterations, 
+	fit!(model.gan, X, model.L; iterations=model.iterations,
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history)
 end
@@ -341,6 +341,6 @@ end
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-function predict(model::GANmodel, X) 
+function predict(model::GANmodel, X)
 	return classify(model, X)
 end
