@@ -244,6 +244,7 @@ function dataparams!(m::Type{AnomalyDetection.fmGANmodel}, topparams, data)
 end
 
 
+
 """
 	databatchsize!(N, topparams)
 

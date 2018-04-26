@@ -60,14 +60,14 @@ end
 
 Discriminator loss.
 """
-Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X))) + mean(log.(1 - gan.d(gan.gg(Z)))))
+Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X) + eps(Float))) + mean(log.(1 - gan.d(gan.gg(Z))) + eps(Float)))
 
 """
 	Gloss(gan, Z)
 
 Generator loss.
 """
-Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z))))
+Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z))) + eps(Float))
 
 """
 	rerr(gan, X, Z)
@@ -118,14 +118,26 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
                 
 		# discriminator training
 		Dl = Dloss(gan, x,z)
+		if isnan(Dl)
+			warn("Discriminator loss is NaN, ending fit.")
+			return
+		end
 		Flux.Tracker.back!(Dl)
 		Dopt()
 
+		if i == 908
+			println(Dl)
+		end
+
 		# generator training	
 		Gl = Gloss(gan, z)
+		if isnan(Gl)
+			warn("Genernator loss is NaN, ending fit.")
+			return
+		end
 		Flux.Tracker.back!(Gl)
 		Gopt()
-	
+
 		# callback
 		if verb && i%cbit==0
 			evalloss(gan, x, z)
