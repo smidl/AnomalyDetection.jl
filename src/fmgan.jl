@@ -134,7 +134,7 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
 		
 		# generator training	
         Gl = fmloss(fmgan, x, z) + Float(alpha)*Gloss(fmgan, z)
-        if isnan(Gl)
+      	if isnan(Gl)
 			warn("Genernator loss is NaN, ending fit.")
 			return
 		end
