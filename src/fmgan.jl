@@ -62,14 +62,14 @@ end
 
 Discriminator loss.
 """
-Dloss(fmgan::fmGAN, X, Z) = - Float(0.5)*(mean(log.(fmgan.d(X))) + mean(log.(1 - fmgan.d(fmgan.gg(Z)))))
+Dloss(fmgan::fmGAN, X, Z) = - Float(0.5)*(mean(log.(fmgan.d(X) + eps(Float))) + mean(log.(1 - fmgan.d(fmgan.gg(Z)) + eps(Float))))
 
 """
 	Gloss(fmgan, Z)
 
 Generator loss.
 """
-Gloss(fmgan::fmGAN, Z) = - mean(log.(fmgan.dd(fmgan.g(Z))))
+Gloss(fmgan::fmGAN, Z) = - mean(log.(fmgan.dd(fmgan.g(Z)) + eps(Float)))
 
 """
 	fmloss(fmgan, X, Z)
@@ -126,12 +126,19 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
                 
         # discriminator training
         Dl = Dloss(fmgan, x, z)
-        Flux.Tracker.back!(Dl)
+    	if isnan(Dl)
+			warn("Discriminator loss is NaN, ending fit.")
+			return
+		end    Flux.Tracker.back!(Dl)
         Dopt()
 		
 		# generator training	
         Gl = fmloss(fmgan, x, z) + Float(alpha)*Gloss(fmgan, z)
-        Flux.Tracker.back!(Gl)
+        if isnan(Gl)
+			warn("Genernator loss is NaN, ending fit.")
+			return
+		end
+		Flux.Tracker.back!(Gl)
         Gopt()
 	
 		# callback
@@ -218,7 +225,7 @@ Computes the anomaly score of X under given fmGAN using weighted average of reco
 error and discriminator score.
 """
 anomalyscore(fmgan::fmGAN, X::Array{Float, 1}, lambda) = 
-	Flux.Tracker.data(Float(1 - lambda)*-mean(log.(fmgan.d(X))) + 
+	Flux.Tracker.data(Float(1 - lambda)*-mean(log.(fmgan.d(X) + eps(Float))) + 
 	Float(lambda)*rerr(fmgan, X, getcode(fmgan, size(X,2))))
 anomalyscore(fmgan::fmGAN, X::Array{Float, 2}, lambda) = 
 	reshape(mapslices(y -> anomalyscore(fmgan, y, lambda), X, 1), size(X,2))

@@ -123,8 +123,8 @@ discriminate(svae::sVAE, X, Z) = σ.(distrain(svae, X, Z))
 
 sVAE discriminator loss.
 """
-Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(Float(1)-σ.(distrain(svae,qX, qZ)))) - 
-    mean(log.(σ.(distrain(svae, pX, pZ))))
+Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(Float(1)-σ.(distrain(svae,qX, qZ)) + eps(Float))) - 
+    mean(log.(σ.(distrain(svae, pX, pZ)) + eps(Float)))
 
 """
     Dloss(svae, X, L)
@@ -216,6 +216,10 @@ function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200,
     for i in 1:iterations
         # train the discriminator
         Dl = Dloss(svae, X, L)
+        if isnan(Dl)
+            warn("Discriminator loss is NaN, ending fit.")
+            return
+        end
         Flux.Tracker.back!(Dl)
         opt()
         

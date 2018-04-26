@@ -125,10 +125,6 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 		Flux.Tracker.back!(Dl)
 		Dopt()
 
-		if i == 908
-			println(Dl)
-		end
-
 		# generator training	
 		Gl = Gloss(gan, z)
 		if isnan(Gl)
