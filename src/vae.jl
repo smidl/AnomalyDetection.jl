@@ -34,6 +34,13 @@ Extract sigmas from the last encoder layer.
 sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:]) + Float(1e-6)
 
 """
+	logps(x)
+
+Is the logarithm of the standard pdf of x.
+"""
+logps(x) = abs.(-1/2*x.^2 - 1/2*log(2*pi))
+
+"""
 	sample_z(vae, X)
 
 Sample from the last encoder layer.
@@ -56,7 +63,7 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 		layer = Flux.Dense)
 	@assert size(esize, 1) >= 3
 	@assert size(dsize, 1) >= 3
-	@assert esize[end] == 2*dsize[1] 
+	@assert esize[end] == 2*dsize[1]
 	@assert esize[1] == dsize[end]
 
 	# construct the encoder
@@ -64,7 +71,7 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 
 	# construct the decoder
 	decoder = aelayerbuilder(dsize, activation, layer)
-	
+
 	# finally construct the ae struct
 	vae = VAE(encoder, sample_z, decoder)
 
@@ -93,7 +100,7 @@ rerr(vae::VAE, X, M) = Flux.mse(mean([vae(X) for l in 1:M]), X)
 """
 	loss(vae, X, M, lambda)
 
-Loss function of the variational autoencoder. Lambda is scaling parameter of 
+Loss function of the variational autoencoder. Lambda is scaling parameter of
 the KLD, 1 = full KL, 0 = no KL (vanilla autoencoder).
 """
 loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + Float(lambda)*KL(vae, X)
@@ -101,9 +108,9 @@ loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + Float(lambda)*KL(vae, X)
 """
 	evalloss(vae, X, M, lambda)
 
-Print vae loss function values.	
+Print vae loss function values.
 """
-evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)), 
+evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)),
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(vae, X, M)),
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
@@ -122,7 +129,7 @@ lambda - scaling for the KLD loss
 rdelta - stopping condition for reconstruction error
 traindata - a dictionary for training progress control
 """
-function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1, 
+function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
 	rdelta = Inf, history = nothing)
 	# settings
 	opt = ADAM(params(vae))
@@ -201,13 +208,15 @@ generate(vae::VAE, n::Int) = vae.decoder(Float.(randn(Int(size(vae.encoder.layer
 ######################
 
 """
-	anomalyscore(vae, X, M)
+	anomalyscore(vae, X, M, [t])
 
 Compute anomaly score for X.
+t = type, default "rerr", otherwise "logpn".
 """
-anomalyscore(vae::VAE, X::Array{Float, 1}, M) = Flux.Tracker.data(rerr(vae, X, M))
-anomalyscore(vae::VAE, X::Array{Float, 2}, M) = 
-	reshape(mapslices(y -> anomalyscore(vae, y, M), X, 1), size(X,2))
+anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "rerr") =
+	(t=="rerr")? Flux.Tracker.data(rerr(vae, X, M)) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
+anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "rerr") =
+	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, 1), size(X,2))
 
 """
 	classify(vae, x, threshold, M)
@@ -237,7 +246,7 @@ end
 ### A SK-learn like model based on VAE with the same methods and some new. ###
 ##############################################################################
 
-""" 
+"""
 Struct to be used as scikitlearn-like model with fit and predict methods.
 """
 mutable struct VAEmodel <: genmodel
@@ -253,11 +262,12 @@ mutable struct VAEmodel <: genmodel
 	rdelta::Float
 	Beta::Float
 	history
+	astype
 end
 
 """
-	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration, 
-	L, cbit, [M, activation, layer, rdelta, Beta, tracked])
+	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration,
+	L, cbit, [M, activation, layer, rdelta, Beta, tracked, astype])
 
 Initialize a variational autoencoder model with given parameters.
 
@@ -276,21 +286,23 @@ layer [Flux.dense] - layer type
 rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
+astype ["rerr"] - type of anomaly score function
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
-	lambda::Real, threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu, 
-	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false)
+	lambda::Real, threshold::Real, contamination::Real, iterations::Int,
+	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu,
+	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false,
+	astype = "rerr")
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
-	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit, 
-		L, M, rdelta, Beta, history)
+	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit,
+		L, M, rdelta, Beta, history, astype)
 	return model
 end
 
 # reimplement some methods of VAE
-(model::VAEmodel)(x) = model.vae(x)   
+(model::VAEmodel)(x) = model.vae(x)
 mu(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
 sigma(model::VAEmodel, X) = sigma(model.vae, model.vae.encoder(X))
 sample_z(model::VAEmodel, X) = sample_z(model.vae, model.vae.encoder(X))
@@ -298,12 +310,12 @@ getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)
 rerr(model::VAEmodel, X) = rerr(model.vae, X, model.M)
 loss(model::VAEmodel, X) = loss(model.vae, X, model.M, model.lambda)
-evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.M, model.lambda) 
+evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.M, model.lambda)
 generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
 getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.M, model.contamination, Beta = model.Beta)
-anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M)
+anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M, model.astype)
 params(model::VAEmodel) = Flux.params(model.vae)
 
 """
@@ -318,12 +330,12 @@ end
 """
 	fit!(model, X, Y)
 
-Fit the VAE model, instances are columns of X.	
+Fit the VAE model, instances are columns of X.
 """
-function fit!(model::VAEmodel, X) 
+function fit!(model::VAEmodel, X)
 	# fit the VAE NN
-	fit!(model.vae, X, model.L, M = model.M, iterations = model.iterations, 
-	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda, 
+	fit!(model.vae, X, model.L, M = model.M, iterations = model.iterations,
+	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda,
 	rdelta = model.rdelta, history = model.history)
 end
 
@@ -332,6 +344,6 @@ end
 
 Based on known contamination level, compute threshold and classify instances in X.
 """
-function predict(model::VAEmodel, X) 
+function predict(model::VAEmodel, X)
 	return classify(model, X)
 end

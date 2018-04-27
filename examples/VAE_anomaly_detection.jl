@@ -30,18 +30,19 @@ iterations = 2000
 cbit = 500 # after this number of iteratiosn, callback is printed
 verbfit = true
 M = 1 # reconstruction error samples, for training 1 is OK
-L = 50 # batchsize 
+L = 50 # batchsize
 # set low for training but high for classification
 activation = Flux.relu
 layer = Flux.Dense
 rdelta = 1e-3 # reconstruction error threshold for training stopping
-Beta = 1.0 # for automatic threshold computation, in [0, 1] 
+Beta = 1.0 # for automatic threshold computation, in [0, 1]
 # 1.0 = tight around normal samples
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
-model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
-    L, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta, 
-    tracked = tracked)
+astype = "logpn"
+model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit,
+    L, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta,
+    tracked = tracked, astype = astype)
 
 # fit the model
 AnomalyDetection.evalloss(model, nX)
@@ -60,14 +61,14 @@ function plot(model::VAEmodel)
 		println("No data to plot, set tracked = true before training.")
 		return
 	else
-        p = plot(model.history[:loss], title = "model loss", label = "loss", 
-            xlabel = "iteration", ylabel = "loss + reconstruction error", 
-            seriestype = :line, 
+        p = plot(model.history[:loss], title = "model loss", label = "loss",
+            xlabel = "iteration", ylabel = "loss + reconstruction error",
+            seriestype = :line,
             markershape = :none)
         plot!(model.history[:reconstruction_error], label = "reconstruction error",
             seriestype = :line, markershape = :none, title = "model loss")
         plot!(model.history[:KLD], label = "KLD",
-            seriestype = :line, markershape = :none, 
+            seriestype = :line, markershape = :none,
             c = :green,
             title = "model loss")
         return p
