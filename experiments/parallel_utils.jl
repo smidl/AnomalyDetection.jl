@@ -13,13 +13,13 @@ const batchsizes = [256]
 
 Saves an algorithm output and input - params and anomaly scores.
 """
-function save_io(path, file, mparams, trascore, trlabels, tstascore, tstlabels, loss, 
+function save_io(path, file, mparams, trascore, trlabels, tstascore, tstlabels, loss,
 	alg_label, nnparams, fittime, predicttime)
 	mkpath(path)
 	FileIO.save(joinpath(path, file), "params", mparams, "training_anomaly_score", trascore,
-		"training_labels", trlabels, "testing_anomaly_score", tstascore, 
-		"testing_labels", tstlabels, "loss", loss, "algorithm", alg_label, 
-		"NN_params", nnparams, "fit_time", fittime, "predict_time", predicttime)   
+		"training_labels", trlabels, "testing_anomaly_score", tstascore,
+		"testing_labels", tstlabels, "loss", loss, "algorithm", alg_label,
+		"NN_params", nnparams, "fit_time", fittime, "predict_time", predicttime)
 end
 
 # model-specific saving routines
@@ -27,7 +27,7 @@ save_io(path, file, m, mparams, tras, trl, tstas, tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
 save_io(path, file, m::AnomalyDetection.kNN, mparams, tras, trl, tstas, tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
-save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas, 
+save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas,
 	tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, m.history, string(m),
 		map(Flux.Tracker.data, Flux.params(m)), ft, pt)
@@ -40,7 +40,7 @@ Returns training and testing dataset.
 function get_data(dataset_name, iteration)
 	# settings
 	# ratio of training to all data
-	alpha = 0.8 
+	alpha = 0.8
 	# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
 	# some datasets dont have easy difficulty anomalies
 	if dataset_name in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
@@ -49,21 +49,21 @@ function get_data(dataset_name, iteration)
 	elseif dataset_name in ["vertebral-column"]
 		difficulty = "hard"
 	else
-		difficulty = "easy" 
+		difficulty = "easy"
 	end
 	# ratio of anomalous to normal data
-	frequency = 0.05 
+	frequency = 0.05
 	# low/high - should anomalies be clustered or not
 	variation = "low"
-	# random seed 
+	# random seed
 	seed = Int64(iteration)
 
 	# this might fail for url
 	basicset = AnomalyDetection.Basicset(joinpath(loda_path, dataset_name))
-	trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty, 
+	trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty,
 		frequency, variation,
 		seed = seed)
-	return trdata, tstdata	
+	return trdata, tstdata
 end
 
 """
@@ -75,24 +75,24 @@ as = anomaly score function
 """
 function getas(data, m, as)
 	# get the data
-	(trdata, tstdata) = data 
+	(trdata, tstdata) = data
 
 	# now loop over all ascoreargs
-	tras = as(m, trdata.data) 
-	tstas = as(m, tstdata.data) 
+	tras = as(m, trdata.data)
+	tstas = as(m, tstdata.data)
 	return tras, tstas
 end
 
 """
-	train(dataset_name, iteration, alg) 
+	runexperiment(dataset_name, iteration, alg)
 
 Extracts model parameters and iterables from global const PARAMS,
-creates, trains and predicts anomaly scores for model alg for each 
+creates, trains and predicts anomaly scores for model alg for each
 parameter setting.
 """
-function runexperiment(dataset_name, iteration, alg) 
+function runexperiment(dataset_name, iteration, alg)
 	# load data
-	data = get_data(dataset_name, iteration) 
+	data = get_data(dataset_name, iteration)
 
 	# top level of the param tree
 	tp = deepcopy(PARAMS[Symbol(alg)])
@@ -111,24 +111,127 @@ function runexperiment(dataset_name, iteration, alg)
 end
 
 """
+	runexoeriments(dataset_name, iteration, alg)
+
+Extracts model parameters and iterables from global const PARAMS,
+creates, trains and predicts anomaly scores for model alg for each
+parameter setting. Multiple architecture version.
+"""
+function runexperiments(dataset_name, iteration, alg, nhid)
+	# load data
+	data = get_data(dataset_name, iteration)
+
+	# top level of the param tree
+	tp = deepcopy(PARAMS[Symbol(alg)])
+
+	# data will be saved here
+	path = 	joinpath(export_path, string("$(dataset_name)/$(alg)/$(iteration)"))
+
+	latentdims, indim = getlatentdims(data)
+
+	# loo over different
+	for latentdim in latentdims
+		fbase = updatearchitecture!(tp[:model], tp, indim, latentdim, nhid)
+
+		# upgrade params according to data size
+		dataparams!(tp[:model], tp, data)
+
+		# run the experiment
+		experiment(data, tp[:model], tp[:mparams], tp[:ff], tp[:ffparams],
+			tp[:asf], tp[:asfparams], path, string(alg, "_", fbase))
+
+	end
+	println("Training of $alg on $path finished!")
+end
+
+function getlatentdims(data)
+	indim, trN = size(data[1].data[:,data[1].labels.==0])
+	maxd = min(200, indim)
+	latentdims = unique(Int.(ceil.([i/10 for i in 1:5]*maxd)))
+	return latentdims, indim
+end
+
+function updatearchitecture!(m::Type{AnomalyDetection.AEmodel}, tp,
+	indim, ldim, nhid)
+	# create linearly spaced layer sizes
+	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	esize = dsize[nhid+3:-1:1]
+	tp[:mparams][:args][:dsize] = dsize
+	tp[:mparams][:args][:esize] = esize
+	# create the name string
+	f = "esize"
+	for s in esize
+		f=string(f,"-$(s)")
+	end
+	f=string(f,"_dsize")
+	for s in dsize
+		f=string(f,"-$(s)")
+	end
+	return f
+end
+
+function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
+	indim, ldim, nhid)
+	# create linearly spaced layer sizes
+	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	esize = dsize[nhid+3:-1:1]
+	esize[end] = 2*esize[end]
+
+	tp[:mparams][:args][:dsize] = dsize
+	tp[:mparams][:args][:esize] = esize
+	# create the name string
+	f = "esize"
+	for s in esize
+		f=string(f,"-$(s)")
+	end
+	f=string(f,"_dsize")
+	for s in dsize
+		f=string(f,"-$(s)")
+	end
+	return f
+end
+
+function updatearchitecture!(m::Union{Type{AnomalyDetection.GANmodel},
+	Type{AnomalyDetection.fmGANmodel}}, tp,
+	indim, ldim, nhid)
+	# create linearly spaced layer sizes
+	gsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	dsize = gsize[nhid+3:-1:1]
+	dsize[end] = 1
+
+	tp[:mparams][:args][:gsize] = gsize
+	tp[:mparams][:args][:dsize] = dsize
+	# create the name string
+	f = "gsize"
+	for s in gsize
+		f=string(f,"-$(s)")
+	end
+	f=string(f,"_dsize")
+	for s in dsize
+		f=string(f,"-$(s)")
+	end
+	return f
+end
+
+"""
 	experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 
 Runs an experiment.
 data = tuple of (training data, testing data)
 mf = model constructor (function)
-mfp = model constructor parameter, contaning :args (SortedDictionary) and 
-	:kwargs (Dictionary), also this parameter structure will be updated in each 
+mfp = model constructor parameter, contaning :args (SortedDictionary) and
+	:kwargs (Dictionary), also this parameter structure will be updated in each
 	iteration and saved to output
 ff = fit function of syntax fit = ff(model, X)
 ffp = an iterable of fit parameters with which the model will be updated in the outer
-	loop, e.g. 
+	loop, e.g.
 
 	product([:batchsize => i for i in [100, 200]], [:lambda => i for i in [1e-2, 1e-3]])
 
 	then the model is updated "model.batchsize = 100; model.lambda = 1e-2 ..."
 asf = anomaly score function of syntax anomalyscore = asf(model, X)
 asfp = an iterable of as parameters with which the model will be updated in the inner
-	loop, e.g. 
+	loop, e.g.
 
 	product([:alpha => i for i in [0.1, 0.9]], [:M => i for i in 1:10])
 
@@ -140,14 +243,14 @@ function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 	ndata = trdata.data[:,trdata.labels .== 0] # normal training data
 
 	# outer loop over fit parameters
-	for fargs in ffp	
+	for fargs in ffp
 		# mparams is the dictionary of used parameters that will be saved
 		mparams = deepcopy(mfp) # so that the original params are not owerwritten
 		# universal model constructor
-		model = mf([p for p in values(mparams[:args])]...; 
+		model = mf([p for p in values(mparams[:args])]...;
 			[p[1] => eval(p[2]) for p in mparams[:kwargs]]...)
 		# SortedDict causes problems during load(), now the order does not matter anymore
-		mparams[:args] = Dict(mparams[:args]) 
+		mparams[:args] = Dict(mparams[:args])
 
 		# update model parameters, filename and save actual values to mparams
 		_fname = updateparams!(model, fname, fargs, mparams)
@@ -162,10 +265,10 @@ function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 
 			# get anomaly scores
 			(tras, tstas), pt, _, _, _ = @timed getas(data, model, asf)
-			
+
 			# save input and output
 			__fname = string(__fname, ".jld")
-			save_io(outpath, __fname, model, mparams, tras, trdata.labels, tstas, 
+			save_io(outpath, __fname, model, mparams, tras, trdata.labels, tstas,
 				tstdata.labels, ft, pt)
 		end
 	end
@@ -194,7 +297,7 @@ training (e.g. batchsize, input dimensions). Defaults to doing nothing.
 """
 dataparams!(model, topparams, data) = return nothing
 
-function dataparams!(model::Type{AnomalyDetection.kNN}, topparams, data) 
+function dataparams!(model::Type{AnomalyDetection.kNN}, topparams, data)
 	# for kNN model, set the ks according to data size
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
 	topparams[:asfparams] = IterTools.product([:k => i for i in Int.(round.(linspace(1, 2*sqrt(trN), 5)))])
@@ -216,9 +319,9 @@ function dataparams!(m::Type{AnomalyDetection.sVAEmodel}, topparams, data)
 	topparams[:mparams][:args][:ensize][1] = indim
 	topparams[:mparams][:args][:decsize][end] = indim
 	# indim + latentdim
-	topparams[:mparams][:args][:dissize][1] = indim + 
-		topparams[:mparams][:args][:decsize][1] 
-	
+	topparams[:mparams][:args][:dissize][1] = indim +
+		topparams[:mparams][:args][:decsize][1]
+
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -228,7 +331,7 @@ function dataparams!(m::Type{AnomalyDetection.GANmodel}, topparams, data)
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
 	topparams[:mparams][:args][:gsize][end] = indim
 	topparams[:mparams][:args][:dsize][1] = indim
-	
+
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -238,7 +341,7 @@ function dataparams!(m::Type{AnomalyDetection.fmGANmodel}, topparams, data)
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
 	topparams[:mparams][:args][:gsize][end] = indim
 	topparams[:mparams][:args][:dsize][1] = indim
-	
+
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -255,7 +358,7 @@ topparams - top of parameter tree
 function databatchsize!(N, topparams)
 	# modify the batchsize if it is larger than the dataset size
 	# this is a little awkward but universal
-	# steps: 
+	# steps:
 	# 1) if there is an L larger than datasize N, create a new pair :L => trN
 	# 2) filter out those pairs where :L > trN
 	# 3) remove duplicates (if there are more pairs with :L > trN)
@@ -278,10 +381,10 @@ const PARAMS = Dict(
 		# in io
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict( 
+			:args => DataStructures.OrderedDict(
 				:k => 1, # will be replaced from the asfparams
 				:contamination => 0.0 # useless
-				), 
+				),
 			# kwargs
 			:kwargs => Dict(
 				:metric => :(Distances.Euclidean()),
@@ -307,7 +410,7 @@ const PARAMS = Dict(
 	# in io
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict( 
+			:args => DataStructures.OrderedDict(
 				:esize => [1; hiddendim; hiddendim; latentdim],
 				:dsize => [latentdim; hiddendim; hiddendim; 1],
 				:L => 0, # replaced in training
@@ -316,7 +419,7 @@ const PARAMS = Dict(
 				:iterations => 10000,
 				:cbit => 10000,
 				:verbfit => verbfit
-				), 
+				),
 			# kwargs
 			:kwargs => Dict(
 				# input functions like this, they are evaluated later (only here)
@@ -343,7 +446,7 @@ const PARAMS = Dict(
 	# in io
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict( 
+			:args => DataStructures.OrderedDict(
 				:esize => [1; hiddendim; hiddendim; latentdim*2],
 				:dsize => [latentdim; hiddendim; hiddendim; 1],
 				:lambda => 0, # replaced in training
@@ -353,23 +456,24 @@ const PARAMS = Dict(
 				:cbit => 10000,
 				:verbfit => verbfit,
 				:L => 0 # replaced in training
-				), 
+				),
 			# kwargs
 			:kwargs => Dict(
 				:M => 1,
 				# input functions like this, they are evaluated later
-				:activation => :(Flux.relu), 
+				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
 				:tracked => true,
-				:rdelta => 1e-5
+				:rdelta => 1e-5,
+				:astype => "rerr"
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes], 
+		:ffparams => IterTools.product([:L => i for i in batchsizes],
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => IterTools.product(),
+		:asfparams => IterTools.product([:astype => s for s in ["rerr", "logpn"]]),
 		# the model constructor
 		:model => AnomalyDetection.VAEmodel,
 		# model fit function
@@ -383,7 +487,7 @@ const PARAMS = Dict(
 	# in io
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict( 
+			:args => DataStructures.OrderedDict(
 				:ensize => [1; hiddendim; hiddendim; latentdim*2],
 				:decsize => [latentdim; hiddendim; hiddendim; 1],
 				:dissize => [1 + latentdim; hiddendim; hiddendim; 1],
@@ -394,12 +498,12 @@ const PARAMS = Dict(
 				:cbit => 10000,
 				:verbfit => verbfit,
 				:L => 0 # replaced in training
-				), 
+				),
 			# kwargs
 			:kwargs => Dict(
 				:M => 1,
 				# input functions like this, they are evaluated later
-				:activation => :(Flux.relu), 
+				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
 				:tracked => true,
 				:rdelta => 1e-5,
@@ -408,7 +512,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes], 
+		:ffparams => IterTools.product([:L => i for i in batchsizes],
 							 [:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
 # 							 [:lambda => i for i in [0.0]]),
 		# this is going to be iterated over for the anomalyscore function
@@ -426,7 +530,7 @@ const PARAMS = Dict(
 	# in io
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict( 
+			:args => DataStructures.OrderedDict(
 				:gsize => [latentdim; hiddendim; hiddendim; 1],
 				:dsize => [1; hiddendim; hiddendim; 1],
 				:lambda => 0, # replaced in training
@@ -436,11 +540,11 @@ const PARAMS = Dict(
 				:iterations => 10000,
 				:cbit => 10000,
 				:verbfit => verbfit
-				), 
+				),
 			# kwargs
 			:kwargs => Dict(
 				# input functions like this, they are evaluated later
-				:activation => :(Flux.relu), 
+				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
 				:tracked => true,
 				:rdelta => 1e-5,
@@ -464,7 +568,7 @@ const PARAMS = Dict(
 	# in io
 		:mparams => Dict(
 			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict( 
+			:args => DataStructures.OrderedDict(
 				:gsize => [latentdim; hiddendim; hiddendim; 1],
 				:dsize => [1; hiddendim; hiddendim; 1],
 				:lambda => 0, # replaced in training
@@ -474,11 +578,11 @@ const PARAMS = Dict(
 				:iterations => 10000,
 				:cbit => 10000,
 				:verbfit => verbfit
-				), 
+				),
 			# kwargs
 			:kwargs => Dict(
 				# input functions like this, they are evaluated later
-				:activation => :(Flux.relu), 
+				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
 				:tracked => true,
 				:rdelta => 1e-5,
@@ -498,5 +602,5 @@ const PARAMS = Dict(
 		:ff => AnomalyDetection.fit!,
 		# anomaly score function
 		:asf => AnomalyDetection.anomalyscore
-		)	
+		)
 )
