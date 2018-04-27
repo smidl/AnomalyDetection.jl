@@ -13,7 +13,7 @@ end
 
 iteration = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
 
-datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(s -> s != "url") 
+datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(!(s -> s in ["url", "gisette", "persistent-connection"])) 
 
 pmap(x -> runexperiment(x[1], x[3], x[2]), 
 	product(datasets, ["GAN", "fmGAN", "sVAE"], iteration))
