@@ -6,9 +6,9 @@ using AnomalyDetection
 using DataStructures
 
 @everywhere begin
-	loda_path = "/mnt/output/data/datasets/numerical"
-	export_path = "/mnt/output/anomaly" #master path where data will be stored
-	include(joinpath(Pkg.dir("AnomalyDetection"), "experiments/parallel_utils.jl"))
+	loda_path = "/opt/output/data/datasets/numerical"
+	export_path = "/opt/output/anomaly" #master path where data will be stored
+	include("/opt/src/AnomalyDetection/experiments/parallel_utils.jl")
 end
 
 iteration = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
