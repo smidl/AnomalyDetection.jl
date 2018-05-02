@@ -143,6 +143,42 @@ function loadtable(fname, datacols)
 end
 
 """
+   rounddf!(df, n, datacols)
+
+Round values in datacols of df to n valid digits.
+"""
+function rounddf!(df, n, datacols)
+    nrows, ncols = size(df)
+    
+    # go through the whole df and replace missing strings with actual Missing type
+    # and floats with float
+    if typeof(datacols) == Int64
+        cnames = names(df)[datacols:end]
+    else
+        cnames = names(df)[datacols]
+    end
+
+    for cname in cnames
+        for i in 1:nrows
+            (df[cname][i] == "missing")? df[cname][i]=missing : 
+                df[cname][i]=round(float(df[cname][i]),n)
+        end
+    end
+
+    return df
+end
+
+"""
+   rounddf(df, n, datacols)
+
+Round values in datacols of df to n valid digits.
+"""
+function rounddf(df, n, datacols)
+    _df = deepcopy(df)
+    return rounddf!(_df, n, datacols)
+end
+
+"""
     rankdf(df, [rev])
 
 Compute row ranks for a DataFrame and add bottom line with mean ranks.
@@ -189,7 +225,7 @@ function rankdf(df, rev = true)
     # append the final row with mean ranks
     push!(_df, cat(1,Array{Any}(["mean rank"]), zeros(nalgs)))
     for alg in algnames
-        _df[alg][end] = missmean(collect(skipmissing(_df[alg][1:end-1])))
+        _df[alg][end] = missmean(_df[alg][1:end-1])
     end
     
     return _df
@@ -204,7 +240,7 @@ function missmean(x)
     if size(x,1) == 0
         return missing
     else
-        return(mean(x))
+        return mean(collect(skipmissing(x)))
     end
 end
 
@@ -217,7 +253,7 @@ function missmax(x)
     if size(x,1) == 0
         return missing
     else
-        return(maximum(x))
+        return maximum(collect(skipmissing(x)))
     end
 end
 
@@ -230,9 +266,10 @@ function missfindmax(x)
    if size(x,1) == 0
         return missing
     else
-        return(findmax(x))
+        return findmax(collect(skipmissing(x)))
     end
 end 
+
 
 """
     collectscores(outpath, algs, scoref)
@@ -241,22 +278,44 @@ Collect scores on datasets in outpath, for specified algorithm and score functio
 Raturns a DataFrame.
 """
 function collectscores(outpath, algs, scoref)
+    df = createdf(algs)
+    nalgs = size(algs,1)
+    
+    # collect dataset names
+    datasets = readdir(outpath)
+    
+    for dataset in datasets
+        path = joinpath(outpath, dataset) 
+        
+        # create a row per dataset
+        row = Array{Any,1}(nalgs+1)
+        row[2:end] = missing
+        row[1] = dataset
+        for (n,alg) in zip(1:nalgs,algs)
+            f = joinpath(path, "$(alg).csv")
+            dfx = scoref(loadtable(f, 5), [alg])
+            row[n+1] = dfx[Symbol(alg)][1] 
+        end
+
+        push!(df, reshape(row, 1, nalgs+1))
+        
+    end
+    
+    return df
+end
+
+"""
+    createdf(algs)
+
+Create an empty DataFrame with one dataset column and x algorithm columns.
+"""
+function createdf(algs)
     df = DataFrame()
     df[:dataset] = String[]
     for alg in algs
         df[Symbol(alg)] = Any[]
     end
-    nalgs = size(algs,1)
-    
-    # collect dataset names
-    fs = readdir(outpath)
-    datasets = [x[1] for x in split.(fs, ".")]
-    
-    for (f,dataset) in zip(fs, datasets)
-        _f = joinpath(outpath, f)
-        df = [df; scoref(loadtable(_f, 5), algs)]
-    end
-    
+
     return df
 end
 
@@ -266,19 +325,16 @@ end
 Prepare a DataFrame for comparing algorithms across datasets.
 """
 function preparedf(data, algs)
-    df = DataFrame()
-    df[:dataset] = String[]
-    for alg in algs
-        df[Symbol(alg)] = Any[]
-    end
+    df = createdf(algs)
+
     nalgs = size(algs,1)
     dataset = data[:dataset][1]
-
+    
     row = Array{Any,1}(nalgs+1)
     row[2:end] = missing
     row[1] = dataset
     push!(df, reshape(row, 1, nalgs+1))
-
+    
     return df, dataset
 end
 
@@ -298,7 +354,7 @@ function maxauroc(data, algs, auc_type = "normal")
         tstsym = :test_aauroc
     end
 
-    for alg in algnames
+    for alg in algs
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
             @select {r.iteration, getfield(r, tstsym)}
@@ -310,9 +366,9 @@ function maxauroc(data, algs, auc_type = "normal")
             # group this by iterations
             dfx = by(dfx, [:iteration], 
                 d -> DataFrame(auroc = 
-                    missmax(collect(skipmissing(d[tstsym])))))
+                    missmax(d[tstsym])))
             # and get the mean
-            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(dfx[:auroc]))),6)
+            df[Symbol(alg)][1] = round(missmean(dfx[:auroc]),6)
         catch e
             if !isa(e, ArgumentError)
                 nothing #warn(e)
@@ -343,7 +399,7 @@ function trainauroc(data, algs, auc_type = "normal")
         tstsym = :test_aauroc
     end
 
-    for alg in algnames
+    for alg in algs
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
             @select {r.settings, r.iteration, getfield(r, trsym), getfield(r,tstsym)}
@@ -356,12 +412,12 @@ function trainauroc(data, algs, auc_type = "normal")
             # mean aggregate it by settings
             traindf = by(dfx, [:settings],
                             d -> DataFrame(train_auroc = 
-                            missmean(collect(skipmissing(d[trsym])))))
+                            missmean(d[trsym])))
             # get the best settings
-            sort!(traindf, cols = trsym, rev = true)
+            sort!(traindf, cols = :train_auroc, rev = true)
             topalg = ""
             for j in 1:size(traindf,1)
-                if !ismissing(traindf[trsym][j])
+                if !ismissing(traindf[:train_auroc][j])
                     topalg = traindf[:settings][j]
                     break
                 end
@@ -373,9 +429,10 @@ function trainauroc(data, algs, auc_type = "normal")
                      @collect DataFrame
             end
             rename!(testdf, :_3_, tstsym)
-            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(testdf[tstsym]))),6)
+            df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
         catch e
             if !isa(e, ArgumentError)
+                throw(e)
                 nothing
             else
                 throw(e)
@@ -403,7 +460,7 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
         tstsym = :test_aauroc
     end
 
-    for alg in algnames
+    for alg in algs
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
             @select {r.settings, r.iteration, getfield(r, label), getfield(r, tstsym)}
@@ -416,7 +473,7 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
             # mean aggregate it by settings
             traindf = by(dfx, [:settings],
                             d -> DataFrame(top = 
-                            missmean(collect(skipmissing(d[label])))))
+                            missmean(d[label])))
             # get the best settings
             sort!(traindf, cols = :top, rev = true)
             topalg = ""
@@ -433,7 +490,7 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
                      @collect DataFrame
             end
             rename!(testdf, :_3_, tstsym)
-            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(testdf[tstsym]))),6)
+            df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
         catch e
             if !isa(e, ArgumentError)
                 nothing
@@ -457,7 +514,7 @@ function meantime(data, algs, t)
 
     df, dataset = preparedf(data, algs)
 
-    for alg in algnames
+    for alg in algs
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
             @select {r.settings, r.iteration, getfield(r, Symbol(t))}
@@ -467,7 +524,7 @@ function meantime(data, algs, t)
 
         try
             # mean aggregate it by settings
-            a = round(missmean(collect(skipmissing(dfx[Symbol(t)]))),6)
+            a = round(missmean(dfx[Symbol(t)]),6)
             df[Symbol(alg)][1] = a
         catch e
             if !isa(e, ArgumentError)

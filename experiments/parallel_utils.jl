@@ -111,7 +111,7 @@ function runexperiment(dataset_name, iteration, alg)
 end
 
 """
-	runexoeriments(dataset_name, iteration, alg)
+	runexperiments(dataset_name, iteration, alg)
 
 Extracts model parameters and iterables from global const PARAMS,
 creates, trains and predicts anomaly scores for model alg for each
@@ -390,7 +390,7 @@ const PARAMS = Dict(
 				:metric => :(Distances.Euclidean()),
 				:distances => "all",
 				:threshold => 0.0, # useless
-				:reduced_dim => true
+				:reduced_dim => false
 				)
 			),
 		# this is going to be iterated ver for the fit function
