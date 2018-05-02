@@ -17,7 +17,6 @@ nhdims = (size(ARGS,1) >0) ? parse(Int64, ARGS[2]) : 1
 
 datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(!(s -> s in ["url", "gisette", "persistent-connection"]))
 
-datasets = datasets[2:2]
 pmap(x -> runexperiments(x[1], iteration, x[2], nhdims),
 	#product(datasets, ["VAE", "kNN", "AE", "GAN", "VAE", "sVAE", "fmGAN"], iteration))
 	product(datasets, ["AE", "GAN", "fmGAN", "VAE"]))

@@ -215,8 +215,9 @@ discriminate(gan::GAN, X) = Flux.Tracker.data(gan.d(X))
 
 Computes the anomaly score of X under given GAN.
 """
-anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) = Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X)))) +
-	 Float(lambda)*Flux.Tracker.data(rerr(gan, X, getcode(gan, size(X,2))))
+anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) = 
+	Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X) + eps(Float)))) +
+	Float(lambda)*Flux.Tracker.data(rerr(gan, X, getcode(gan, size(X,2))))
 anomalyscore(gan::GAN, X::Array{Float, 2}, lambda) =
 	reshape(mapslices(y -> anomalyscore(gan, y, lambda), X, 1), size(X,2))
 

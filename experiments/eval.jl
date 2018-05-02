@@ -5,16 +5,16 @@ push!(LOAD_PATH, "../src")
 using AnomalyDetection
 
 """
-    auroc(ascore, labels)
+    auroc(ascore, labels, [weights])
 
 Compute area under ROC curve. If ascores are NaNs, returns value.
 """
-function auroc(ascore, labels)
+function auroc(ascore, labels, weights = "same")
     if isnan(ascore[1])
         return missing
     else
         tprvec, fprvec = AnomalyDetection.getroccurve(ascore, labels)
-        return AnomalyDetection.auc(fprvec, tprvec)
+        return AnomalyDetection.auc(fprvec, tprvec, weights)
     end
 end
 
@@ -47,7 +47,7 @@ and fit/predict time.
 function computedatasetstats(datapath, dataset, algnames)
     df = DataFrame()
     cnames = ["dataset", "algorithm", "iteration", "settings", "train_auroc", "test_auroc", 
-        "top_5p", "fit_time", "predict_time"]
+        "train_aauroc", "test_aauroc", "top_5p", "top_1p", "fit_time", "predict_time"]
     for name in cnames
         df[Symbol(name)] = Any[]
     end
@@ -63,18 +63,23 @@ function computedatasetstats(datapath, dataset, algnames)
             for io in ios
                 f = joinpath(__path, io)
                 # compute training and testing auroc
-                trauroc = auroc(load(f, "training_anomaly_score"), load(f, "training_labels"))
-                tstauroc = auroc(load(f, "testing_anomaly_score"), load(f, "testing_labels"))
-                
+                tra = auroc(load(f, "training_anomaly_score"), load(f, "training_labels"))
+                tsta = auroc(load(f, "testing_anomaly_score"), load(f, "testing_labels"))
+               
+                # testing and training augmented auroc
+                traa = auroc(load(f, "training_anomaly_score"), load(f, "training_labels"), "1/x")
+                tstaa = auroc(load(f, "testing_anomaly_score"), load(f, "testing_labels"), "1/x")
+                 
                 # compute top 5% ascore samples precision
-                tp = topprecision(load(f, "training_anomaly_score"), load(f, "training_labels"), 0.05)
-                
+                tp5 = topprecision(load(f, "training_anomaly_score"), load(f, "training_labels"), 0.05)
+                tp1 = topprecision(load(f, "training_anomaly_score"), load(f, "training_labels"), 0.01)
+
                 # extract the times as well
                 ft = load(f, "fit_time")
                 pt = load(f, "predict_time")
 
                 # save the data
-                push!(df, [dataset, alg, iter, io, trauroc, tstauroc, tp, ft, pt])
+                push!(df, [dataset, alg, iter, io, tra, tsta, traa, tstaa, tp5, tp1, ft, pt])
             end
         end
     end
@@ -89,8 +94,8 @@ Gather comprehensive statistics for all datasets in a single dataframe.
 """
 function computestats(datapath, algnames)
     df = DataFrame()
-    cnames = ["dataset", "algorithm", "iteration", "settings", "train_auroc", "test_auroc", 
-        "top_5p", "fit_time", "predict_time"]
+    cnames = ["dataset", "algorithm", "iteration", "settings", "train_auroc", "test_auroc",
+         "train_aauroc", "test_aauroc", "top_5p", "top_1p", "fit_time", "predict_time"]
     for name in cnames
         df[Symbol(name)] = Any[]
     end
@@ -121,7 +126,13 @@ function loadtable(fname, datacols)
     
     # go through the whole df and replace missing strings with actual Missing type
     # and floats with float
-    for cname in names(data)[datacols]
+    if typeof(datacols) == Int64
+        cnames = names(data)[datacols:end]
+    else
+        cnames = names(data)[datacols]
+    end
+
+    for cname in cnames
         for i in 1:nrows
             (data[cname][i] == "missing")? data[cname][i]=missing : 
                 data[cname][i]=round(float(data[cname][i]),6)
@@ -243,19 +254,18 @@ function collectscores(outpath, algs, scoref)
     
     for (f,dataset) in zip(fs, datasets)
         _f = joinpath(outpath, f)
-        df = [df; scoref(loadtable(_f, 5:9), algs)]
+        df = [df; scoref(loadtable(_f, 5), algs)]
     end
     
     return df
 end
 
 """
-    maxauroc(data, algs)
+    preparedf(data, algs)
 
-Score algorithms according to their maximum auroc on a testing dataset 
-averaged over experiment iterations.
+Prepare a DataFrame for comparing algorithms across datasets.
 """
-function maxauroc(data, algs)
+function preparedf(data, algs)
     df = DataFrame()
     df[:dataset] = String[]
     for alg in algs
@@ -268,18 +278,39 @@ function maxauroc(data, algs)
     row[2:end] = missing
     row[1] = dataset
     push!(df, reshape(row, 1, nalgs+1))
+
+    return df, dataset
+end
+
+"""
+    maxauroc(data, algs, [auc_type])
+
+Score algorithms according to their maximum auroc on a testing dataset 
+averaged over experiment iterations.
+"""
+function maxauroc(data, algs, auc_type = "normal")
+    df, dataset = preparedf(data, algs)
+
+    # auc_type for augmented or normal auc
+    if auc_type == "normal"
+        tstsym = :test_auroc
+    elseif auc_type == "augmented"
+        tstsym = :test_aauroc
+    end
+
     for alg in algnames
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
-            @select {r.iteration, r.test_auroc}
+            @select {r.iteration, getfield(r, tstsym)}
             @collect DataFrame
         end
+        rename!(dfx, :_2_, tstsym)
             
         try
             # group this by iterations
             dfx = by(dfx, [:iteration], 
                 d -> DataFrame(auroc = 
-                    missmax(collect(skipmissing(d[:test_auroc])))))
+                    missmax(collect(skipmissing(d[tstsym])))))
             # and get the mean
             df[Symbol(alg)][1] = round(missmean(collect(skipmissing(dfx[:auroc]))),6)
         catch e
@@ -295,41 +326,42 @@ function maxauroc(data, algs)
 end
 
 """
-    trainauroc(data, algs)
+    trainauroc(data, algs, [auc_type])
 
 Choose algorithm with parameters according to maximum auroc on training dataset,
 then compute the score as average of testing auroc with these parameters over iterations.
 """
-function trainauroc(data, algs)
-    df = DataFrame()
-    df[:dataset] = String[]
-    for alg in algs
-        df[Symbol(alg)] = Any[]
-    end
-    nalgs = size(algs,1)
-    dataset = data[:dataset][1]
+function trainauroc(data, algs, auc_type = "normal")
+    df, dataset = preparedf(data, algs)
 
-    row = Array{Any,1}(nalgs+1)
-    row[2:end] = missing
-    row[1] = dataset
-    push!(df, reshape(row, 1, nalgs+1))
+    # auc_type for augmented or normal auc
+    if auc_type == "normal"
+        trsym = :train_auroc
+        tstsym = :test_auroc
+    elseif auc_type == "augmented"
+        trsym = :train_aauroc
+        tstsym = :test_aauroc
+    end
+
     for alg in algnames
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
-            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc}
+            @select {r.settings, r.iteration, getfield(r, trsym), getfield(r,tstsym)}
             @collect DataFrame
         end
-            
+        rename!(dfx, :_3_, trsym)
+        rename!(dfx, :_4_, tstsym)
+        
         try
             # mean aggregate it by settings
             traindf = by(dfx, [:settings],
                             d -> DataFrame(train_auroc = 
-                            missmean(collect(skipmissing(d[:train_auroc])))))
+                            missmean(collect(skipmissing(d[trsym])))))
             # get the best settings
-            sort!(traindf, cols = :train_auroc, rev = true)
+            sort!(traindf, cols = trsym, rev = true)
             topalg = ""
             for j in 1:size(traindf,1)
-                if !ismissing(traindf[:train_auroc][j])
+                if !ismissing(traindf[trsym][j])
                     topalg = traindf[:settings][j]
                     break
                 end
@@ -337,10 +369,11 @@ function trainauroc(data, algs)
             # and get the mean of the best setting test auroc over all iterations
             testdf = @from r in dfx begin
                      @where r.settings == topalg
-                     @select {r.settings, r.iteration, r.test_auroc}
+                     @select {r.settings, r.iteration, getfield(r, tstsym)}
                      @collect DataFrame
             end
-            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(testdf[:test_auroc]))),6)
+            rename!(testdf, :_3_, tstsym)
+            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(testdf[tstsym]))),6)
         catch e
             if !isa(e, ArgumentError)
                 nothing
@@ -355,41 +388,40 @@ function trainauroc(data, algs)
 end
 
 """
-    toprec(data, algs)
+    toprec(data, algs, [label, auc_type])
 
-Choose algorithm with parameters according to precision on top 5% instances in training dataset,
+Choose algorithm with parameters according to precision on top x% instances in training dataset,
 then compute the score as average of testing auroc with these parameters over iterations.
 """
-function topprec(data, algs)
-    df = DataFrame()
-    df[:dataset] = String[]
-    for alg in algs
-        df[Symbol(alg)] = Any[]
-    end
-    nalgs = size(algs,1)
-    dataset = data[:dataset][1]
+function topprec(data, algs, label = :top_5p, auc_type = "normal")
+    df, dataset = preparedf(data, algs)
 
-    row = Array{Any,1}(nalgs+1)
-    row[2:end] = missing
-    row[1] = dataset
-    push!(df, reshape(row, 1, nalgs+1))
+    # auc_type for augmented or normal auc
+    if auc_type == "normal"
+        tstsym = :test_auroc
+    elseif auc_type == "augmented"
+        tstsym = :test_aauroc
+    end
+
     for alg in algnames
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
-            @select {r.settings, r.iteration, r.top_5p, r.test_auroc}
+            @select {r.settings, r.iteration, getfield(r, label), getfield(r, tstsym)}
             @collect DataFrame
         end
-            
+        rename!(dfx, :_3_, label)
+        rename!(dfx, :_4_, tstsym)
+    
         try
             # mean aggregate it by settings
             traindf = by(dfx, [:settings],
-                            d -> DataFrame(top_5p = 
-                            missmean(collect(skipmissing(d[:top_5p])))))
+                            d -> DataFrame(top = 
+                            missmean(collect(skipmissing(d[label])))))
             # get the best settings
-            sort!(traindf, cols = :top_5p, rev = true)
+            sort!(traindf, cols = :top, rev = true)
             topalg = ""
             for j in 1:size(traindf,1)
-                if !ismissing(traindf[:top_5p][j])
+                if !ismissing(traindf[:top][j])
                     topalg = traindf[:settings][j]
                     break
                 end
@@ -397,10 +429,11 @@ function topprec(data, algs)
             # and get the mean of the best setting test auroc over all iterations
             testdf = @from r in dfx begin
                      @where r.settings == topalg
-                     @select {r.settings, r.iteration, r.test_auroc}
+                     @select {r.settings, r.iteration, getfield(r, tstsym)}
                      @collect DataFrame
             end
-            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(testdf[:test_auroc]))),6)
+            rename!(testdf, :_3_, tstsym)
+            df[Symbol(alg)][1] = round(missmean(collect(skipmissing(testdf[tstsym]))),6)
         catch e
             if !isa(e, ArgumentError)
                 nothing
@@ -422,18 +455,8 @@ Score algorithm on a dataset based on mean fit/predict times over iterations and
 function meantime(data, algs, t)
     @assert t in ["predict_time", "fit_time"]
 
-    df = DataFrame()
-    df[:dataset] = String[]
-    for alg in algs
-        df[Symbol(alg)] = Any[]
-    end
-    nalgs = size(algs,1)
-    dataset = data[:dataset][1]
+    df, dataset = preparedf(data, algs)
 
-    row = Array{Any,1}(nalgs+1)
-    row[2:end] = missing
-    row[1] = dataset
-    push!(df, reshape(row, 1, nalgs+1))
     for alg in algnames
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset

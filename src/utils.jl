@@ -394,11 +394,11 @@ function getroccurve(ascorevec, labels)
     for i in 2:(N+1)
         (labels[sortidx[i-1]] == 0)? (fpr = fpr - 1/n) : (rec = rec -1/p)
         if (fpr <= rec)
-            fprvec[i] = fpr
-            recvec[i] = rec
+            fprvec[i] = max(0,fpr)
+            recvec[i] = max(0,rec)
         else
-            fprvec[i] = 1-fpr
-            recvec[i] = 1-rec
+            fprvec[i] = max(0,1-fpr)
+            recvec[i] = max(0,1-rec)
         end
     end
     
@@ -422,16 +422,30 @@ function getroccurve(ascorevec, labels)
 end
 
 """
-    auc(x,y)
+    auc(x,y, [weights])
 
 Computes the are under curve (x,y).
 """
-function auc(x,y)
+function auc(x,y, weights = "same")
     # compute the increments
     dx = x[2:end] - x[1:end-1]
     dy = y[2:end] - y[1:end-1]
-    
-    return dot(y[1:end-1],dx) + dot(dx,dy)/2
+
+    a = y[1:end-1] + dy/2
+
+    if weights == "same"
+        a = y[1:end-1] + dy/2
+        b = dx
+    elseif weights == "1/x"
+        inz = x.!=0 # nonzero indices
+        w = 1./x[inz]
+        # w = w/sum(w) # this is numerically unstable
+        a = (y[1:end-1] + dy/2)[inz[2:end]]
+        a = a.*w
+        b = dx[inz[2:end]]
+    end
+        
+    return dot(a,b)
 end
 
 """

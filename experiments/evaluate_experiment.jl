@@ -58,17 +58,30 @@ println("")
 println("Third experiment - select hyperparameters on training dataset based on top 5% precision,
 	then average the testing auroc for given hyperparameters over iterations.")
 println("")
-topauc = collectscores(outpath, algnames, topprec)
+topauc = collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_5p))
 ranktopauc = rankdf(topauc)
-writetable(joinpath(evalpath, "topauc.csv"), topauc);
-writetable(joinpath(evalpath, "ranktopauc.csv"), ranktopauc);
+writetable(joinpath(evalpath, "top5auc.csv"), topauc);
+writetable(joinpath(evalpath, "ranktop5auc.csv"), ranktopauc);
 showall(topauc)
 println("")
 showall(ranktopauc)
 println("")
 
-# fourth experiment
-println("Fourth experiment - rank by mean fit time.")
+# 4th
+println("Fourth experiment - select hyperparameters on training dataset based on top 1% precision,
+	then average the testing auroc for given hyperparameters over iterations.")
+println("")
+topauc = collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_1p))
+ranktopauc = rankdf(topauc)
+writetable(joinpath(evalpath, "top1auc.csv"), topauc);
+writetable(joinpath(evalpath, "ranktop1auc.csv"), ranktopauc);
+showall(topauc)
+println("")
+showall(ranktopauc)
+println("")
+
+# fifth experiment
+println("Fifth experiment - rank by mean fit time.")
 println("")
 meanfitt = collectscores(outpath, algnames, (x,y)->meantime(x,y,"fit_time"))
 showall(meanfitt)
@@ -79,8 +92,8 @@ writetable(joinpath(evalpath, "rankmeanfitt.csv"), rankmeanfitt);
 showall(rankmeanfitt)
 println("")
 
-# fifth experiment
-println("Fifth experiment - rank by mean predict time.")
+# sixth experiment
+println("Sixth experiment - rank by mean predict time.")
 println("")
 meanpredictt = collectscores(outpath, algnames, (x,y)->meantime(x,y,"predict_time"))
 rankmeanpredictt = rankdf(meanpredictt, false)
