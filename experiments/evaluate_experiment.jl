@@ -13,13 +13,13 @@ mkpath(evalpath)
 
 #experiment = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1:5
 
-algnames = ["kNN", "kNNPCA", "IsoForest", "AE", "VAE", "sVAE", "GAN", "fmGAN"]
-algnames = ["kNN", "kNNPCA", "IsoForest", "AE", "VAE"]
+#algnames = ["kNN", "kNNPCA", "IsoForest", "AE", "VAE", "sVAE", "GAN", "fmGAN"]
+algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN", "fmGAN"]
 #algnames = ["kNN", "kNNPCA"]
 
 # create a dataframe with a row for each experiment
 println("Computing basic experiment statistics...")
-for dataset in datasets[1:2]
+for dataset in datasets
 	for alg in algnames
 		fpath = joinpath(outpath, dataset)
 		mkpath(fpath)
