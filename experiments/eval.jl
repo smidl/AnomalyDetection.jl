@@ -122,22 +122,8 @@ function loadtable(fname, datacols)
         data[cname] = Array{Any,1}(data[cname])
     end
     
-    nrows, ncols = size(data)
-    
-    # go through the whole df and replace missing strings with actual Missing type
-    # and floats with float
-    if typeof(datacols) == Int64
-        cnames = names(data)[datacols:end]
-    else
-        cnames = names(data)[datacols]
-    end
-
-    for cname in cnames
-        for i in 1:nrows
-            (data[cname][i] == "missing")? data[cname][i]=missing : 
-                data[cname][i]=round(float(data[cname][i]),6)
-        end
-    end
+    # round the nubmers and replace "missing" with actual missing values
+    rounddf!(data, 6, datacols)
     
     return data
 end
@@ -292,9 +278,13 @@ function collectscores(outpath, algs, scoref)
         row[2:end] = missing
         row[1] = dataset
         for (n,alg) in zip(1:nalgs,algs)
-            f = joinpath(path, "$(alg).csv")
-            dfx = scoref(loadtable(f, 5), [alg])
-            row[n+1] = dfx[Symbol(alg)][1] 
+            try
+                f = joinpath(path, "$(alg).csv")
+                dfx = scoref(loadtable(f, 5), [alg])
+                row[n+1] = dfx[Symbol(alg)][1] 
+            catch e
+                nothing
+            end
         end
 
         push!(df, reshape(row, 1, nalgs+1))
