@@ -527,3 +527,50 @@ function meantime(data, algs, t)
     
     return df
 end
+
+function eol(s)
+    return string(s[1:end-2], " \\\\ \n")
+end
+
+function wspad(s, n)
+    return string(s, repeat(" ", n))
+end
+
+function df2tex(df, caption="", pos = "h", align = "c")
+    cnames = names(df)
+    nrows, ncols = size(df)
+
+    # create the table beginning
+    s = "\\begin{table} \n \\begin{tabular}[$pos]{"
+    for n in 1:ncols
+        s = string(s, "$align ")
+    end
+    s = string(s,"} \n")
+
+    # create the header
+    s = wspad(s,2)
+    for name in names(df)
+        s = string(s, "$name & ")
+    end
+    s = eol(s)
+    s = wspad(s,2)
+    s = string(s, "\\hline \n")
+    
+    # fill the table
+    for i in 1:nrows
+        s = wspad(s,2)
+        for j in 1:ncols
+            s = string(s, "$(df[i,j]) & ")
+        end
+        s= eol(s)
+    end
+
+    # create the table ending
+    s = string(s, " \\end{tabular}\n")
+    if caption!=""
+        s = string(s, " \\caption{$caption} \n")
+    end
+    s = string(s, "\\end{table}")
+
+    return s
+end
