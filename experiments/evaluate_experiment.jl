@@ -1,11 +1,19 @@
 include("./eval.jl")
 
-#data_path = "./data"
-#outpath = "./output"
-#evalpath = "./eval"
-data_path = "/home/vit/vyzkum/anomaly_detection/data/aws/anomaly"
-outpath = "/home/vit/vyzkum/anomaly_detection/data/aws/output"
-evalpath = "/home/vit/vyzkum/anomaly_detection/data/aws/eval"
+# where is the data (extracted or original) stored
+#data_path = "/opt/output/extracted"
+#data_path = "/home/vit/vyzkum/anomaly_detection/data/aws/anomaly"
+#data_path = "/home/vit/vyzkum/anomaly_detection/data/aws/extracted"
+
+# where the individual experimen results will be stored
+#outpath = "/opt/output/output"
+#outpath = "/home/vit/vyzkum/anomaly_detection/data/aws/output"
+#outpath = "/home/vit/vyzkum/anomaly_detection/data/aws/ex_output"
+
+# where the summary tables will be stored
+#evalpath = "/opt/output/eval"
+#evalpath = "/home/vit/vyzkum/anomaly_detection/data/aws/eval"
+#evalpath = "/home/vit/vyzkum/anomaly_detection/data/aws/ex_eval"
 datasets = filter(s->s!="persistant-connection",readdir(data_path))
 datasets = filter(s->s!="gisette", datasets)
 mkpath(outpath)
