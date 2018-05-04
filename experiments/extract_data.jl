@@ -8,7 +8,7 @@ using FileIO, ValueHistories
 mkpath(extpath)
 
 datasets = readdir(datapath)
-for dataset in datasets[1:2]
+for dataset in datasets
 	dpath = joinpath(datapath, dataset)
 	algs = readdir(dpath)
 	for alg in algs
@@ -23,15 +23,19 @@ for dataset in datasets[1:2]
 			for file in files
 				fo = joinpath(ipatho, file)
 				fn = joinpath(ipathn, file)
-				save(fn,
-						"fit_time", load(fo, "fit_time"),
-						"predict_time", load(fo, "predict_time"),
-						"training_labels", load(fo, "training_labels"),
-						"testing_labels", load(fo, "testing_labels"),
-						"training_anomaly_score", load(fo, "training_anomaly_score"),
-						"testing_anomaly_score", load(fo, "testing_anomaly_score")
-						#"params", load(fo, "params")
-					)
+				if isfile(fn) && !rewrite
+					nothing
+				else
+					save(fn,
+							"fit_time", load(fo, "fit_time"),
+							"predict_time", load(fo, "predict_time"),
+							"training_labels", load(fo, "training_labels"),
+							"testing_labels", load(fo, "testing_labels"),
+							"training_anomaly_score", load(fo, "training_anomaly_score"),
+							"testing_anomaly_score", load(fo, "testing_anomaly_score")
+							#"params", load(fo, "params")
+						)
+				end
 			end
 		end
 	end

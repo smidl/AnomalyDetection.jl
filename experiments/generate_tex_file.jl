@@ -35,4 +35,3 @@ open(intex, "r") do f
 	end
 
 end
-
