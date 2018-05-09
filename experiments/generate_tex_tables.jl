@@ -18,6 +18,7 @@ rename!(rankaurocsum, :IsoForest, :IForest)
 rename!(rankaurocsum, :test, Symbol(" "))
 rankaurocsum = rpaddf(rankaurocsum, 2)
 sra = df2tex(rankaurocsum, "Average ranks of algorithms for different test criteria.",
+	label = "tab:aucsummary",
 	firstvline = true)
 
 # table 3 - mean fit/predict times
@@ -27,7 +28,8 @@ meantimessum[:test][2] = "\$t_p\$ [s]"
 rename!(meantimessum, :IsoForest, :IForest)
 rename!(meantimessum, :test, Symbol(" "))
 meantimessum = rpaddf(meantimessum, 2)
-smt = df2tex(rankaurocsum, "Average fit \$t_f\$ and predict \$t_p\$ times.",
+smt = df2tex(meantimessum, "Average fit \$t_f\$ and predict \$t_p\$ times.",
+	label = "tab:timesummary",
 	firstvline = true)
 
 # table 4 - mean ranks on augmented auroc
@@ -41,6 +43,7 @@ rename!(rankaaurocsum, :test, Symbol(" "))
 rankaaurocsum = rpaddf(rankaaurocsum, 2)
 sraa = df2tex(rankaaurocsum, 
 	"Average ranks of algorithms for different test criteria using the augmented AUROC.",
+	label = "tab:aaucsummary",
 	firstvline = true)
 
 # table 5 - mean scores of the first test with ranks
@@ -56,6 +59,7 @@ madf = mergedfs(maxaurocdf, rankmaxaurocdf)
 madf[:dataset] = shortnames
 mas = df2tex(madf,
 	"AUC scores and ranks for the first test over datasets and an average.",
+	label = "tab:maxaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 6 - mean scores of the second test with ranks
@@ -71,6 +75,7 @@ tadf = mergedfs(trainaurocdf, ranktrainaurocdf)
 tadf[:dataset] = shortnames
 tas = df2tex(tadf,
 	"AUC scores and ranks for the second test over datasets and an average.",
+	label = "tab:trainaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 7 - mean scores of the third 1% test with ranks
@@ -86,6 +91,7 @@ t1adf = mergedfs(top1aurocdf, ranktop1aurocdf)
 t1adf[:dataset] = shortnames
 t1as = df2tex(t1adf,
 	"AUC scores and ranks for the third 1\\% test over datasets and an average.",
+	label = "tab:top1aucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 8 - mean scores of the third 5% test with ranks
@@ -101,6 +107,7 @@ t5adf = mergedfs(top5aurocdf, ranktop5aurocdf)
 t5adf[:dataset] = shortnames
 t5as = df2tex(t5adf,
 	"AUC scores and ranks for the third 5\\% test over datasets and an average.",
+	label = "tab:top5aucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 
@@ -137,6 +144,7 @@ maadf = mergedfs(maxaaurocdf, rankmaxaaurocdf)
 maadf[:dataset] = shortnames
 maas = df2tex(maadf,
 	"Augmented AUC scores and ranks for the first test over datasets and an average.",
+	label = "tab:maxaaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 10 - mean scores of the second test with ranks
@@ -152,6 +160,7 @@ taadf = mergedfs(trainaaurocdf, ranktrainaaurocdf)
 taadf[:dataset] = shortnames
 taas = df2tex(taadf,
 	"Augmented AUC scores and ranks for the second test over datasets and an average.",
+	label = "tab:trainaaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 11 - mean scores of the third 1% test with ranks
@@ -167,6 +176,7 @@ t1aadf = mergedfs(top1aaurocdf, ranktop1aaurocdf)
 t1aadf[:dataset] = shortnames
 t1aas = df2tex(t1aadf,
 	"Augmented AUC scores and ranks for the third 1\\% test over datasets and an average.",
+	label = "tab:top1aaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 12 - mean scores of the third 5% test with ranks
@@ -182,6 +192,7 @@ t5aadf = mergedfs(top5aaurocdf, ranktop5aaurocdf)
 t5aadf[:dataset] = shortnames
 t5aas = df2tex(t5aadf,
 	"Augmented AUC scores and ranks for the third 5\\% test over datasets and an average.",
+	label = "tab:top5aaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # cl output
@@ -210,6 +221,7 @@ ftdf = mergedfs(fittdf, rankfittdf)
 ftdf[:dataset] = shortnames
 fts = df2tex(ftdf,
 	"Mean fit times over datasets with ranks and average",
+	label = "tab:ftfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 14 - mean scores of the third 5% test with ranks
@@ -225,6 +237,7 @@ ptdf = mergedfs(predicttdf, rankpredicttdf)
 ptdf[:dataset] = shortnames
 pts = df2tex(ptdf,
 	"Mean predict times over datasets with ranks and average",
+	label = "tab:ptfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 

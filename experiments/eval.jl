@@ -588,16 +588,16 @@ end
 
 Convert DataFrame to a LaTex table.
 """
-function df2tex(df, caption="", pos = "h", align = "c"; 
+function df2tex(df, caption=""; label = "", pos = "h", align = "c", 
     fitcolumn = false, lasthline = false, firstvline = false)
     cnames = names(df)
     nrows, ncols = size(df)
 
     # create the table beginning
     if fitcolumn
-        s = "\\begin{table} \n \\resizebox{\\columnwidth}{!}{ \n \\begin{tabular}[$pos]{"
+        s = "\\begin{table} \n \\center \n \\resizebox{\\columnwidth}{!}{ \n \\begin{tabular}[$pos]{"
     else    
-        s = "\\begin{table} \n \\begin{tabular}[$pos]{"
+        s = "\\begin{table} \n \\center \n \\begin{tabular}[$pos]{"
     end
     for n in 1:ncols
         if firstvline && n == 1
@@ -637,6 +637,9 @@ function df2tex(df, caption="", pos = "h", align = "c";
     end
     if caption!=""
         s = string(s, " \\caption{$caption} \n")
+    end
+    if label!=""
+        s = string(s, " \\label{$label} \n")
     end
     s = string(s, "\\end{table}")
 
@@ -733,3 +736,4 @@ function mergedfs(ldf, rdf)
 
     return df
 end
+
