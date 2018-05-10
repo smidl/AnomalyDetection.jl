@@ -14,12 +14,14 @@ open(intex, "r") do f
 
 	# comprehensive tables for normal AUC
 	text = replace(text, "%__TABLE_5__", mas)
+	text = replace(text, "%__TABLE_5.5__", tsas)
 	text = replace(text, "%__TABLE_6__", tas)
 	text = replace(text, "%__TABLE_7__", t1as)
 	text = replace(text, "%__TABLE_8__", t5as)
 
 	# augmented AUC
 	text = replace(text, "%__TABLE_9__", maas)
+	text = replace(text, "%__TABLE_9.5__", tsaas)
 	text = replace(text, "%__TABLE_10__", taas)
 	text = replace(text, "%__TABLE_11__", t1aas)
 	text = replace(text, "%__TABLE_12__", t5aas)

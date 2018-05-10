@@ -38,7 +38,7 @@ if (length(ARGS) > 0)
 		dryrun = false
 	end
 else
-	dryrun = true
+	dryrun = false
 end
 
 if !dryrun

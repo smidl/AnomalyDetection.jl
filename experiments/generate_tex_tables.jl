@@ -1,19 +1,27 @@
-include("evaluate_experiment.jl")
+(length(ARGS) > 0)? ((ARGS[1] == "v")? verb=true:verb=false ) : verb = false
+
+ARGS = []
+include("rank_algorithms.jl")
 
 outpath = "./tex_tables"
 mkpath(outpath)
 
 # 
+#const shortnames = ["aba", "blo", "brc", "brt", "car", "eco", "gla", "hab", "ion", "iri", 
+#	"iso", "let", "lib", "mad", "mag", "min", "mul", "mus", "pag", "par", "pen", "pim", "son", 
+#	"spe", "ssa", "sse", "ssh", "sve", "syn", "ver", "wal", "wa1", "wa2", "win", "yea", "avg"]
+
 const shortnames = ["aba", "blo", "brc", "brt", "car", "eco", "gla", "hab", "ion", "iri", 
 	"iso", "let", "lib", "mad", "mag", "min", "mul", "mus", "pag", "par", "pen", "pim", "son", 
-	"spe", "ssa", "sse", "ssh", "sve", "syn", "ver", "wal", "wa1", "wa2", "win", "yea", "avg"]
+	"avg"]
+
 
 #(size(ARGS,1)>1)? v = ARGS[1] : v = "verb"
 
 # table 2 - mean ranks on normal auroc
-rankaurocsum = rounddf(rankeddf[1:4,:], 2, 2)
-rankaurocsum[:test][3] = "top 1\\%"
-rankaurocsum[:test][4] = "top 5\\%"
+rankaurocsum = rounddf(rankeddf[1:5,:], 2, 2)
+rankaurocsum[:test][4] = "top 1\\%"
+rankaurocsum[:test][5] = "top 5\\%"
 rename!(rankaurocsum, :IsoForest, :IForest)
 rename!(rankaurocsum, :test, Symbol(" "))
 rankaurocsum = rpaddf(rankaurocsum, 2)
@@ -22,7 +30,7 @@ sra = df2tex(rankaurocsum, "Average ranks of algorithms for different test crite
 	firstvline = true)
 
 # table 3 - mean fit/predict times
-meantimessum = rounddf(valuedf[5:6,:],2,2)
+meantimessum = rounddf(valuedf[6:7,:],2,2)
 meantimessum[:test][1] = "\$t_f\$ [s]"
 meantimessum[:test][2] = "\$t_p\$ [s]"
 rename!(meantimessum, :IsoForest, :IForest)
@@ -33,11 +41,12 @@ smt = df2tex(meantimessum, "Average fit \$t_f\$ and predict \$t_p\$ times.",
 	firstvline = true)
 
 # table 4 - mean ranks on augmented auroc
-rankaaurocsum = rounddf(rankeddf[7:10,:], 2, 2)
-rankaaurocsum[:test][1] = "test auc"
-rankaaurocsum[:test][2] = "train auc"
-rankaaurocsum[:test][3] = "top 1\\%"
-rankaaurocsum[:test][4] = "top 5\\%"
+rankaaurocsum = rounddf(rankeddf[8:12,:], 2, 2)
+rankaaurocsum[:test][1] = "max auc"
+rankaaurocsum[:test][2] = "test auc"
+rankaaurocsum[:test][3] = "train auc"
+rankaaurocsum[:test][4] = "top 1\\%"
+rankaaurocsum[:test][5] = "top 5\\%"
 rename!(rankaaurocsum, :IsoForest, :IForest)
 rename!(rankaaurocsum, :test, Symbol(" "))
 rankaaurocsum = rpaddf(rankaaurocsum, 2)
@@ -46,7 +55,7 @@ sraa = df2tex(rankaaurocsum,
 	label = "tab:aaucsummary",
 	firstvline = true)
 
-# table 5 - mean scores of the first test with ranks
+# table 5 - mean scores of the max test with ranks
 maxaurocdf = miss2hyphen!(rounddf(maxauc,2,2))
 row = rounddf(valuedf[1,:],2,2)
 rename!(row, :test, :dataset)
@@ -58,17 +67,33 @@ rankmaxaurocdf = miss2hyphen!(rounddf(rankmaxauc,2,2))
 madf = mergedfs(maxaurocdf, rankmaxaurocdf)
 madf[:dataset] = shortnames
 mas = df2tex(madf,
-	"AUC scores and ranks for the first test over datasets and an average.",
+	"AUC scores and ranks for the max test over datasets and an average.",
 	label = "tab:maxaucfull",
+	fitcolumn = true, lasthline = true, firstvline = true)
+
+# table 5.5 - mean scores of the first test with ranks
+testaurocdf = miss2hyphen!(rounddf(testauc,2,2))
+row = rounddf(valuedf[2,:],2,2)
+rename!(row, :test, :dataset)
+testaurocdf = [testaurocdf; row]
+rename!(testaurocdf, :IsoForest, :IForest)
+testaurocdf = rpaddf(testaurocdf, 2)
+
+ranktestaurocdf = miss2hyphen!(rounddf(ranktestauc,2,2))
+tsadf = mergedfs(testaurocdf, ranktestaurocdf)
+tsadf[:dataset] = shortnames
+tsas = df2tex(tsadf,
+	"AUC scores and ranks for the first test over datasets and an average.",
+	label = "tab:testaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 6 - mean scores of the second test with ranks
 trainaurocdf = miss2hyphen!(rounddf(trainauc,2,2))
-row = rounddf(valuedf[2,:],2,2)
+row = rounddf(valuedf[3,:],2,2)
 rename!(row, :test, :dataset)
 trainaurocdf = [trainaurocdf; row]
 rename!(trainaurocdf, :IsoForest, :IForest)
-trainaurocdf = rpaddf(maxaurocdf, 2)
+trainaurocdf = rpaddf(trainaurocdf, 2)
 
 ranktrainaurocdf = miss2hyphen!(rounddf(ranktrainauc,2,2))
 tadf = mergedfs(trainaurocdf, ranktrainaurocdf)
@@ -96,7 +121,7 @@ t1as = df2tex(t1adf,
 
 # table 8 - mean scores of the third 5% test with ranks
 top5aurocdf = miss2hyphen!(rounddf(top5auc,2,2))
-row = rounddf(valuedf[4,:],2,2)
+row = rounddf(valuedf[5,:],2,2)
 rename!(row, :test, :dataset)
 top5aurocdf = [top5aurocdf; row]
 rename!(top5aurocdf, :IsoForest, :IForest)
@@ -111,29 +136,33 @@ t5as = df2tex(t5adf,
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 
-# output
-println("\nTable 2:\n\n",sra,"\n")
-println("\nTable 3:\n\n",smt,"\n")
-println("\nTable 4:\n\n",sraa,"\n")
-println("\nTable 5:\n\n",mas,"\n")
-println("\nTable 6:\n\n",tas,"\n")
-println("\nTable 7:\n\n",t1as,"\n")
-println("\nTable 8:\n\n",t5as,"\n")
+if verb
+	# output
+	println("\nTable 2:\n\n",sra,"\n")
+	println("\nTable 3:\n\n",smt,"\n")
+	println("\nTable 4:\n\n",sraa,"\n")
+	println("\nTable 5:\n\n",mas,"\n")
+	println("\nTable 5.5:\n\n",tsas,"\n")
+	println("\nTable 6:\n\n",tas,"\n")
+	println("\nTable 7:\n\n",t1as,"\n")
+	println("\nTable 8:\n\n",t5as,"\n")
+end
 
 # output to txt
 string2file(joinpath(outpath, "ranksummary.txt"), sra)
 string2file(joinpath(outpath, "timesummary.txt"), smt)
 string2file(joinpath(outpath, "augmentedranksummary.txt"), sraa)
 string2file(joinpath(outpath, "mas.txt"), mas)
+string2file(joinpath(outpath, "tsas.txt"), tsas)
 string2file(joinpath(outpath, "tas.txt"), tas)
 string2file(joinpath(outpath, "t1as.txt"), t1as)
 string2file(joinpath(outpath, "t5as.txt"), t5as)
 
 ### augmented ROC ###
 
-# table 9 - mean scores of the first test with ranks
+# table 9 - mean scores of the max test with ranks
 maxaaurocdf = miss2hyphen!(rounddf(maxaauc,2,2))
-row = rounddf(valuedf[7,:],2,2)
+row = rounddf(valuedf[8,:],2,2)
 rename!(row, :test, :dataset)
 maxaaurocdf = [maxaaurocdf; row]
 rename!(maxaaurocdf, :IsoForest, :IForest)
@@ -143,17 +172,33 @@ rankmaxaaurocdf = miss2hyphen!(rounddf(rankmaxaauc,2,2))
 maadf = mergedfs(maxaaurocdf, rankmaxaaurocdf)
 maadf[:dataset] = shortnames
 maas = df2tex(maadf,
-	"Augmented AUC scores and ranks for the first test over datasets and an average.",
+	"Augmented AUC scores and ranks for the max test over datasets and an average.",
 	label = "tab:maxaaucfull",
+	fitcolumn = true, lasthline = true, firstvline = true)
+
+# table 9.5 - mean scores of the second test with ranks
+testaaurocdf = miss2hyphen!(rounddf(testaauc,2,2))
+row = rounddf(valuedf[9,:],2,2)
+rename!(row, :test, :dataset)
+testaaurocdf = [testaaurocdf; row]
+rename!(testaaurocdf, :IsoForest, :IForest)
+testaaurocdf = rpaddf(testaaurocdf, 2)
+
+ranktestaaurocdf = miss2hyphen!(rounddf(ranktestaauc,2,2))
+tsaadf = mergedfs(testaaurocdf, ranktestaaurocdf)
+tsaadf[:dataset] = shortnames
+tsaas = df2tex(tsaadf,
+	"Augmented AUC scores and ranks for the first test over datasets and an average.",
+	label = "tab:trainaaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 10 - mean scores of the second test with ranks
 trainaaurocdf = miss2hyphen!(rounddf(trainaauc,2,2))
-row = rounddf(valuedf[8,:],2,2)
+row = rounddf(valuedf[10,:],2,2)
 rename!(row, :test, :dataset)
 trainaaurocdf = [trainaaurocdf; row]
 rename!(trainaaurocdf, :IsoForest, :IForest)
-trainaaurocdf = rpaddf(maxaaurocdf, 2)
+trainaaurocdf = rpaddf(trainaaurocdf, 2)
 
 ranktrainaaurocdf = miss2hyphen!(rounddf(ranktrainaauc,2,2))
 taadf = mergedfs(trainaaurocdf, ranktrainaaurocdf)
@@ -165,7 +210,7 @@ taas = df2tex(taadf,
 
 # table 11 - mean scores of the third 1% test with ranks
 top1aaurocdf = miss2hyphen!(rounddf(top1aauc,2,2))
-row = rounddf(valuedf[9,:],2,2)
+row = rounddf(valuedf[11,:],2,2)
 rename!(row, :test, :dataset)
 top1aaurocdf = [top1aaurocdf; row]
 rename!(top1aaurocdf, :IsoForest, :IForest)
@@ -181,7 +226,7 @@ t1aas = df2tex(t1aadf,
 
 # table 12 - mean scores of the third 5% test with ranks
 top5aaurocdf = miss2hyphen!(rounddf(top5aauc,2,2))
-row = rounddf(valuedf[4,:],2,2)
+row = rounddf(valuedf[12,:],2,2)
 rename!(row, :test, :dataset)
 top5aaurocdf = [top5aaurocdf; row]
 rename!(top5aaurocdf, :IsoForest, :IForest)
@@ -195,14 +240,18 @@ t5aas = df2tex(t5aadf,
 	label = "tab:top5aaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
-# cl output
-println("\nTable 9:\n\n",maas,"\n")
-println("\nTable 10:\n\n",taas,"\n")
-println("\nTable 11:\n\n",t1aas,"\n")
-println("\nTable 12:\n\n",t5aas,"\n")
+if verb
+	# cl output
+	println("\nTable 9:\n\n",maas,"\n")
+	println("\nTable 9.5:\n\n",tsaas,"\n")
+	println("\nTable 10:\n\n",taas,"\n")
+	println("\nTable 11:\n\n",t1aas,"\n")
+	println("\nTable 12:\n\n",t5aas,"\n")
+end
 
 # output to txt
 string2file(joinpath(outpath, "maas.txt"), maas)
+string2file(joinpath(outpath, "tsaas.txt"), taas)
 string2file(joinpath(outpath, "taas.txt"), taas)
 string2file(joinpath(outpath, "t1aas.txt"), t1aas)
 string2file(joinpath(outpath, "t5aas.txt"), t5aas)
@@ -210,7 +259,7 @@ string2file(joinpath(outpath, "t5aas.txt"), t5aas)
 ### large time tables ###
 # table 13 - mean fit times with ranks
 fittdf = miss2hyphen!(rounddf(meanfitt,2,2))
-row = rounddf(valuedf[5,:],2,2)
+row = rounddf(valuedf[6,:],2,2)
 rename!(row, :test, :dataset)
 fittdf = [fittdf; row]
 rename!(fittdf, :IsoForest, :IForest)
@@ -226,7 +275,7 @@ fts = df2tex(ftdf,
 
 # table 14 - mean scores of the third 5% test with ranks
 predicttdf = miss2hyphen!(rounddf(meanpredictt,2,2))
-row = rounddf(valuedf[5,:],2,2)
+row = rounddf(valuedf[7,:],2,2)
 rename!(row, :test, :dataset)
 predicttdf = [predicttdf; row]
 rename!(predicttdf, :IsoForest, :IForest)
@@ -241,9 +290,11 @@ pts = df2tex(ptdf,
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 
-# cl output
-println("\nTable 13:\n\n",fts,"\n")
-println("\nTable 14:\n\n",pts,"\n")
+if verb
+	# cl output
+	println("\nTable 13:\n\n",fts,"\n")
+	println("\nTable 14:\n\n",pts,"\n")
+end
 
 # output to txt
 string2file(joinpath(outpath, "fts.txt"), fts)

@@ -21,8 +21,8 @@ end
 """
     topprecision(ascore, labels, p)
 
-Computes predfx = by(dfx, [:iteration], 
-                d -> DataFrame(auroc = 
+Computes predfx = by(dfx, [:iteration],
+                d -> DataFrame(auroc =
                     missmax(d[tstsym])))cision in prediction based on top p% rated instances.
 """
 function topprecision(ascore, labels, p)
@@ -57,12 +57,12 @@ and fit/predict time.
 """
 function computedatasetstats(datapath, dataset, algnames)
     df = DataFrame()
-    cnames = ["dataset", "algorithm", "iteration", "settings", "train_auroc", "test_auroc", 
+    cnames = ["dataset", "algorithm", "iteration", "settings", "train_auroc", "test_auroc",
         "train_aauroc", "test_aauroc", "top_5p", "top_1p", "fit_time", "predict_time"]
     for name in cnames
         df[Symbol(name)] = Any[]
     end
-    
+
     path = joinpath(datapath, dataset)
     algs = readdir(path)
     for alg in intersect(algs, algnames)
@@ -80,7 +80,7 @@ function computedatasetstats(datapath, dataset, algnames)
                 tstl = load(f, "testing_labels")
 
                 # GANs and fmGAN sometimes degenerate
-                if alg in ["GAN", "fmGAN"] 
+                if alg in ["GAN", "fmGAN"]
                     if !ndiff(tras, Int(round(length(tras)/10)))
                         tras = [NaN]
                     end
@@ -91,11 +91,11 @@ function computedatasetstats(datapath, dataset, algnames)
 
                 tra = auroc(tras, trl)
                 tsta = auroc(tstas, tstl)
-               
+
                 # testing and training augmented auroc
                 traa = auroc(tras, trl, "1/x")
                 tstaa = auroc(tstas, tstl, "1/x")
-                 
+
                 # compute top 5% ascore samples precision
                 tp5 = topprecision(tras, trl, 0.05)
                 tp1 = topprecision(tras, trl, 0.01)
@@ -125,13 +125,13 @@ function computestats(datapath, algnames)
     for name in cnames
         df[Symbol(name)] = Any[]
     end
-    
+
     datasets = readdir(datapath)
 
     for dataset in datasets
         df = [df; computedatasetstats(datapath, dataset, algnames)]
     end
-    
+
     return df
 end
 
@@ -143,10 +143,10 @@ Load a csv file into DataFrame, reformatting specified data columnsto floats and
 function loadtable(fname, datacols)
     #load the df
     data = readtable(fname)
-    
+
     # round the nubmers and replace "missing" with actual missing values
     rounddf!(convertdf!(data, datacols), 6, datacols)
-    
+
     return data
 end
 
@@ -156,7 +156,7 @@ end
 Compute and save datastats for individual experiments.
 dataset - dataset name
 alg - name of algorithm
-datapath - where datasets are stored 
+datapath - where datasets are stored
 outpath - where to store the result
 """
 function datastats(dataset, alg, datapath, outpath)
@@ -180,7 +180,7 @@ Convert cells of df to floats or missings - specially crafted for dfs loaded fro
 """
 function convertdf!(df, datacols)
     nrows, ncols = size(df)
-    
+
     # go through the whole df and replace missing strings with actual Missing type
     # and floats with float
     if typeof(datacols) == Int64
@@ -196,7 +196,7 @@ function convertdf!(df, datacols)
 
     for cname in cnames
         for i in 1:nrows
-            (df[cname][i] == Inf)? df[cname][i]=missing : 
+            (df[cname][i] == Inf)? df[cname][i]=missing :
                 ((df[cname][i] == "missing") ? df[cname][i]=missing :
                     df[cname][i]=float(df[cname][i]))
         end
@@ -222,7 +222,7 @@ Round values in datacols of df to n valid digits.
 """
 function rounddf!(df, n, datacols)
     nrows, ncols = size(df)
-    
+
     # go through the whole df and replace missing strings with actual Missing type
     # and floats with float
     if typeof(datacols) == Int64
@@ -233,7 +233,7 @@ function rounddf!(df, n, datacols)
 
     for cname in cnames
         for i in 1:nrows
-            (ismissing(df[cname][i]))? df[cname][i]=missing : 
+            (ismissing(df[cname][i]))? df[cname][i]=missing :
                 df[cname][i]=round(float(df[cname][i]),n)
         end
     end
@@ -256,20 +256,20 @@ end
 
 Compute row ranks for a DataFrame and add bottom line with mean ranks.
 Ties receive average rank.
-rev (default true) - higher score is better 
+rev (default true) - higher score is better
 """
 function rankdf(df, rev = true)
     _df = deepcopy(df)
     nrows, ncols = size(_df)
     nalgs = ncols - 1
-    
+
     algnames = names(df)[2:end]
-    
+
     for i in 1:nrows
         row = _df[i,2:end]
         arow = reshape(Array(row), nalgs)
         isort = sortperm(arow, rev = rev)
-        j = 1    
+        j = 1
         tiec = 0 # tie counter
         # create ranks
         arow = collect(skipmissing(arow))
@@ -290,7 +290,7 @@ function rankdf(df, rev = true)
                 else
                     _df[alg][i] = j
                 end
-                j+=1  
+                j+=1
             end
         end
     end
@@ -300,7 +300,7 @@ function rankdf(df, rev = true)
     for alg in algnames
         _df[alg][end] = missmean(_df[alg][1:end-1])
     end
-    
+
     return _df
 end
 
@@ -310,10 +310,11 @@ end
 If x is empty, return missing, else compute mean.
 """
 function missmean(x)
-     if size(x,1) == 0
+    _x = collect(skipmissing(x))
+    if size(_x,1) == 0
         return missing
     else
-        return mean(collect(skipmissing(x)))
+        return mean(_x)
     end
 end
 
@@ -323,10 +324,11 @@ end
 If x is empty, return missing, else return maximum.
 """
 function missmax(x)
-    if size(x,1) == 0
+    _x = collect(skipmissing(x))
+    if size(_x,1) == 0
         return missing
     else
-        return maximum(collect(skipmissing(x)))
+        return maximum(_x)
     end
 end
 
@@ -336,12 +338,13 @@ end
 If x is empty, return missing, else return maximum and its indice.
 """
 function missfindmax(x)
-   if size(x,1) == 0
+    _x = collect(skipmissing(x))
+    if size(_x,1) == 0
         return missing
     else
-        return findmax(collect(skipmissing(x)))
+        return findmax(_x)
     end
-end 
+end
 
 
 """
@@ -353,31 +356,31 @@ Raturns a DataFrame.
 function collectscores(outpath, algs, scoref)
     df = createdf(algs)
     nalgs = size(algs,1)
-    
+
     # collect dataset names
     datasets = readdir(outpath)
-    
+
     for dataset in datasets
-        path = joinpath(outpath, dataset) 
-        
+        path = joinpath(outpath, dataset)
+
         # create a row per dataset
         row = Array{Any,1}(nalgs+1)
         row[2:end] = missing
         row[1] = dataset
         for (n,alg) in zip(1:nalgs,algs)
-            try
+            #try
                 f = joinpath(path, "$(alg).csv")
                 dfx = scoref(loadtable(f, 5), [alg])
-                row[n+1] = dfx[Symbol(alg)][1] 
-            catch e
-                nothing
-            end
+                row[n+1] = dfx[Symbol(alg)][1]
+            #catch e
+            #    nothing
+            #end
         end
 
         push!(df, reshape(row, 1, nalgs+1))
-        
+
     end
-    
+
     return df
 end
 
@@ -406,19 +409,19 @@ function preparedf(data, algs)
 
     nalgs = size(algs,1)
     dataset = data[:dataset][1]
-    
+
     row = Array{Any,1}(nalgs+1)
     row[2:end] = missing
     row[1] = dataset
     push!(df, reshape(row, 1, nalgs+1))
-    
+
     return df, dataset
 end
 
 """
     maxauroc(data, algs, [auc_type])
 
-Score algorithms according to their maximum auroc on a testing dataset 
+Score algorithms according to their maximum auroc on a testing dataset
 averaged over experiment iterations.
 """
 function maxauroc(data, algs, auc_type = "normal")
@@ -437,83 +440,93 @@ function maxauroc(data, algs, auc_type = "normal")
             @select {r.iteration, r.test_auroc, r.test_aauroc}
             @collect DataFrame
         end
-
-        try
-            # group this by iterations
-            dfx = by(dfx, [:iteration], 
-                d -> DataFrame(auroc = 
-                    missmax(d[tstsym])))
-            # and get the mean
-            df[Symbol(alg)][1] = round(missmean(dfx[:auroc]),6)
-        catch e
-            if !isa(e, ArgumentError)
-                nothing #warn(e)
-            else
-                throw(e)
-            end
-        end    
+        dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
+        dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
+        
+ #       try
+        # group this by iterations
+        dfx = by(dfx, [:iteration],
+            d -> DataFrame(auroc =
+                missmax(d[tstsym])))
+        # and get the mean
+        df[Symbol(alg)][1] = round(missmean(dfx[:auroc]),6)
+    #  catch e
+    #       if !isa(e, ArgumentError)
+    #            nothing #warn(e)
+    #        else
+    #            throw(e)
+    #        end
+    #    end
     end
 
     return df
 end
 
 """
-    trainauroc(data, algs, [auc_type])
+    testauroc(data, algs, [auc_type])
 
-Choose algorithm with parameters according to maximum auroc on training dataset,
+Choose algorithm with parameters according to maximum auroc on testing/training dataset,
 then compute the score as average of testing auroc with these parameters over iterations.
 """
-function trainauroc(data, algs, auc_type = "normal")
+function testauroc(data, algs, auc_type = "normal", auc_base = "train")
     df, dataset = preparedf(data, algs)
 
     # auc_type for augmented or normal auc
     if auc_type == "normal"
         trsym = :train_auroc
         tstsym = :test_auroc
+        if auc_base == "train"
+            basesym = :train_auroc
+        elseif auc_base == "test"
+            basesym = :test_auroc
+        end
     elseif auc_type == "augmented"
         trsym = :train_aauroc
         tstsym = :test_aauroc
+        if auc_base == "train"
+            basesym = :train_aauroc
+        elseif auc_base == "test"
+            basesym = :test_aauroc
+        end
     end
 
     for alg in algs
         dfx = @from r in data begin
-            @where r.algorithm == alg && r.dataset == dataset
-            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc, 
+            @where r.algorithm == alg && r.dataset == dataset 
+            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
                 r.train_aauroc, r.test_aauroc}
             @collect DataFrame
         end
+        #get rid of missings
+        dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
+        dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
+        dfx = dfx[!ismissing.(dfx[:train_aauroc]),:]
+        dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
         
-        try
-            # mean aggregate it by settings
-            traindf = by(dfx, [:settings],
-                            d -> DataFrame(train_auroc = 
-                            missmean(d[trsym])))
-            # get the best settings
-            sort!(traindf, cols = :train_auroc, rev = true)
-            topalg = ""
-            for j in 1:size(traindf,1)
-                if !ismissing(traindf[:train_auroc][j])
-                    topalg = traindf[:settings][j]
-                    break
-                end
+        # mean aggregate it by settings
+        aggdf = by(dfx, [:settings],
+                        d -> DataFrame(auroc =
+                        missmean(d[basesym])))
+        # get the best settings
+        sort!(aggdf, cols = :auroc, rev = true)
+        
+        topalg = ""
+        for j in 1:size(aggdf,1)
+            if !ismissing(aggdf[:auroc][j])
+                topalg = aggdf[:settings][j]
+                break
             end
-            # and get the mean of the best setting test auroc over all iterations
-            testdf = @from r in dfx begin
-                     @where r.settings == topalg
-                     @select {r.settings, r.iteration, r.test_auroc, r.test_aauroc}
-                     @collect DataFrame
-            end
-            df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
-        catch e
-            if !isa(e, ArgumentError)
-                #throw(e)
-                nothing
-            else
-                throw(e)
-            end
-        end    
+        end
+       
+        # and get the mean of the best setting test auroc over all iterations
+        testdf = @from r in dfx begin
+                 @where r.settings == topalg
+                 @select {r.settings, r.iteration, r.test_auroc, r.test_aauroc}
+                 @collect DataFrame
+        end
+        df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
     end
-    
+
     return df
 
 end
@@ -537,15 +550,20 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
     for alg in algs
         dfx = @from r in data begin
             @where r.algorithm == alg && r.dataset == dataset
-            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc, 
-                r.train_aauroc, r.test_aauroc}
+            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
+                r.train_aauroc, r.test_aauroc, r.top_5p, r.top_1p}
             @collect DataFrame
         end
+        #get rid of missings
+        dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
+        dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
+        dfx = dfx[!ismissing.(dfx[:train_aauroc]),:]
+        dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
 
-        try
+        #try
             # mean aggregate it by settings
             traindf = by(dfx, [:settings],
-                            d -> DataFrame(top = 
+                            d -> DataFrame(top =
                             missmean(d[label])))
             # get the best settings
             sort!(traindf, cols = :top, rev = true)
@@ -563,15 +581,15 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
                      @collect DataFrame
             end
             df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
-        catch e
-            if !isa(e, ArgumentError)
-                nothing
-            else
-                throw(e)
-            end
-        end    
+        #catch e
+        #    if !isa(e, ArgumentError)
+        #        nothing
+        #    else
+        #        throw(e)
+        #    end
+        #end
     end
-    
+
     return df
 
 end
@@ -603,9 +621,9 @@ function meantime(data, algs, t)
             else
                 throw(e)
             end
-        end    
+        end
     end
-    
+
     return df
 end
 
@@ -628,12 +646,12 @@ function wspad(s, n)
 end
 
 """
-    df2tex(df, caption="", pos = "h", align = "c"; 
+    df2tex(df, caption="", pos = "h", align = "c";
            fitcolumn = false, lasthline = false)
 
 Convert DataFrame to a LaTex table.
 """
-function df2tex(df, caption=""; label = "", pos = "h", align = "c", 
+function df2tex(df, caption=""; label = "", pos = "h", align = "c",
     fitcolumn = false, lasthline = false, firstvline = false)
     cnames = names(df)
     nrows, ncols = size(df)
@@ -641,7 +659,7 @@ function df2tex(df, caption=""; label = "", pos = "h", align = "c",
     # create the table beginning
     if fitcolumn
         s = "\\begin{table} \n \\center \n \\resizebox{\\columnwidth}{!}{ \n \\begin{tabular}[$pos]{"
-    else    
+    else
         s = "\\begin{table} \n \\center \n \\begin{tabular}[$pos]{"
     end
     for n in 1:ncols
@@ -661,7 +679,7 @@ function df2tex(df, caption=""; label = "", pos = "h", align = "c",
     s = eol(s)
     s = wspad(s,2)
     s = string(s, "\\hline \n")
-    
+
     # fill the table
     for i in 1:nrows
         s = wspad(s,2)
@@ -714,7 +732,7 @@ function miss2hyphen!(df)
         for j in 1:ncols
             if ismissing(df[i,j])
              df[i,j]="--"
-            end 
+            end
         end
     end
 
@@ -742,9 +760,9 @@ function rpaddf!(df,n)
     for i in 1:nrows
         for j in 1:ncols
             if typeof(df[i,j]) <: AbstractFloat
-                s = split("$(df[i,j])", ".") 
-                df[i,j] = "$(s[1]).$(rpad(s[2],n,"0"))"             
-            end 
+                s = split("$(df[i,j])", ".")
+                df[i,j] = "$(s[1]).$(rpad(s[2],n,"0"))"
+            end
         end
     end
 
@@ -781,4 +799,3 @@ function mergedfs(ldf, rdf)
 
     return df
 end
-
