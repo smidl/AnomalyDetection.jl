@@ -56,7 +56,7 @@ sraa = df2tex(rankaaurocsum,
 
 # table 5 - mean scores of the first test with ranks
 testaurocdf = miss2hyphen!(rounddf(testauc,2,2))
-row = rounddf(valuedf[2,:],2,2)
+row = rounddf(valuedf[1,:],2,2)
 rename!(row, :test, :dataset)
 testaurocdf = [testaurocdf; row]
 rename!(testaurocdf, :IsoForest, :IForest)
@@ -72,7 +72,7 @@ tsas = df2tex(tsadf,
 
 # table 6 - mean scores of the second test with ranks
 trainaurocdf = miss2hyphen!(rounddf(trainauc,2,2))
-row = rounddf(valuedf[3,:],2,2)
+row = rounddf(valuedf[2,:],2,2)
 rename!(row, :test, :dataset)
 trainaurocdf = [trainaurocdf; row]
 rename!(trainaurocdf, :IsoForest, :IForest)
@@ -88,7 +88,7 @@ tas = df2tex(tadf,
 
 # table 7 - mean scores of the third 1% test with ranks
 top1aurocdf = miss2hyphen!(rounddf(top1auc,2,2))
-row = rounddf(valuedf[4,:],2,2)
+row = rounddf(valuedf[3,:],2,2)
 rename!(row, :test, :dataset)
 top1aurocdf = [top1aurocdf; row]
 rename!(top1aurocdf, :IsoForest, :IForest)
@@ -104,7 +104,7 @@ t1as = df2tex(t1adf,
 
 # table 8 - mean scores of the third 5% test with ranks
 top5aurocdf = miss2hyphen!(rounddf(top5auc,2,2))
-row = rounddf(valuedf[5,:],2,2)
+row = rounddf(valuedf[4,:],2,2)
 rename!(row, :test, :dataset)
 top5aurocdf = [top5aurocdf; row]
 rename!(top5aurocdf, :IsoForest, :IForest)
