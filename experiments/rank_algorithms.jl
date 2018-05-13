@@ -3,28 +3,14 @@
 ARGS = ["d"]
 include("evaluate_experiment.jl")
 
-# first experiment
-maxauc = collectscores(outpath, algnames, maxauroc)
-rankmaxauc = rankdf(maxauc)
-writetable(joinpath(evalpath, "maxauc.csv"), maxauc);
-writetable(joinpath(evalpath, "rankmaxauc.csv"), rankmaxauc);
-if verb
-	println("First experiment - rank algorithms on maximum auroc in an iteration,
-	average over iterations.")
-	println("")
-	showall(maxauc)
-	println("")
-	showall(rankmaxauc)
-	println("")
-end
-
-# 1.5th experiment - select hyperparameters by max mean auroc over testing data
-testauc = collectscores(outpath, algnames, (x,y) -> testauroc(x,y,"normal","test"))
+# 1st experiment - select hyperparameters by max mean auroc over testing data
+#testauc  = rounddf(collectscores(outpath, algnames, (x,y) -> testauroc(x,y,"normal","test")),2,2)
+testauc  = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:test_auroc,:test_auroc)),2,2)
 ranktestauc = rankdf(testauc)
 writetable(joinpath(evalpath, "testauc.csv"), testauc);
 writetable(joinpath(evalpath, "ranktestauc.csv"), ranktestauc);
 if verb
-	println("1.5th experiment - select hyperparameters on testing dataset, then average
+	println("1st experiment - select hyperparameters on testing dataset, then average
 	the testing auroc for given hyperparameters over iterations.")
 	println("")
 	showall(testauc)
@@ -34,7 +20,8 @@ if verb
 end
 
 # second experiment
-trainauc = collectscores(outpath, algnames, testauroc)
+#trainauc = rounddf(collectscores(outpath, algnames, maxauroc),2,2)
+trainauc = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:train_auroc,:test_auroc)),2,2)
 ranktrainauc = rankdf(trainauc)
 writetable(joinpath(evalpath, "trainauc.csv"), trainauc);
 writetable(joinpath(evalpath, "ranktrainauc.csv"), ranktrainauc);
@@ -49,7 +36,8 @@ if verb
 end
 
 # third experiment
-top5auc = collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_5p))
+#top5auc = rounddf(collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_5p)),2,2)
+top5auc = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:top_5p,:test_auroc)),2,2)
 ranktop5auc = rankdf(top5auc)
 writetable(joinpath(evalpath, "top5auc.csv"), top5auc);
 writetable(joinpath(evalpath, "ranktop5auc.csv"), ranktop5auc);
@@ -64,7 +52,8 @@ if verb
 end
 
 # 4th
-top1auc = collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_1p))
+#top1auc = rounddf(collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_1p)),2,2)
+top1auc = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:top_1p,:test_auroc)),2,2)
 ranktop1auc = rankdf(top1auc)
 writetable(joinpath(evalpath, "top1auc.csv"), top1auc);
 writetable(joinpath(evalpath, "ranktop1auc.csv"), ranktop1auc);
@@ -79,7 +68,7 @@ if verb
 end
 
 # fifth experiment
-meanfitt = collectscores(outpath, algnames, (x,y)->meantime(x,y,"fit_time"))
+meanfitt = rounddf(collectscores(outpath, algnames, (x,y)->meantime(x,y,"fit_time")),2,2)
 rankmeanfitt = rankdf(meanfitt, false)
 writetable(joinpath(evalpath, "meanfitt.csv"), meanfitt);
 writetable(joinpath(evalpath, "rankmeanfitt.csv"), rankmeanfitt);
@@ -93,7 +82,7 @@ if verb
 end
 
 # sixth experiment
-meanpredictt = collectscores(outpath, algnames, (x,y)->meantime(x,y,"predict_time"))
+meanpredictt = rounddf(collectscores(outpath, algnames, (x,y)->meantime(x,y,"predict_time")),2,2)
 rankmeanpredictt = rankdf(meanpredictt, false)
 writetable(joinpath(evalpath, "meanpredictt.csv"), meanpredictt);
 writetable(joinpath(evalpath, "rankmeanpredictt.csv"), rankmeanpredictt);
@@ -106,23 +95,9 @@ if verb
 	println("")
 end
 
-# 7th experiment
-maxaauc = collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,"augmented"))
-rankmaxaauc = rankdf(maxaauc)
-writetable(joinpath(evalpath, "maxaauc.csv"), maxaauc);
-writetable(joinpath(evalpath, "rankmaxaauc.csv"), rankmaxaauc);
-if verb
-	println("7th experiment - rank algorithms on maximum augmented auroc in an iteration,
-		average over iterations.")
-	println("")
-	showall(maxaauc)
-	println("")
-	showall(rankmaxaauc)
-	println("")
-end
-
-# 7.5th experiment - select hyperparameters by max mean auroc over testing data
-testaauc = collectscores(outpath, algnames, (x,y) -> testauroc(x,y,"augmented","test"))
+# 7th experiment - select hyperparameters by max mean auroc over testing data
+#testaauc = rounddf(collectscores(outpath, algnames, (x,y) -> testauroc(x,y,"augmented","test")),2,2)
+testaauc  = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:test_aauroc,:test_aauroc)),2,2)
 ranktestaauc = rankdf(testaauc)
 writetable(joinpath(evalpath, "testaauc.csv"), testaauc);
 writetable(joinpath(evalpath, "ranktestaauc.csv"), ranktestaauc);
@@ -137,7 +112,8 @@ if verb
 end
 
 # 8th experiment
-trainaauc = collectscores(outpath, algnames, (x,y) -> testauroc(x,y,"augmented"))
+#trainaauc = rounddf(collectscores(outpath, algnames, (x,y) -> testauroc(x,y,"augmented")),2,2)
+trainaauc  = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:train_aauroc,:test_aauroc)),2,2)
 ranktrainaauc = rankdf(trainaauc)
 writetable(joinpath(evalpath, "trainaauc.csv"), trainaauc);
 writetable(joinpath(evalpath, "ranktrainaauc.csv"), ranktrainaauc);
@@ -152,7 +128,8 @@ if verb
 end
 
 # 9th experiment
-top5aauc = collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_5p,"augmented"))
+#top5aauc = rounddf(collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_5p,"augmented")),2,2)
+top5aauc  = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:top_5p,:test_aauroc)),2,2)
 ranktop5aauc = rankdf(top5aauc)
 writetable(joinpath(evalpath, "top5aauc.csv"), top5aauc);
 writetable(joinpath(evalpath, "ranktop5aauc.csv"), ranktop5aauc);
@@ -167,7 +144,8 @@ if verb
 end
 
 # 10th
-top1aauc = collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_1p,"augmented"))
+#top1aauc = rounddf(collectscores(outpath, algnames,(x,y)-> topprec(x,y,:top_1p,"augmented")),2,2)
+top1aauc  = rounddf(collectscores(outpath, algnames, (x,y) -> maxauroc(x,y,:top_1p,:test_aauroc)),2,2)
 ranktop1aauc = rankdf(top1aauc)
 writetable(joinpath(evalpath, "top1aauc.csv"), top1aauc);
 writetable(joinpath(evalpath, "ranktop1aauc.csv"), ranktop1aauc);
@@ -184,14 +162,12 @@ end
 # summary of all experiments
 valuedf = createdf(algnames)
 rename!(valuedf, :dataset, :test)
-push!(valuedf, cat(1,["max auc"],[x[1] for x in colwise(missmean, maxauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["test auc"],[x[1] for x in colwise(missmean, testauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["train auc"],[x[1] for x in colwise(missmean, trainauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["top 1%"],[x[1] for x in colwise(missmean, top1auc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["top 5%"],[x[1] for x in colwise(missmean, top5auc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["mean fit time"],[x[1] for x in colwise(missmean, meanfitt[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["mean predict time"],[x[1] for x in colwise(missmean, meanpredictt[[Symbol(alg) for alg in algnames]])]))
-push!(valuedf, cat(1,["max auc - augmented"],[x[1] for x in colwise(missmean, maxaauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["test auc - augmented"],[x[1] for x in colwise(missmean, testaauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["train auc - augmented"],[x[1] for x in colwise(missmean, trainaauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["top 1% - augmented"],[x[1] for x in colwise(missmean, top1aauc[[Symbol(alg) for alg in algnames]])]))
@@ -199,8 +175,6 @@ push!(valuedf, cat(1,["top 5% - augmented"],[x[1] for x in colwise(missmean, top
 writetable(joinpath(evalpath, "valuesummary.csv"), valuedf);
 
 rankeddf = createdf(algnames)
-rankeddf = [rankeddf; rankmaxauc[end,:]]
-rankeddf[:dataset][end] = "max auc"
 rankeddf = [rankeddf; ranktestauc[end,:]]
 rankeddf[:dataset][end] = "test auc"
 rankeddf = [rankeddf; ranktrainauc[end,:]]
@@ -213,8 +187,6 @@ rankeddf = [rankeddf; rankmeanfitt[end,:]]
 rankeddf[:dataset][end] = "mean fit time"
 rankeddf = [rankeddf; rankmeanpredictt[end,:]]
 rankeddf[:dataset][end] = "mean predict time"
-rankeddf = [rankeddf; rankmaxaauc[end,:]]
-rankeddf[:dataset][end] = "max auc - augmented"
 rankeddf = [rankeddf; ranktestaauc[end,:]]
 rankeddf[:dataset][end] = "test auc - augmented"
 rankeddf = [rankeddf; ranktrainaauc[end,:]]

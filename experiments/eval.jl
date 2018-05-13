@@ -367,6 +367,7 @@ function collectscores(outpath, algs, scoref)
         row = Array{Any,1}(nalgs+1)
         row[2:end] = missing
         row[1] = dataset
+
         for (n,alg) in zip(1:nalgs,algs)
             #try
                 f = joinpath(path, "$(alg).csv")
@@ -378,7 +379,6 @@ function collectscores(outpath, algs, scoref)
         end
 
         push!(df, reshape(row, 1, nalgs+1))
-
     end
 
     return df
@@ -419,44 +419,25 @@ function preparedf(data, algs)
 end
 
 """
-    maxauroc(data, algs, [auc_type])
+    maxauroc(data, algs, [crit_metric, test_metric])
 
 Score algorithms according to their maximum auroc on a testing dataset
 averaged over experiment iterations.
 """
-function maxauroc(data, algs, auc_type = "normal")
+function maxauroc(data, algs, crit_metric = :test_auroc, test_metric = :test_auroc)
     df, dataset = preparedf(data, algs)
 
-    # auc_type for augmented or normal auc
-    if auc_type == "normal"
-        tstsym = :test_auroc
-    elseif auc_type == "augmented"
-        tstsym = :test_aauroc
-    end
-
     for alg in algs
-        dfx = @from r in data begin
-            @where r.algorithm == alg && r.dataset == dataset
-            @select {r.iteration, r.test_auroc, r.test_aauroc}
-            @collect DataFrame
+        dfx = querydata(data, alg, dataset)
+        iters = unique(dfx[:iteration])
+        maxvec = Array{Any,1}(length(iters))
+        for (i,iter) in enumerate(iters)
+            idf = dfx[dfx[:iteration].==iter,:]
+            (x,j) = missfindmax(idf[crit_metric])
+            maxvec[i] = idf[test_metric][j]
         end
-        dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
-        dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
-        
- #       try
-        # group this by iterations
-        dfx = by(dfx, [:iteration],
-            d -> DataFrame(auroc =
-                missmax(d[tstsym])))
-        # and get the mean
-        df[Symbol(alg)][1] = round(missmean(dfx[:auroc]),6)
-    #  catch e
-    #       if !isa(e, ArgumentError)
-    #            nothing #warn(e)
-    #        else
-    #            throw(e)
-    #        end
-    #    end
+
+        df[Symbol(alg)][1] = round(missmean(maxvec),6)
     end
 
     return df
@@ -469,6 +450,50 @@ Choose algorithm with parameters according to maximum auroc on testing/training 
 then compute the score as average of testing auroc with these parameters over iterations.
 """
 function testauroc(data, algs, auc_type = "normal", auc_base = "train")
+    df, dataset = preparedf(data, algs)
+    paramsdf = getparams(data, algs, auc_type, auc_base)
+
+    # auc_type for augmented or normal auc
+    if auc_type == "normal"
+        tstsym = :test_auroc
+    elseif auc_type == "augmented"
+        tstsym = :test_aauroc
+    end
+
+    for alg in algs
+        dfx = querydata(data, alg, dataset)
+
+        # and get the mean of the best setting test auroc over all iterations
+        testdf = @from r in dfx begin
+                 @where r.settings == paramsdf[Symbol(alg)][1]
+                 @select {r.settings, r.iteration, r.test_auroc, r.test_aauroc}
+                 @collect DataFrame
+        end
+        df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
+    end
+
+    return df
+end
+
+function querydata(data, alg, dataset)
+    # query the df
+    dfx = @from r in data begin
+    @where r.algorithm == alg && r.dataset == dataset 
+    @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
+        r.train_aauroc, r.test_aauroc, r.top_5p, r.top_1p}
+    @collect DataFrame
+    end
+    
+    #get rid of missings
+    dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
+    dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
+    dfx = dfx[!ismissing.(dfx[:train_aauroc]),:]
+    dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
+
+    return dfx
+end
+
+function getparams(data, algs, auc_type = "normal", auc_base = "train")
     df, dataset = preparedf(data, algs)
 
     # auc_type for augmented or normal auc
@@ -491,17 +516,7 @@ function testauroc(data, algs, auc_type = "normal", auc_base = "train")
     end
 
     for alg in algs
-        dfx = @from r in data begin
-            @where r.algorithm == alg && r.dataset == dataset 
-            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
-                r.train_aauroc, r.test_aauroc}
-            @collect DataFrame
-        end
-        #get rid of missings
-        dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
-        dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
-        dfx = dfx[!ismissing.(dfx[:train_aauroc]),:]
-        dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
+        dfx = querydata(data, alg, dataset)
         
         # mean aggregate it by settings
         aggdf = by(dfx, [:settings],
@@ -518,21 +533,14 @@ function testauroc(data, algs, auc_type = "normal", auc_base = "train")
             end
         end
        
-        # and get the mean of the best setting test auroc over all iterations
-        testdf = @from r in dfx begin
-                 @where r.settings == topalg
-                 @select {r.settings, r.iteration, r.test_auroc, r.test_aauroc}
-                 @collect DataFrame
-        end
-        df[Symbol(alg)][1] = round(missmean(testdf[tstsym]),6)
+        df[Symbol(alg)][1] = topalg
     end
 
     return df
-
 end
 
 """
-    toprec(data, algs, [label, auc_type])
+    topprec(data, algs, [label, auc_type])
 
 Choose algorithm with parameters according to precision on top x% instances in training dataset,
 then compute the score as average of testing auroc with these parameters over iterations.
@@ -548,17 +556,7 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
     end
 
     for alg in algs
-        dfx = @from r in data begin
-            @where r.algorithm == alg && r.dataset == dataset
-            @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
-                r.train_aauroc, r.test_aauroc, r.top_5p, r.top_1p}
-            @collect DataFrame
-        end
-        #get rid of missings
-        dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
-        dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
-        dfx = dfx[!ismissing.(dfx[:train_aauroc]),:]
-        dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
+        dfx = querydata(data, alg, dataset)
 
         #try
             # mean aggregate it by settings
@@ -798,4 +796,89 @@ function mergedfs(ldf, rdf)
     end
 
     return df
+end
+
+function ranks2tikzcd(ranks, algnames, c, caption = ""; label = "", pos = "h")
+    n = length(ranks)
+    @assert n == length(algnames)
+    ranks = reshape(ranks, n)
+
+    # header
+    s = "\\begin{figure}[$pos] \n \\center \n \\begin{tikzpicture} \n"
+    s = wspad(s, 2)
+    #axis
+    s = string(s, drawaxis(ranks))
+    # nodes
+    s = string(s, drawnodes(ranks, algnames))
+    # levels
+    s = string(s, drawlevels(ranks, c))
+    # end of figure
+    s = wspad(s, 1)
+    s = string(s, "\\end{tikzpicture} \n")
+    if caption!=""
+        s = string(s, " \\caption{$caption} \n")
+    end
+    if label!=""
+        s = string(s, " \\label{$label} \n")
+    end
+    s = string(s, "\\end{figure}")
+
+    return s
+end
+
+function drawaxis(ranks)
+    mx = ceil(maximum(ranks))
+    mn = floor(minimum(ranks))
+
+    s = "\\draw ($(mn),0) -- ($(mx),0); \n"
+    s = wspad(s, 2)
+    s = string(s, "\\foreach \\x in {$(Int(mn)),...,$(Int(mx))} \\draw (\\x,0.10) -- (\\x,-0.10) node[anchor=north]{\$\\x\$}; \n")
+    return s 
+end
+
+function drawnodes(ranks, algnames)
+    isort = sortperm(ranks)
+    ranks = ranks[isort]
+    algnames = algnames[isort]
+
+    mx = ceil(ranks[end])
+    mn = floor(ranks[1])
+    nor = length(ranks) # number of ranks
+    nos = Int(ceil(nor/2)) # number of ranks on one side (start with left, there may be one more if nor is odd)
+    
+    s = ""
+    for (i, r) in enumerate(ranks)
+        s = wspad(s,2)
+        if i<=nos
+            s = string(s, "\\draw ($(r),0) -- ($r,$(i*0.3-0.1)) -- ($(mn), $(i*0.3-0.1)) node[anchor=east] {$(algnames[i])}; \n")
+        else
+            s = string(s, "\\draw ($(r),0) -- ($r,$((nor-i)*0.3+0.2)) -- ($(mx), $((nor-i)*0.3+0.2)) node[anchor=west] {$(algnames[i])}; \n")
+        end
+    end
+
+    return s
+end
+
+function drawlevels(ranks, c)
+#    \draw[line width=0.1cm,color=black,draw opacity=1.0] (2.1-0.05,0.05) -- (2.41+0.05,0.05);   
+    ranks = sort(ranks)
+
+    mx = ceil(ranks[end])
+    mn = floor(ranks[1])
+    nor = length(ranks) # number of ranks
+
+    s = ""
+    nl = 0 # number of drawn levels
+    i = 1 # number of nodes in the last drawn level
+    for r in ranks
+        eqs = ranks[i:end][abs.(ranks[i:end] - ranks[i]) .<= c]
+        if length(eqs) > 1
+            s = wspad(s,2)
+            nl += 1
+            s = string(s, "\\draw[line width=0.1cm,color=black,draw opacity=1.0] ($(eqs[1]-0.05),$(nl*0.05)) -- ($(eqs[end]+0.05),$(nl*0.05)); \n")
+        end
+        i += length(eqs)
+        (i>=nor)? break : nothing
+    end
+    return s
 end
