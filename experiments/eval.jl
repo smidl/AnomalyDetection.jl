@@ -850,9 +850,9 @@ function drawnodes(ranks, algnames)
     for (i, r) in enumerate(ranks)
         s = wspad(s,2)
         if i<=nos
-            s = string(s, "\\draw ($(r),0) -- ($r,$(i*0.3-0.1)) -- ($(mn), $(i*0.3-0.1)) node[anchor=east] {$(algnames[i])}; \n")
+            s = string(s, "\\draw ($(r),0) -- ($r,$(i*0.3-0.1)) -- ($(mn-0.1), $(i*0.3-0.1)) node[anchor=east] {$(algnames[i])}; \n")
         else
-            s = string(s, "\\draw ($(r),0) -- ($r,$((nor-i)*0.3+0.2)) -- ($(mx), $((nor-i)*0.3+0.2)) node[anchor=west] {$(algnames[i])}; \n")
+            s = string(s, "\\draw ($(r),0) -- ($r,$((nor-i)*0.3+0.2)) -- ($(mx+0.1), $((nor-i)*0.3+0.2)) node[anchor=west] {$(algnames[i])}; \n")
         end
     end
 
@@ -867,18 +867,32 @@ function drawlevels(ranks, c)
     mn = floor(ranks[1])
     nor = length(ranks) # number of ranks
 
-    s = ""
-    nl = 0 # number of drawn levels
+    # generate levels
     i = 1 # number of nodes in the last drawn level
+    nl = 1
+    levels = []
     for r in ranks
         eqs = ranks[i:end][abs.(ranks[i:end] - ranks[i]) .<= c]
         if length(eqs) > 1
-            s = wspad(s,2)
-            nl += 1
-            s = string(s, "\\draw[line width=0.1cm,color=black,draw opacity=1.0] ($(eqs[1]-0.05),$(nl*0.05)) -- ($(eqs[end]+0.05),$(nl*0.05)); \n")
+            for level in levels
+                if abs(level[2] - eqs[1]) < 0.2
+                    nl += 1
+                else
+                    nl = 1
+                end
+            end
+            push!(levels, (eqs[1]-0.05, eqs[end]+0.05, nl*0.05))
         end
         i += length(eqs)
         (i>=nor)? break : nothing
     end
+
+    # draw them
+    s = ""
+    for level in levels
+        s = wspad(s,2)
+        s = string(s, "\\draw[line width=0.1cm,color=black,draw opacity=1.0] ($(level[1]),$(level[3])) -- ($(level[2]),$(level[3])); \n")
+    end
+
     return s
 end
