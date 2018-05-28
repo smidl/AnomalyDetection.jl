@@ -89,6 +89,61 @@ function normalize(Y::Array{Float,2})
 end
 
 """
+   normalize(x,y)
+
+Concatenate x and y along the 2nd axis, normalize them and split them again. 
+"""
+function normalize(x,y)
+    M,N = size(x)
+    data = cat(2, x, y)
+    data = normalize(data)
+    return data[:, 1:N], data[:, N+1:end]
+end
+
+"""
+    test01(x, msg)
+
+Test if x in [0,1], else throw msg error.
+"""
+function test01(x::Real, msg)
+    if !(0 <= x <= 1)
+        error(msg)
+    end
+end
+
+"""
+    splitdata(x, alpha)
+
+Split x to parts according to alpha.
+"""
+function splitdata(x, alpha)
+    # test correct parameters size
+    test01(alpha, "alpha must be in the interval [0,1]")
+
+    M, N = size(x)
+    trN = Int(floor(N*alpha))
+    inds = sample(1:N, N, replace = false)
+    trdata = x[:, inds[1:trN]]
+    tstdata = x[:, inds[trN+1:end]]
+    return trdata, tstdata
+end
+
+"""
+    clusterdness(normal, anomalous)
+
+compute the clusterdness - sample variance of normal vs anomalous instances.
+"""
+function clusterdness(normal, anomalous)
+    M, N = size(normal)
+    M, K = size(anomalous)
+
+    varN = mean(pairwise(Euclidean(), normal[:, sample(1:N, min(1000, N), replace=false)]))/2
+    varA = mean(pairwise(Euclidean(), anomalous[:, sample(1:K, min(1000, K), replace=false)]))/2
+
+    (varA>0)? (return varN/varA) : (return Inf)
+end
+
+"""
     trData, tstData, clusterdness = makeset(dataset, alpha, difficulty, frequency, variation, [normalize, seed])
 
 Sample a given dataset, return training and testing subsets and a measure of clusterdness. 
@@ -111,12 +166,7 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
     end
 
     # test correct parameters size
-    if !(0 <= alpha <= 1)
-        error("alpha must be in the interval [0,1]")
-    end
-    if !(0 <= frequency <= 1)
-        error("frequency must be in the interval [0,1]")
-    end
+    test01(frequency, "frequency must be in the interval [0,1]")
 
     # problem dimensions
     M, N = size(normal)
@@ -134,15 +184,10 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
     end
 
     # normalize the data to zero mean and unit variance    
-    data = cat(2, normal, anomalous)
-    data = normalize(data)
-    normal = data[:, 1:N]
-    anomalous = data[:, N+1:end]
+    normal, anomalous = normalize(normal, anomalous)
 
     # randomly sample the training and testing normal data
-    inds = sample(1:N, N, replace = false)
-    trNdata = normal[:, inds[1:trN]]
-    tstNdata = normal[:, inds[trN+1:end]]
+    trNdata, tstNdata = splitdata(normal, alpha)
 
     # now sample the anomalous data
     K = trK + tstK
@@ -169,15 +214,7 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
     trAdata = anomalous[:,1:trK]
     tstAdata = anomalous[:,trK+1:end]
 
-    # compute the clusterdness - sample variance of normal vs anomalous instances
-    varN = mean(pairwise(Euclidean(), normal[:, sample(1:N, min(1000, N), replace=false)]))/2
-    varA = mean(pairwise(Euclidean(), anomalous[:, sample(1:K, min(1000, K), replace=false)]))/2
-
-    if varA>0
-        clusterdness = varN/varA
-    else
-        clusterdness = Inf
-    end
+    c = clusterdness(normal, anomalous)
 
     # finally, generate the dataset
     trData = Dataset(
@@ -190,7 +227,48 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
         cat(1, zeros(tstN), ones(tstK))
         )
 
-    return trData, tstData, clusterdness
+    return trData, tstData, c
+end
+
+"""
+    makeset(dataset::Basicset, alpha::Real; seed = false)
+
+Create a testing and training datasets split according to alpha. All available
+anomalies are in the testing dataset.
+"""
+function makeset(dataset::Basicset, alpha::Real; seed = false)
+    normal = dataset.normal
+    anomalous = getfield(dataset, :easy)
+    for difficulty in [:medium, :hard, :very_hard]
+        anomalous = cat(2, anomalous, getfield(dataset, difficulty))
+    end    
+
+     # set seed
+    if seed != false
+        srand(seed)
+    end
+
+    # normalize the data to zero mean and unit variance    
+    normal, anomalous = normalize(normal, anomalous)
+
+    # randomly sample the training and testing normal data
+    trNdata, tstNdata = splitdata(normal, alpha)
+    
+    # compute the clusterdness - sample variance of normal vs anomalous instances
+    c = clusterdness(normal, anomalous)
+
+    # finally, generate the dataset
+    trData = Dataset(
+        trNdata,
+        zeros(size(trNdata, 2))
+        )
+
+    tstData = Dataset(
+        cat(2, tstNdata, anomalous),
+        cat(1, zeros(size(tstNdata,2)), ones(size(anomalous,2)))
+        )
+
+    return trData, tstData, c
 end
 
 """
