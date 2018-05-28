@@ -1,9 +1,39 @@
-(length(ARGS) > 0)? ((ARGS[1] == "v")? verb=true:verb=false ) : verb = false
+(length(ARGS) > 0)? (contains(ARGS[1], "v")? verb=true:verb=false ) : verb = false
+(length(ARGS) > 0)? (contains(ARGS[1], "r")? recomputedata=true:recomputedata=false ) : recomputedata = false
 
-ARGS = []
-include("rank_algorithms.jl")
+if recomputedata
+	ARGS = []
+	include("rank_algorithms.jl")
+else
+	ARGS = ["d"]
+	# load this to obtain the proper paths
+	include("evaluate_experiment.jl")
+	# then load the apropriate files
+	testauc = loadtable(joinpath(evalpath, "testauc.csv"), 2)
+	ranktestauc = loadtable(joinpath(evalpath, "ranktestauc.csv"), 2)
+	trainauc = loadtable(joinpath(evalpath, "trainauc.csv"), 2);
+	ranktrainauc = loadtable(joinpath(evalpath, "ranktrainauc.csv"), 2);
+	top5auc = loadtable(joinpath(evalpath, "top5auc.csv"), 2);
+	ranktop5auc = loadtable(joinpath(evalpath, "ranktop5auc.csv"), 2);
+	top1auc = loadtable(joinpath(evalpath, "top5auc.csv"), 2);
+	ranktop1auc = loadtable(joinpath(evalpath, "ranktop5auc.csv"), 2);
+	meanfitt = loadtable(joinpath(evalpath, "meanfitt.csv"), 2);
+	rankmeanfitt = loadtable(joinpath(evalpath, "rankmeanfitt.csv"), 2);
+	meanpredictt = loadtable(joinpath(evalpath, "meanpredictt.csv"), 2);
+	rankmeanpredictt = loadtable(joinpath(evalpath, "rankmeanpredictt.csv"), 2);
+	testaauc = loadtable(joinpath(evalpath, "testaauc.csv"), 2)
+	ranktestaauc = loadtable(joinpath(evalpath, "ranktestaauc.csv"), 2)
+	trainaauc = loadtable(joinpath(evalpath, "trainaauc.csv"), 2);
+	ranktrainaauc = loadtable(joinpath(evalpath, "ranktrainaauc.csv"), 2);
+	top5aauc = loadtable(joinpath(evalpath, "top5aauc.csv"), 2);
+	ranktop5aauc = loadtable(joinpath(evalpath, "ranktop5aauc.csv"), 2);
+	top1aauc = loadtable(joinpath(evalpath, "top5aauc.csv"), 2);
+	ranktop1aauc = loadtable(joinpath(evalpath, "ranktop5aauc.csv"), 2);
+	valuedf = loadtable(joinpath(evalpath, "valuesummary.csv"), 2);
+	rankeddf = loadtable(joinpath(evalpath, "ranksummary.csv"), 2);
+end
 
-outpath = "./tex_tables"
+outpath = "/home/vit/Dropbox/Cisco/kdd2018/text/misc"
 mkpath(outpath)
 
  
@@ -11,17 +41,12 @@ const shortnames = ["aba", "blo", "brc", "brt", "car", "eco", "gla", "hab", "ion
 	"iso", "let", "lib", "mad", "mag", "min", "mul", "mus", "pag", "par", "pen", "pim", "son", 
 	"spe", "ssa", "sse", "ssh", "sve", "syn", "ver", "wal", "wa1", "wa2", "win", "yea", "avg"]
 
-#const shortnames = ["aba", "blo", "brc", "brt", "car", "eco", "gla", "hab", "ion", "iri", 
-#	"iso", "let", "lib", "mad", "mag", "min", "mul", "mus", "pag", "par", "pen", "pim", "son", 
-#	"avg"]
-
-
 #(size(ARGS,1)>1)? v = ARGS[1] : v = "verb"
 
 # table 2 - mean ranks on normal auroc
 rankaurocsum = rounddf(rankeddf[1:4,:], 2, 2)
-rankaurocsum[:test][3] = "top 1\\%"
-rankaurocsum[:test][4] = "top 5\\%"
+rankaurocsum[:test][3] = "top 5\\%"
+rankaurocsum[:test][4] = "top 1\\%"
 rename!(rankaurocsum, :IsoForest, :IForest)
 rename!(rankaurocsum, :test, Symbol(" "))
 rankaurocsum = rpaddf(rankaurocsum, 2)
@@ -44,8 +69,8 @@ smt = df2tex(meantimessum, "Average fit \$t_f\$ and predict \$t_p\$ times.",
 rankaaurocsum = rounddf(rankeddf[7:10,:], 2, 2)
 rankaaurocsum[:test][1] = "test auc"
 rankaaurocsum[:test][2] = "train auc"
-rankaaurocsum[:test][3] = "top 1\\%"
-rankaaurocsum[:test][4] = "top 5\\%"
+rankaaurocsum[:test][3] = "top 5\\%"
+rankaaurocsum[:test][4] = "top 1\\%"
 rename!(rankaaurocsum, :IsoForest, :IForest)
 rename!(rankaaurocsum, :test, Symbol(" "))
 rankaaurocsum = rpaddf(rankaaurocsum, 2)
@@ -66,7 +91,7 @@ ranktestaurocdf = miss2hyphen!(rounddf(ranktestauc,2,2))
 tsadf = mergedfs(testaurocdf, ranktestaurocdf)
 tsadf[:dataset] = shortnames
 tsas = df2tex(tsadf,
-	"AUC scores and ranks of algorithms using the first hyperparameter selection criteria. The last line is an average.",
+	"AUROC scores and ranks of algorithms using the first hyperparameter selection criterion. The last line is an average.",
 	label = "tab:testaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -82,7 +107,7 @@ ranktrainaurocdf = miss2hyphen!(rounddf(ranktrainauc,2,2))
 tadf = mergedfs(trainaurocdf, ranktrainaurocdf)
 tadf[:dataset] = shortnames
 tas = df2tex(tadf,
-	"AUC scores and ranks of algorithms using the second hyperparameter selection criteria.",
+	"AUROC scores and ranks of algorithms using the second hyperparameter selection criterion.",
 	label = "tab:trainaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -98,7 +123,7 @@ ranktop1aurocdf = miss2hyphen!(rounddf(ranktop1auc,2,2))
 t1adf = mergedfs(top1aurocdf, ranktop1aurocdf)
 t1adf[:dataset] = shortnames
 t1as = df2tex(t1adf,
-	"AUC scores and ranks of algorithms using the third hyperparameter selection criteria, using top 1\\% of samples.",
+	"AUROC scores and ranks of algorithms using the third hyperparameter selection criterion, using top 1\\% of samples.",
 	label = "tab:top1aucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -114,7 +139,7 @@ ranktop5aurocdf = miss2hyphen!(rounddf(ranktop5auc,2,2))
 t5adf = mergedfs(top5aurocdf, ranktop5aurocdf)
 t5adf[:dataset] = shortnames
 t5as = df2tex(t5adf,
-	"AUC scores and ranks of algorithms using the third hyperparameter selection criteria, using top 5\\% of samples.",
+	"AUROC scores and ranks of algorithms using the third hyperparameter selection criterion, using top 5\\% of samples.",
 	label = "tab:top5aucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -130,14 +155,14 @@ if verb
 	println("\nTable 8:\n\n",t5as,"\n")
 end
 
-# output to txt
-string2file(joinpath(outpath, "ranksummary.txt"), sra)
-string2file(joinpath(outpath, "timesummary.txt"), smt)
-string2file(joinpath(outpath, "augmentedranksummary.txt"), sraa)
-string2file(joinpath(outpath, "tsas.txt"), tsas)
-string2file(joinpath(outpath, "tas.txt"), tas)
-string2file(joinpath(outpath, "t1as.txt"), t1as)
-string2file(joinpath(outpath, "t5as.txt"), t5as)
+# output to tex
+string2file(joinpath(outpath, "aucsummary.tex"), sra)
+string2file(joinpath(outpath, "timesummary.tex"), smt)
+string2file(joinpath(outpath, "aaucsummary.tex"), sraa)
+string2file(joinpath(outpath, "testaucfull.tex"), tsas)
+string2file(joinpath(outpath, "trainaucfull.tex"), tas)
+string2file(joinpath(outpath, "top1aucfull.tex"), t1as)
+string2file(joinpath(outpath, "top5aucfull.tex"), t5as)
 
 ### augmented ROC ###
 
@@ -153,8 +178,8 @@ ranktestaaurocdf = miss2hyphen!(rounddf(ranktestaauc,2,2))
 tsaadf = mergedfs(testaaurocdf, ranktestaaurocdf)
 tsaadf[:dataset] = shortnames
 tsaas = df2tex(tsaadf,
-	"Augmented AUC scores and ranks using the first hyperparameter selection criteria.",
-	label = "tab:trainaaucfull",
+	"Augmented AUC scores and ranks using the first hyperparameter selection criterion.",
+	label = "tab:testaaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
 # table 10 - mean scores of the second test with ranks
@@ -169,7 +194,7 @@ ranktrainaaurocdf = miss2hyphen!(rounddf(ranktrainaauc,2,2))
 taadf = mergedfs(trainaaurocdf, ranktrainaaurocdf)
 taadf[:dataset] = shortnames
 taas = df2tex(taadf,
-	"Augmented AUC scores and ranks using the second hyperparameter selection criteria.",
+	"Augmented AUC scores and ranks using the second hyperparameter selection criterion.",
 	label = "tab:trainaaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -185,7 +210,7 @@ ranktop1aaurocdf = miss2hyphen!(rounddf(ranktop1aauc,2,2))
 t1aadf = mergedfs(top1aaurocdf, ranktop1aaurocdf)
 t1aadf[:dataset] = shortnames
 t1aas = df2tex(t1aadf,
-	"Augmented AUC scores and ranks using the third hyperparameter selection criteria, using top 1\\% of samples.",
+	"Augmented AUC scores and ranks using the third hyperparameter selection criterion, using top 1\\% of samples.",
 	label = "tab:top1aaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -201,7 +226,7 @@ ranktop5aaurocdf = miss2hyphen!(rounddf(ranktop5aauc,2,2))
 t5aadf = mergedfs(top5aaurocdf, ranktop5aaurocdf)
 t5aadf[:dataset] = shortnames
 t5aas = df2tex(t5aadf,
-	"Augmented AUC scores and ranks using the third hyperparameter selection criteria, using top 5\\% of samples.",
+	"Augmented AUC scores and ranks using the third hyperparameter selection criterion, using top 5\\% of samples.",
 	label = "tab:top5aaucfull",
 	fitcolumn = true, lasthline = true, firstvline = true)
 
@@ -213,11 +238,11 @@ if verb
 	println("\nTable 12:\n\n",t5aas,"\n")
 end
 
-# output to txt
-string2file(joinpath(outpath, "tsaas.txt"), tsaas)
-string2file(joinpath(outpath, "taas.txt"), taas)
-string2file(joinpath(outpath, "t1aas.txt"), t1aas)
-string2file(joinpath(outpath, "t5aas.txt"), t5aas)
+# output to tex
+string2file(joinpath(outpath, "testaaucfull.tex"), tsaas)
+string2file(joinpath(outpath, "trainaaucfull.tex"), taas)
+string2file(joinpath(outpath, "top1aaucfull.tex"), t1aas)
+string2file(joinpath(outpath, "top5aaucfull.tex"), t5aas)
 
 ### large time tables ###
 # table 13 - mean fit times with ranks
@@ -259,6 +284,6 @@ if verb
 	println("\nTable 14:\n\n",pts,"\n")
 end
 
-# output to txt
-string2file(joinpath(outpath, "fts.txt"), fts)
-string2file(joinpath(outpath, "pts.txt"), pts)
+# output to tex
+string2file(joinpath(outpath, "ftfull.tex"), fts)
+string2file(joinpath(outpath, "ptfull.tex"), pts)

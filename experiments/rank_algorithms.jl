@@ -164,14 +164,14 @@ valuedf = createdf(algnames)
 rename!(valuedf, :dataset, :test)
 push!(valuedf, cat(1,["test auc"],[x[1] for x in colwise(missmean, testauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["train auc"],[x[1] for x in colwise(missmean, trainauc[[Symbol(alg) for alg in algnames]])]))
-push!(valuedf, cat(1,["top 1%"],[x[1] for x in colwise(missmean, top1auc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["top 5%"],[x[1] for x in colwise(missmean, top5auc[[Symbol(alg) for alg in algnames]])]))
+push!(valuedf, cat(1,["top 1%"],[x[1] for x in colwise(missmean, top1auc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["mean fit time"],[x[1] for x in colwise(missmean, meanfitt[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["mean predict time"],[x[1] for x in colwise(missmean, meanpredictt[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["test auc - augmented"],[x[1] for x in colwise(missmean, testaauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["train auc - augmented"],[x[1] for x in colwise(missmean, trainaauc[[Symbol(alg) for alg in algnames]])]))
-push!(valuedf, cat(1,["top 1% - augmented"],[x[1] for x in colwise(missmean, top1aauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["top 5% - augmented"],[x[1] for x in colwise(missmean, top5aauc[[Symbol(alg) for alg in algnames]])]))
+push!(valuedf, cat(1,["top 1% - augmented"],[x[1] for x in colwise(missmean, top1aauc[[Symbol(alg) for alg in algnames]])]))
 writetable(joinpath(evalpath, "valuesummary.csv"), valuedf);
 
 rankeddf = createdf(algnames)
@@ -179,10 +179,10 @@ rankeddf = [rankeddf; ranktestauc[end,:]]
 rankeddf[:dataset][end] = "test auc"
 rankeddf = [rankeddf; ranktrainauc[end,:]]
 rankeddf[:dataset][end] = "train auc"
-rankeddf = [rankeddf; ranktop1auc[end,:]]
-rankeddf[:dataset][end] = "top 1%"
 rankeddf = [rankeddf; ranktop5auc[end,:]]
 rankeddf[:dataset][end] = "top 5%"
+rankeddf = [rankeddf; ranktop1auc[end,:]]
+rankeddf[:dataset][end] = "top 1%"
 rankeddf = [rankeddf; rankmeanfitt[end,:]]
 rankeddf[:dataset][end] = "mean fit time"
 rankeddf = [rankeddf; rankmeanpredictt[end,:]]
@@ -191,10 +191,10 @@ rankeddf = [rankeddf; ranktestaauc[end,:]]
 rankeddf[:dataset][end] = "test auc - augmented"
 rankeddf = [rankeddf; ranktrainaauc[end,:]]
 rankeddf[:dataset][end] = "train auc - augmented"
-rankeddf = [rankeddf; ranktop1aauc[end,:]]
-rankeddf[:dataset][end] = "top 1% - augmented"
 rankeddf = [rankeddf; ranktop5aauc[end,:]]
 rankeddf[:dataset][end] = "top 5% - augmented"
+rankeddf = [rankeddf; ranktop1aauc[end,:]]
+rankeddf[:dataset][end] = "top 1% - augmented"
 rename!(rankeddf, :dataset, :test)
 writetable(joinpath(evalpath, "ranksummary.csv"), rankeddf);
 

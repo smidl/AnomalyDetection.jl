@@ -478,12 +478,12 @@ end
 function querydata(data, alg, dataset)
     # query the df
     dfx = @from r in data begin
-    @where r.algorithm == alg && r.dataset == dataset 
+    @where r.algorithm == alg && r.dataset == dataset
     @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
         r.train_aauroc, r.test_aauroc, r.top_5p, r.top_1p}
     @collect DataFrame
     end
-    
+
     #get rid of missings
     dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
     dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
@@ -517,14 +517,14 @@ function getparams(data, algs, auc_type = "normal", auc_base = "train")
 
     for alg in algs
         dfx = querydata(data, alg, dataset)
-        
+
         # mean aggregate it by settings
         aggdf = by(dfx, [:settings],
                         d -> DataFrame(auroc =
                         missmean(d[basesym])))
         # get the best settings
         sort!(aggdf, cols = :auroc, rev = true)
-        
+
         topalg = ""
         for j in 1:size(aggdf,1)
             if !ismissing(aggdf[:auroc][j])
@@ -532,7 +532,7 @@ function getparams(data, algs, auc_type = "normal", auc_base = "train")
                 break
             end
         end
-       
+
         df[Symbol(alg)][1] = topalg
     end
 
@@ -833,7 +833,7 @@ function drawaxis(ranks)
     s = "\\draw ($(mn),0) -- ($(mx),0); \n"
     s = wspad(s, 2)
     s = string(s, "\\foreach \\x in {$(Int(mn)),...,$(Int(mx))} \\draw (\\x,0.10) -- (\\x,-0.10) node[anchor=north]{\$\\x\$}; \n")
-    return s 
+    return s
 end
 
 function drawnodes(ranks, algnames)
@@ -845,7 +845,7 @@ function drawnodes(ranks, algnames)
     mn = floor(ranks[1])
     nor = length(ranks) # number of ranks
     nos = Int(ceil(nor/2)) # number of ranks on one side (start with left, there may be one more if nor is odd)
-    
+
     s = ""
     for (i, r) in enumerate(ranks)
         s = wspad(s,2)
@@ -859,8 +859,7 @@ function drawnodes(ranks, algnames)
     return s
 end
 
-function drawlevels(ranks, c)
-#    \draw[line width=0.1cm,color=black,draw opacity=1.0] (2.1-0.05,0.05) -- (2.41+0.05,0.05);   
+function drawlevels(ranks, cv)
     ranks = sort(ranks)
 
     mx = ceil(ranks[end])
@@ -868,31 +867,42 @@ function drawlevels(ranks, c)
     nor = length(ranks) # number of ranks
 
     # generate levels
-    i = 1 # number of nodes in the last drawn level
-    nl = 1
     levels = []
-    for r in ranks
-        eqs = ranks[i:end][abs.(ranks[i:end] - ranks[i]) .<= c]
-        if length(eqs) > 1
-            for level in levels
-                if abs(level[2] - eqs[1]) < 0.2
-                    nl += 1
-                else
-                    nl = 1
-                end
-            end
-            push!(levels, (eqs[1]-0.05, eqs[end]+0.05, nl*0.05))
+    for (i,r) in enumerate(ranks)
+        if i == nor
+            break
+        elseif ranks[i+1] - r <= cv
+            push!(levels, [r, ranks[i+1], 0.05])
         end
-        i += length(eqs)
-        (i>=nor)? break : nothing
+    end
+
+    # now differentiate them if they should not be at the same heigth
+    i = 1
+    while i <= length(levels)
+        if i == length(levels)
+            break
+        elseif abs(levels[i][1] - levels[i+1][2]) < cv
+            levels[i][2] = levels[i+1][2]
+            splice!(levels, i+1)
+        else
+            i += 1
+        end
+    end
+
+    for (i,level) in enumerate(levels)
+        if i == length(levels)
+            break
+        elseif abs(level[2] - levels[i+1][1])<0.08 && abs(level[1] - levels[i+1][2]) > cv && level[3] == levels[i+1][3]
+            levels[i+1][3] = level[3] + 0.1
+        end
     end
 
     # draw them
     s = ""
     for level in levels
         s = wspad(s,2)
-        s = string(s, "\\draw[line width=0.1cm,color=black,draw opacity=1.0] ($(level[1]),$(level[3])) -- ($(level[2]),$(level[3])); \n")
+        s = string(s, "\\draw[line width=0.06cm,color=black,draw opacity=1.0] ($(level[1]-0.03),$(level[3])) -- ($(level[2]+0.03),$(level[3])); \n")
     end
-
+#    println(levels)
     return s
 end
