@@ -29,8 +29,8 @@ save_io(path, file, m::AnomalyDetection.kNN, mparams, tras, trl, tstas, tstl, ft
 	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m), nothing, ft, pt)
 save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, trl, tstas,
 	tstl, ft, pt) =
-	save_io(path, file, mparams, tras, trl, tstas, tstl, m.history, string(m),
-		map(Flux.Tracker.data, Flux.params(m)), ft, pt)
+	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m),
+		nothing, ft, pt)
 
 """
 	get_data(dataset_name, iteration)
