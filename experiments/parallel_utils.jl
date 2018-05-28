@@ -37,32 +37,40 @@ save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, t
 
 Returns training and testing dataset.
 """
-function get_data(dataset_name, iteration)
+function get_data(dataset_name, iteration, allanomalies=false)
+	# get the dataset
+	basicset = AnomalyDetection.Basicset(joinpath(loda_path, dataset_name))
 	# settings
+
 	# ratio of training to all data
 	alpha = 0.8
-	# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
-	# some datasets dont have easy difficulty anomalies
-	if dataset_name in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
-		"isolet", "multiple-features", "statlog-shuttle"]
-		difficulty = "medium"
-	elseif dataset_name in ["vertebral-column"]
-		difficulty = "hard"
-	else
-		difficulty = "easy"
-	end
-	# ratio of anomalous to normal data
-	frequency = 0.05
-	# low/high - should anomalies be clustered or not
-	variation = "low"
+
 	# random seed
 	seed = Int64(iteration)
 
-	# this might fail for url
-	basicset = AnomalyDetection.Basicset(joinpath(loda_path, dataset_name))
-	trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty,
-		frequency, variation,
-		seed = seed)
+	if !allanomalies
+		# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
+		# some datasets dont have easy difficulty anomalies
+		if dataset_name in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
+			"isolet", "multiple-features", "statlog-shuttle"]
+			difficulty = "medium"
+		elseif dataset_name in ["vertebral-column"]
+			difficulty = "hard"
+		else
+			difficulty = "easy"
+		end
+		# ratio of anomalous to normal data
+		frequency = 0.05
+		# low/high - should anomalies be clustered or not
+		variation = "low"
+
+		# this might fail for url
+		trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty,
+			frequency, variation, seed = seed)
+	else
+		trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, seed = seed)
+	end
+	
 	return trdata, tstdata
 end
 
