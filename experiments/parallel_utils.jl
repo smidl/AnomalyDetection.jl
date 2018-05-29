@@ -33,7 +33,7 @@ save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, t
 		nothing, ft, pt)
 
 """
-	get_data(dataset_name, iteration)
+	get_data(dataset_name, iteration, allanomalies)
 
 Returns training and testing dataset.
 """
@@ -70,7 +70,7 @@ function get_data(dataset_name, iteration, allanomalies=false)
 	else
 		trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, seed = seed)
 	end
-	
+
 	return trdata, tstdata
 end
 
