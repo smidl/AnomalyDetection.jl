@@ -11,3 +11,7 @@ DataStructures
 Lazy
 MLBase
 NearestNeighbors
+MLDataPattern
+DataFrames
+CSV
+Query
