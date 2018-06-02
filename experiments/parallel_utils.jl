@@ -159,11 +159,16 @@ function getlatentdims(data)
 	return latentdims, indim
 end
 
-function updatearchitecture!(m::Type{AnomalyDetection.AEmodel}, tp,
-	indim, ldim, nhid)
+function netsize(m::Type{AnomalyDetection.AEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
 	esize = dsize[nhid+3:-1:1]
+	return dsize, esize
+end
+
+function updatearchitecture!(m::Type{AnomalyDetection.AEmodel}, tp,
+	indim, ldim, nhid)
+	dsize, esize = netsize(m, indim, ldim, nhid)
 	tp[:mparams][:args][:dsize] = dsize
 	tp[:mparams][:args][:esize] = esize
 	# create the name string
@@ -178,12 +183,17 @@ function updatearchitecture!(m::Type{AnomalyDetection.AEmodel}, tp,
 	return f
 end
 
-function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
-	indim, ldim, nhid)
+function netsize(m::Type{AnomalyDetection.VAEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
 	esize = dsize[nhid+3:-1:1]
 	esize[end] = 2*esize[end]
+	return dsize, esize
+end
+
+function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
+	indim, ldim, nhid)
+	dsize, esize = netsize(m, indim, ldim, nhid)
 
 	tp[:mparams][:args][:dsize] = dsize
 	tp[:mparams][:args][:esize] = esize
@@ -197,15 +207,21 @@ function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
 		f=string(f,"-$(s)")
 	end
 	return f
+end
+
+function netsize(m::Union{Type{AnomalyDetection.GANmodel},
+	Type{AnomalyDetection.fmGANmodel}}, indim, ldim, nhid)
+	# create linearly spaced layer sizes
+	gsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	dsize = gsize[nhid+3:-1:1]
+	dsize[end] = 1
+	return gsize, dsize
 end
 
 function updatearchitecture!(m::Union{Type{AnomalyDetection.GANmodel},
 	Type{AnomalyDetection.fmGANmodel}}, tp,
 	indim, ldim, nhid)
-	# create linearly spaced layer sizes
-	gsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
-	dsize = gsize[nhid+3:-1:1]
-	dsize[end] = 1
+	gsize, dsize = netsize(m, indim, ldim, nhid)
 
 	tp[:mparams][:args][:gsize] = gsize
 	tp[:mparams][:args][:dsize] = dsize
