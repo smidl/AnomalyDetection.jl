@@ -4,10 +4,10 @@ using MAT
 using EvalCurves
 
 # include auxiliary functions
-include("../experiments/parallel_utils.jl")
+include("../../experiments/parallel_utils.jl")
 
 # local loda path
-loda_path = "./data"
+loda_path = "../data"
 
 function mat_params(infile, outfile)
 	# first, load the .mat params
@@ -16,7 +16,7 @@ function mat_params(infile, outfile)
 	auroc, tprvec, fprvec = test_params(matparams)
 
 	# save into outfile
-	res = Dict(auroc => auroc, tprvec => tprvec, fprvec => fprvec)
+	res = Dict("auroc" => auroc, "tprvec" => tprvec, "fprvec" => fprvec)
 	matwrite(outfile, res)
 
 	# return for debugging

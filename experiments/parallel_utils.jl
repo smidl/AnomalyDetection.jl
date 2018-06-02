@@ -163,12 +163,12 @@ function netsize(m::Type{AnomalyDetection.AEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
 	esize = dsize[nhid+3:-1:1]
-	return dsize, esize
+	return esize, dsize
 end
 
 function updatearchitecture!(m::Type{AnomalyDetection.AEmodel}, tp,
 	indim, ldim, nhid)
-	dsize, esize = netsize(m, indim, ldim, nhid)
+	esize, dsize = netsize(m, indim, ldim, nhid)
 	tp[:mparams][:args][:dsize] = dsize
 	tp[:mparams][:args][:esize] = esize
 	# create the name string
@@ -188,12 +188,12 @@ function netsize(m::Type{AnomalyDetection.VAEmodel}, indim, ldim, nhid)
 	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
 	esize = dsize[nhid+3:-1:1]
 	esize[end] = 2*esize[end]
-	return dsize, esize
+	return esize, dsize
 end
 
 function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
 	indim, ldim, nhid)
-	dsize, esize = netsize(m, indim, ldim, nhid)
+	esize, dsize = netsize(m, indim, ldim, nhid)
 
 	tp[:mparams][:args][:dsize] = dsize
 	tp[:mparams][:args][:esize] = esize
