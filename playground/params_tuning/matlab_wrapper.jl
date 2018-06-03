@@ -9,6 +9,13 @@ include("../../experiments/parallel_utils.jl")
 # local loda path
 loda_path = "../data"
 
+"""
+	mat_params(infile, outfile)
+
+The outermost layer. Takes an adress of a .mat file with inputs
+and writes output to a .mat file. Also returns the testing auroc,
+TP an FP vectors.
+"""
 function mat_params(infile, outfile)
 	# first, load the .mat params
 	matparams = matread(infile)
@@ -23,6 +30,12 @@ function mat_params(infile, outfile)
 	return auroc, tprvec, fprvec
 end
 
+"""
+	test_params(matparams)
+
+The second layer. Takes the inputs specified in a dictionary and 
+returns the testing auroc, TP an FP vectors.
+"""
 function test_params(matparams)
 	# get the data
 	data = get_data(matparams["dataset"], 12345, true)
@@ -41,6 +54,12 @@ function test_params(matparams)
 	return auroc, tprvec, fprvec
 end
 
+"""
+	functions_params(data, matparams)
+
+From parameters specified in dictionary, it returns the model constructing,
+fitting and anomaly score producing functions and model parameters.
+"""
 function functions_params(data, matparams)
 	# first extract parameters from the large dictionary
 	tp = deepcopy(PARAMS[Symbol(matparams["model"])])
@@ -59,7 +78,8 @@ function functions_params(data, matparams)
 	set_architecture!(mf, lsize, rsize, model_params_out)
 
 	# batchsize
-	model_params_out[:args][:L] = min(256, ntr)
+	(haskey(mpars_in, "batchsize"))? L = mpars_in["batchsize"] : L = 256
+	model_params_out[:args][:L] = min(L, ntr)
 
 	# now the rest of the params
 	for key in keys(mpars_in)
@@ -73,6 +93,11 @@ function functions_params(data, matparams)
 	return mf, ff, asf, model_params_out
 end
 
+"""
+	set_architecture!(mf, lsize, rsize, model_params)
+
+Sets the correct field (gsize, dsize, esize) in the constructor params.
+"""
 function set_architecture!(mf, lsize, rsize, model_params)
 	if mf in [AnomalyDetection.AEmodel, AnomalyDetection.VAEmodel]
 		model_params[:args][:esize] = lsize
@@ -83,6 +108,11 @@ function set_architecture!(mf, lsize, rsize, model_params)
 	end
 end
 
+"""
+	construct_fit_score(data, params, mf, ff, asf, [fitnonly])
+
+Cosntructs the model and calls fit and score.
+"""
 function construct_fit_score(data, params, mf, ff, asf, fitnonly = true)
 	# construct the model
 	model = mf([p for p in values(params[:args])]...;
@@ -92,6 +122,11 @@ function construct_fit_score(data, params, mf, ff, asf, fitnonly = true)
 	return fit_score(data, model, ff, asf, fitnonly)
 end
 
+"""
+	fit_score(data, model, ff, asf, [fitnonly])
+
+Fits the model and returns anomaly scores.
+"""
 function fit_score(data, model, ff, asf, fitnonly = true)
 	# extract data
 	(trdata, tstdata) = data
