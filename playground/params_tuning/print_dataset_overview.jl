@@ -8,13 +8,13 @@ push!(LOAD_PATH, codepath)
 using AnomalyDetection
 
 # this is where the LODA datasets are stored, change if necessary
-data_path = "../../../data/Loda/public/datasets/numerical/"
+data_path = "../data"
 
 function print_overview()
 	# data
 	datasets = AnomalyDetection.loaddata(data_path);
 
-	# fill the dataset
+	# fill the dataseth
 	arr = Array{Any, 2}(length(datasets), 7)
 	i = 1
 	for key in keys(datasets)
