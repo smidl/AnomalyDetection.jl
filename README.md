@@ -14,4 +14,6 @@ Implementation of various generative neural network models for anomaly detection
 
 ## Experiments:
 
-Experiments are executed on the Loda (Lightweight on-line detector of anomalies) datasets that can be downloaded [here](http://webdav.agents.fel.cvut.cz/data/projects/stegodata/Loda.zip). Tha sampling method is based on [this paper](http://web.engr.oregonstate.edu/~tgd/publications/emmott-das-dietterich-fern-wong-systematic-construction-of-anomaly-detection-benchmarks-from-real-data-odd13.pdf). After downloading the datasets, you can create your own using the experiments/prepare_data.jl function.
+Experiments are executed on the Loda (Lightweight on-line detector of anomalies) datasets that can be downloaded [here](http://webdav.agents.fel.cvut.cz/data/projects/stegodata/Loda.zip). Tha sampling method is based on [this paper](http://web.engr.oregonstate.edu/~tgd/publications/emmott-das-dietterich-fern-wong-systematic-construction-of-anomaly-detection-benchmarks-from-real-data-odd13.pdf). After downloading the datasets, you can create your own using the experiments/prepare_data.jl function. For experimental evaluation, you need the EvalCurves package:
+
+`>> Pkg.clone("https://github.com/vitskvara/EvalCurves.jl.git")`
