@@ -1,8 +1,6 @@
 using DataFrames, Query, FileIO, ValueHistories
 import Missings: missing, skipmissing, ismissing
-
-push!(LOAD_PATH, "../src")
-using AnomalyDetection
+using EvalCurves, AnomalyDetection
 
 """
     auroc(ascore, labels, [weights])
@@ -13,8 +11,8 @@ function auroc(ascore, labels, weights = "same")
     if isnan(ascore[1])
         return missing
     else
-        tprvec, fprvec = AnomalyDetection.getroccurve(ascore, labels)
-        return AnomalyDetection.auc(fprvec, tprvec, weights)
+        fprvec, tprvec = EvalCurves.roccurve(ascore, labels)
+        return EvalCurves.auc(fprvec, tprvec, weights)
     end
 end
 
