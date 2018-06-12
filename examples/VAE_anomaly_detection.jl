@@ -51,9 +51,9 @@ model(nX)
 
 nX
 
-AnomalyDetection.mu(model, nX)
+AnomalyDetection.muz(model, nX)
 
-AnomalyDetection.sigma(model, nX)
+AnomalyDetection.sigmaz(model, nX)
 
 AnomalyDetection.sample_z(model, nX)
 
