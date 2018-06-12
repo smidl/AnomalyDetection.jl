@@ -20,18 +20,18 @@ end
 Flux.treelike(VAE)
 
 """
-	muz(vae, X)
+	mu(vae, X)
 
 Extract means from the last encoder layer.
 """
-muz(vae::VAE, X) = X[1:Int(size(vae.encoder.layers[end].W,1)/2),:]
+mu(vae::VAE, X) = X[1:Int(size(vae.encoder.layers[end].W,1)/2),:]
 
 """
-	sigmaz(vae, X)
+	sigma(vae, X)
 
 Extract sigmas from the last encoder layer.
 """
-sigmaz(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:]) + Float(1e-6)
+sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:]) + Float(1e-6)
 
 """
 	logps(x)
@@ -46,8 +46,8 @@ logps(x) = abs.(-1/2*x.^2 - 1/2*log(2*pi))
 Sample from the last encoder layer.
 """
 function sample_z(vae::VAE, X)
-	res = muz(vae, X)
-	return res .+ Float.(randn(size(res))) .* sigmaz(vae,X)
+	res = mu(vae, X)
+	return res .+ Float.(randn(size(res))) .* sigma(vae,X)
 end
 
 """
@@ -87,7 +87,7 @@ end
 
 KL divergence between the encoder parameters and unit gaussian.
 """
-KL(vae::VAE, X) = Float(1/2)*mean(sum(sigmaz(vae, vae.encoder(X)).^2 + muz(vae, vae.encoder(X)).^2 - log.(sigmaz(vae, vae.encoder(X)).^2) - 1, 1))
+KL(vae::VAE, X) = Float(1/2)*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1, 1))
 
 """
 	rerr(vae, X, M)
@@ -96,7 +96,7 @@ Reconstruction error.
 """
 #rerr(vae::VAE, X) = Flux.mse(vae(X), X)
 rerr(vae::VAE, X, M) = Flux.mse(mean([vae(X) for l in 1:M]), X)
-
+#rerr(vae::VAE, X, M) = 
 """
 	loss(vae, X, M, lambda)
 
@@ -303,8 +303,8 @@ end
 
 # reimplement some methods of VAE
 (model::VAEmodel)(x) = model.vae(x)
-muz(model::VAEmodel, X) = muz(model.vae, model.vae.encoder(X))
-sigmaz(model::VAEmodel, X) = sigmaz(model.vae, model.vae.encoder(X))
+muz(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
+sigmaz(model::VAEmodel, X) = sigma(model.vae, model.vae.encoder(X))
 sample_z(model::VAEmodel, X) = sample_z(model.vae, model.vae.encoder(X))
 getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)
