@@ -118,7 +118,7 @@ likelihood(X, μ, σ2) = - mean(sum((μ - X).^2./σ2 + log.(σ2),1))/2
 """
 	likelihood(vae, X)
 
-Likelihood of a sample an autoencoded sample X.
+Likelihood of an autoencoded sample X.
 """
 function likelihood(vae::VAE{E,S,D,V}, X) where {E,S,D,V<:Val{:sigma}}
 	vx = vae(X)
@@ -129,14 +129,20 @@ function likelihood(vae::VAE{E,S,D,V}, X) where {E,S,D,V<:Val{:unit}}
 	μ = vae(X)
 	return likelihood(X,μ)
 end
+"""
+	likelihood(vae, X, M)
+
+Likelihood of an autoencoded sample X sampled M times.
+"""
+likelihood(vae::VAE, X, M) = mean([likelihood(vae, X) for m in 1:M])
 
 """
 	loss(vae, X, M, lambda)
 
 Loss function of the variational autoencoder. Lambda is scaling parameter of
-the KLD, 1 = full KL, 0 = no KL (vanilla autoencoder).
+the KLD, 1 = full KL, 0 = no KL.
 """
-loss(vae::VAE, X, M, lambda) = - likelihood(vae,X) + Float(lambda)*KL(vae, X)
+loss(vae::VAE, X, M, lambda) = -likelihood(vae,X,M) + Float(lambda)*KL(vae, X)
 
 """
 	evalloss(vae, X, M, lambda)
@@ -144,7 +150,7 @@ loss(vae::VAE, X, M, lambda) = - likelihood(vae,X) + Float(lambda)*KL(vae, X)
 Print vae loss function values.
 """
 evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)),
-	"\nlikelihood: ", Flux.Tracker.data(-likelihood(vae,X)),
+	"\nlikelihood: ", Flux.Tracker.data(-likelihood(vae,X,M)),
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
@@ -207,7 +213,7 @@ Save current progress.
 function track!(vae::VAE, history::MVHistory, X, M, lambda)
 	push!(history, :loss, Flux.Tracker.data(loss(vae,X,M,lambda)))
 	push!(history, :KLD, Flux.Tracker.data(KL(vae,X)))
-	push!(history, :likelihood, Flux.Tracker.data(- likelihood(vae,X)))
+	push!(history, :likelihood, Flux.Tracker.data(- likelihood(vae,X,M)))
 end
 
 
@@ -247,7 +253,7 @@ Compute anomaly score for X.
 t = type, default "likelihood", otherwise "logpn".
 """
 anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "likelihood") =
-	(t=="likelihood")? Flux.Tracker.data(-likelihood(vae, X)) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
+	(t=="likelihood")? Flux.Tracker.data(-mean([likelihood(vae, X) for i in 1:M])) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
 anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "likelihood") =
 	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, 1), size(X,2))
 
