@@ -3,35 +3,38 @@
 ###########################
 
 """
-	VAE{encoder, sampler, decoder}
+	VAE{encoder, sampler, decoder, variant}
 
 Flux-like structure for the variational autoencoder.
 """
-struct VAE{E, S, D}
+struct VAE{E, S, D, V<:Val}
 	encoder::E
 	sampler::S
 	decoder::D
+	variant::V
 end
 
+VAE(E,S,D,V::Symbol = :unit) = VAE(E,S,D,Val(V))
+
 # make the struct callable
-(vae::VAE)(X) = vae.decoder(vae.sampler(vae, vae.encoder(X)))
+(vae::VAE)(X) = vae.decoder(vae.sampler(vae.encoder(X)))
 
 # and make it trainable
 Flux.treelike(VAE)
 
 """
-	mu(vae, X)
+	mu(X)
 
-Extract means from the last encoder layer.
+Extract mean as the first horizontal half of X.
 """
-mu(vae::VAE, X) = X[1:Int(size(vae.encoder.layers[end].W,1)/2),:]
+mu(X) = X[1:Int(size(X,1)/2),:]
 
 """
-	sigma(vae, X)
+	sigma2(X)
 
-Extract sigmas from the last encoder layer.
+Extract sigma^2 as the second horizontal half of X. 
 """
-sigma(vae::VAE, X) = softplus(X[Int(size(vae.encoder.layers[end].W,1)/2+1):end,:]) + Float(1e-6)
+sigma2(X) = softplus(X[Int(size(X,1)/2+1):end,:]) + Float(1e-6)
 
 """
 	logps(x)
@@ -41,13 +44,14 @@ Is the logarithm of the standard pdf of x.
 logps(x) = abs.(-1/2*x.^2 - 1/2*log(2*pi))
 
 """
-	sample_z(vae, X)
+	sample_z(X)
 
-Sample from the last encoder layer.
+Sample normal distribution with mean and sigma2 extracted from X.
 """
-function sample_z(vae::VAE, X)
-	res = mu(vae, X)
-	return res .+ Float.(randn(size(res))) .* sigma(vae,X)
+function sample_z(X)
+	μ, σ2 = mu(X), sigma2(X)
+	ϵ = Float.(randn(size(μ)))
+	return μ .+  ϵ .* sqrt.(σ2)
 end
 
 """
@@ -57,14 +61,18 @@ Initialize a variational autoencoder with given encoder size and decoder size.
 esize - vector of ints specifying the width anf number of layers of the encoder
 dsize - size of decoder
 activation - arbitrary activation function
-lyer - type of layer
+layer - type of layer
+variant - :unit - output has unit variance
+		- :sigma - the variance of the output is estimated
 """
 function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu,
-		layer = Flux.Dense)
+		layer = Flux.Dense, variant = :unit)
+	@assert variant in [:unit, :sigma]
 	@assert size(esize, 1) >= 3
 	@assert size(dsize, 1) >= 3
 	@assert esize[end] == 2*dsize[1]
-	@assert esize[1] == dsize[end]
+	(variant==:unit)? (@assert esize[1] == dsize[end]) :
+		(@assert esize[1]*2 == dsize[end])
 
 	# construct the encoder
 	encoder = aelayerbuilder(esize, activation, layer)
@@ -73,7 +81,7 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 	decoder = aelayerbuilder(dsize, activation, layer)
 
 	# finally construct the ae struct
-	vae = VAE(encoder, sample_z, decoder)
+	vae = VAE(encoder, sample_z, decoder, variant)
 
 	return vae
 end
@@ -83,27 +91,52 @@ end
 ################
 
 """
+	KL(μ, σ2)
+
+KL divergence between a normal distribution and unit gaussian.
+"""
+KL(μ, σ2) = Float(1/2)*mean(sum(σ2 + μ.^2 - log.(σ2) - 1, 1))
+
+"""
 	KL(vae, X)
 
-KL divergence between the encoder parameters and unit gaussian.
+KL divergence between the encoder output and unit gaussian.
 """
-KL(vae::VAE, X) = Float(1/2)*mean(sum(sigma(vae, vae.encoder(X)).^2 + mu(vae, vae.encoder(X)).^2 - log.(sigma(vae, vae.encoder(X)).^2) - 1, 1))
+function KL(vae::VAE, X) 
+	ex = vae.encoder(X)
+	KL(mu(ex), sigma2(ex))
+end
 
 """
-	rerr(vae, X, M)
+	likelihood(X, μ, [σ2])
 
-Reconstruction error.
+Likelihood of a sample X given mean and variance.
 """
-#rerr(vae::VAE, X) = Flux.mse(vae(X), X)
-rerr(vae::VAE, X, M) = Flux.mse(mean([vae(X) for l in 1:M]), X)
-#rerr(vae::VAE, X, M) = 
+likelihood(X, μ) = - mean(sum((μ - X).^2,1))/2
+likelihood(X, μ, σ2) = - mean(sum((μ - X).^2./σ2 + log.(σ2),1))/2
+
+"""
+	likelihood(vae, X)
+
+Likelihood of a sample an autoencoded sample X.
+"""
+function likelihood(vae::VAE{E,S,D,V}, X) where {E,S,D,V<:Val{:sigma}}
+	vx = vae(X)
+	μ, σ2 = mu(vx), sigma2(vx)
+	return likelihood(X,μ, σ2)
+end
+function likelihood(vae::VAE{E,S,D,V}, X) where {E,S,D,V<:Val{:unit}}
+	μ = vae(X)
+	return likelihood(X,μ)
+end
+
 """
 	loss(vae, X, M, lambda)
 
 Loss function of the variational autoencoder. Lambda is scaling parameter of
 the KLD, 1 = full KL, 0 = no KL (vanilla autoencoder).
 """
-loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + Float(lambda)*KL(vae, X)
+loss(vae::VAE, X, M, lambda) = - likelihood(vae,X) + Float(lambda)*KL(vae, X)
 
 """
 	evalloss(vae, X, M, lambda)
@@ -111,7 +144,7 @@ loss(vae::VAE, X, M, lambda) = rerr(vae, X, M) + Float(lambda)*KL(vae, X)
 Print vae loss function values.
 """
 evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)),
-	"\nreconstruction error: ", Flux.Tracker.data(rerr(vae, X, M)),
+	"\nlikelihood: ", Flux.Tracker.data(-likelihood(vae,X)),
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
@@ -121,12 +154,12 @@ Trains the VAE neural net.
 vae - a VAE object
 X - data array with instances as columns
 L - batchsize
-M - number of samples for reconstruction error
+M - number of samples for likelihood
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 lambda - scaling for the KLD loss
-rdelta - stopping condition for reconstruction error
+rdelta - stopping condition for likelihood
 traindata - a dictionary for training progress control
 """
 function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
@@ -156,10 +189,10 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 
 		# if stopping condition is present
 		if rdelta < Inf
-			re = Flux.Tracker.data(rerr(vae, x, M))[1]
+			re = Flux.Tracker.data(-likelihood(vae, x))[1]
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,\n",
-					"reconstruction error $re < $rdelta")
+					"likelihood $re < $rdelta")
 				break
 			end
 		end
@@ -174,7 +207,7 @@ Save current progress.
 function track!(vae::VAE, history::MVHistory, X, M, lambda)
 	push!(history, :loss, Flux.Tracker.data(loss(vae,X,M,lambda)))
 	push!(history, :KLD, Flux.Tracker.data(KL(vae,X)))
-	push!(history, :reconstruction_error, Flux.Tracker.data(rerr(vae,X, M)))
+	push!(history, :likelihood, Flux.Tracker.data(- likelihood(vae,X)))
 end
 
 
@@ -187,7 +220,7 @@ end
 
 Produces code z for given X.
 """
-getcode(vae::VAE, X) = vae.sampler(vae, vae.encoder(X))
+getcode(vae::VAE, X) = vae.sampler(vae.encoder(X))
 
 """
 	generate(vae)
@@ -211,17 +244,17 @@ generate(vae::VAE, n::Int) = vae.decoder(Float.(randn(Int(size(vae.encoder.layer
 	anomalyscore(vae, X, M, [t])
 
 Compute anomaly score for X.
-t = type, default "rerr", otherwise "logpn".
+t = type, default "likelihood", otherwise "logpn".
 """
-anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "rerr") =
-	(t=="rerr")? Flux.Tracker.data(rerr(vae, X, M)) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
-anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "rerr") =
+anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "likelihood") =
+	(t=="likelihood")? Flux.Tracker.data(-likelihood(vae, X)) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
+anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "likelihood") =
 	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, 1), size(X,2))
 
 """
 	classify(vae, x, threshold, M)
 
-Classify an instance x using reconstruction error and threshold.
+Classify an instance x using likelihood and threshold.
 """
 classify(vae::VAE, X, threshold, M) = Int.(anomalyscore(vae, X, M) .> threshold)
 
@@ -233,7 +266,7 @@ Compute threshold for VAE classification based on known contamination level.
 function getthreshold(vae::VAE, x, M, contamination; Beta = 1.0)
 	N = size(x, 2)
 	Beta = Float(Beta)
-	# get reconstruction errors
+	# get anomaly score
 	ascore  = anomalyscore(vae, x, M)
 	# sort it
 	ascore = sort(ascore)
@@ -258,7 +291,7 @@ mutable struct VAEmodel <: genmodel
 	cbit::Real
 	verbfit::Bool
 	L::Int # batchsize
-	M::Int # reconstruction error repetition rate
+	M::Int # sampling rate for likelihood
 	rdelta::Float
 	Beta::Float
 	history
@@ -280,21 +313,23 @@ iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
 verbfit - is progress printed?
 L - batchsize
-M [1] - number of samples taken during computation of reconstruction error, higher may produce more stable classification results
+M [1] - number of samples taken during computation of likelihood, higher may produce more stable classification results
 activation [Flux.relu] - activation function
 layer [Flux.dense] - layer type
-rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+rdelta [Inf] - training stops if likelihood is smaller than rdelta
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
-astype ["rerr"] - type of anomaly score function
+astype ["likelihood"] - type of anomaly score function
+variant - :unit - output has unit variance
+		- :sigma - the variance of the output is estimated
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, iterations::Int,
 	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu,
 	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false,
-	astype = "rerr")
+	astype = "likelihood", variant = :unit)
 	# construct the AE object
-	vae = VAE(esize, dsize, activation = activation, layer = layer)
+	vae = VAE(esize, dsize, activation = activation, layer = layer, variant = variant)
 	(tracked)? history = MVHistory() : history = nothing
 	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit,
 		L, M, rdelta, Beta, history, astype)
@@ -303,12 +338,12 @@ end
 
 # reimplement some methods of VAE
 (model::VAEmodel)(x) = model.vae(x)
-muz(model::VAEmodel, X) = mu(model.vae, model.vae.encoder(X))
-sigmaz(model::VAEmodel, X) = sigma(model.vae, model.vae.encoder(X))
-sample_z(model::VAEmodel, X) = sample_z(model.vae, model.vae.encoder(X))
+muz(model::VAEmodel, X) = mu(model.vae.encoder(X))
+sigma2z(model::VAEmodel, X) = sigma2(model.vae.encoder(X))
+sample_z(model::VAEmodel, X) = sample_z(model.vae.encoder(X))
 getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)
-rerr(model::VAEmodel, X) = rerr(model.vae, X, model.M)
+likelihood(model::VAEmodel, X) = likelihood(model.vae, X)
 loss(model::VAEmodel, X) = loss(model.vae, X, model.M, model.lambda)
 evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.M, model.lambda)
 generate(model::VAEmodel) = generate(model.vae)

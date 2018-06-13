@@ -16,9 +16,14 @@ latentdim = 2
 nlayers = 2
 
 # setup the VAE object
+variant = :sigma
+    # :unit - output has unit variance
+    # :sigma - the variance of the output is estimated
 esize = [indim; hiddendim; hiddendim; latentdim*2] # encoder architecture
-dsize = [latentdim; hiddendim; hiddendim; indim] # decoder architecture
-lambda = 0.01 # KLD weight in loss function
+# decoder architecture
+(variant == :unit)? dsize = [latentdim; hiddendim; hiddendim; indim] :
+    dsize = [latentdim; hiddendim; hiddendim; 2*indim]
+lambda = 1 # KLD weight in loss function
 threshold = 0 # classification threshold, is recomputed using setthreshold!()
 contamination = size(Y[Y.==1],1)/size(Y, 1) # for automatic threshold computation
 iterations = 2000
@@ -29,18 +34,18 @@ L = 50 # batchsize
 # set low for training but high for classification
 activation = Flux.relu
 layer = Flux.Dense
-rdelta = 1e-3 # reconstruction error threshold for training stopping
+rdelta = Inf # reconstruction error threshold for training stopping
 Beta = 1.0 # for automatic threshold computation, in [0, 1] 
 # 1.0 = tight around normal samples
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
 model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
     L, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta, 
-    tracked = tracked)
+    tracked = tracked, variant = variant)
 
 # fit the model
 AnomalyDetection.evalloss(model, nX)
-AnomalyDetection.fit!(model, nX)
+@time AnomalyDetection.fit!(model, nX)
 AnomalyDetection.evalloss(model, nX)
 AnomalyDetection.setthreshold!(model, X)
 
@@ -53,7 +58,7 @@ nX
 
 AnomalyDetection.muz(model, nX)
 
-AnomalyDetection.sigmaz(model, nX)
+AnomalyDetection.sigma2z(model, nX)
 
 AnomalyDetection.sample_z(model, nX)
 
@@ -79,6 +84,9 @@ for i in 1:size(y, 1)
     end
 end
 
+# also generate some samples
+xgen = AnomalyDetection.generate(model, 3);
+
 # plot it all
 f = figure()
 contourf(x, y, zz)
@@ -86,6 +94,8 @@ scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r",
     label = "predicted positive")
 scatter(X[1, tryhat.==0], X[2, tryhat.==0], c = "g", 
     label = "predicted negative")
+scatter(xgen[1,:], xgen[2, :], c = "y", 
+    label = "generated samples")
 title("classification results")
 xlim(xl)
 ylim(yl)

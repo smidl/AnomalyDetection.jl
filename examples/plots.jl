@@ -14,11 +14,11 @@ function plot(model::VAEmodel)
 	else
         f = figure()
         plot(get(model.history, :loss)..., label = "loss")
-        plot(get(model.history, :reconstruction_error)..., 
-            label = "reconstruction error")
+        plot(get(model.history, :likelihood)..., 
+            label = "likelihood")
         plot(get(model.history, :KLD)..., label = "KLD")
         title("model loss")
-        ylabel("loss + reconstruction error")
+        ylabel("loss + likelihood")
         xlabel("iteration")
         legend()
     end
