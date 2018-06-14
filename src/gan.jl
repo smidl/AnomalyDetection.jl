@@ -86,7 +86,7 @@ evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(gan, X, Z)), "\n\n")
 
 """
-	fit!(gan, X, L, [iterations, cbit, verb, rdelta, history])
+	fit!(gan, X, L, [iterations, cbit, verb, rdelta, history, eta])
 
 Trains a GAN.
 
@@ -98,13 +98,14 @@ cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - for storing of training progress
+eta - learning rate
 """
 function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
-	history = nothing)
+	history = nothing, eta = 0.001)
 	# settings
 	#Dopt = ADAM(params(gan.d))
-	Dopt = ADAM(params(gan.d))
-	Gopt = ADAM(params(gan.g))
+	Dopt = ADAM(params(gan.d), eta)
+	Gopt = ADAM(params(gan.g), eta)
 
 	# problem size
 	N = size(X,2)
@@ -264,11 +265,12 @@ mutable struct GANmodel <: genmodel
 	rdelta::Float
 	Beta::Float
 	history
+	eta::Real
 end
 
 """
 	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations,
-	cbit, verbfit, [pz, activation, layer, rdelta, Beta, tracked])
+	cbit, verbfit, [pz, activation, layer, rdelta, Beta, tracked, eta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
@@ -287,17 +289,18 @@ layer [Flux.Dense] - layer type
 rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
+eta [0.001] - learning rate
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int,
 	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense, rdelta = Inf,
-	Beta = 1.0, tracked = false)
+	Beta = 1.0, tracked = false, eta = 0.001)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
 	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit,
-		verbfit, rdelta, Beta, history)
+		verbfit, rdelta, Beta, history, eta)
 	return model
 end
 
@@ -334,7 +337,7 @@ function fit!(model::GANmodel, X)
 	# train the GAN NN
 	fit!(model.gan, X, model.L; iterations=model.iterations,
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
-	history = model.history)
+	history = model.history, eta = model.eta)
 end
 
 """

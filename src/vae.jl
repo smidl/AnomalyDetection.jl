@@ -154,7 +154,7 @@ evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
-	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, history])
+	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, history, eta])
 
 Trains the VAE neural net.
 vae - a VAE object
@@ -167,6 +167,7 @@ verb - if output should be produced
 lambda - scaling for the KLD loss
 rdelta - stopping condition for likelihood
 traindata - a dictionary for training progress control
+eta - learning rate
 """
 function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
 	rdelta = Inf, history = nothing, eta = 0.001)
@@ -307,7 +308,7 @@ end
 
 """
 	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration,
-	L, cbit, [M, activation, layer, rdelta, Beta, tracked, astype])
+	L, cbit, [M, activation, layer, rdelta, Beta, tracked, astype, eta])
 
 Initialize a variational autoencoder model with given parameters.
 

@@ -93,7 +93,7 @@ evalloss(fmgan::fmGAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(D
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(fmgan, X, Z)), "\n\n")
 
 """
-	fit!(fmgan, X, L, [alpha, iterations, cbit, verb, rdelta])
+	fit!(fmgan, X, L, [alpha, iterations, cbit, verb, rdelta, eta])
 
 Trains a fmGAN with the feature-matching loss.
 
@@ -106,13 +106,14 @@ cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - a dictionary for training progress control
+eta - learning rate
 """
 function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb = true, rdelta = Inf,
-	history = nothing)
+	history = nothing, eta = 0.001)
 	# settings
 	#Dopt = ADAM(params(fmgan.d))
-	Dopt = ADAM(params(fmgan.d))
-	Gopt = ADAM(params(fmgan.g))
+	Dopt = ADAM(params(fmgan.d), eta)
+	Gopt = ADAM(params(fmgan.g), eta)
 	
 	# problem size
 	N = size(X,2)
@@ -276,11 +277,12 @@ mutable struct fmGANmodel <:genmodel
 	alpha
 	Beta
 	history
+	eta::Real
 end
 
 """
 	fmGANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
-	cbit, verbfit, [pz, activation, rdelta, alpha, Beta, tracked])
+	cbit, verbfit, [pz, activation, rdelta, alpha, Beta, tracked, eta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
@@ -299,17 +301,18 @@ rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
 alpha [1.0] - weight of the classical generator loss -D(G(Z)) in the total generator loss
 Beta [Beta] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
+eta [0.001] - learning rate
 """
 function fmGANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
 	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, 
 	layer = Flux.Dense, rdelta = Inf,
-	alpha = 1.0, Beta = 1.0, tracked = false)
+	alpha = 1.0, Beta = 1.0, tracked = false, eta= 0.001)
 	# construct the fmGAN object
 	fmgan = fmGAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
 	model = fmGANmodel(fmgan, lambda, threshold, contamination, L, iterations, cbit, 
-		verbfit, rdelta, alpha, Beta, history)
+		verbfit, rdelta, alpha, Beta, history, eta)
 	return model
 end
 
@@ -347,7 +350,7 @@ function fit!(model::fmGANmodel, X)
 	# train the fmGAN NN
 	fit!(model.fmgan, X, model.L; alpha = model.alpha, iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
-	history = model.history)
+	history = model.history, eta = model.eta)
 end
 
 """

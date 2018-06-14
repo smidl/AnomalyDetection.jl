@@ -193,7 +193,7 @@ evalloss(svae::sVAE, X, L, lambda, M) = println(
     )
 
 """
-    fit!(svae, X, L, lambda, [M, iterations, cbit, verb, rdelta, history])
+    fit!(svae, X, L, lambda, [M, iterations, cbit, verb, rdelta, history, eta])
 
 Trains the sVAE neural net.
 svae - a sVAE object
@@ -206,11 +206,12 @@ cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - a dictionary for training progress control
+eta - learning rate
 """
 function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200, 
-        verb = true, rdelta = Inf, history = nothing)
+        verb = true, rdelta = Inf, history = nothing, eta = 0.001)
     # settings
-    opt = ADAM(params(svae))
+    opt = ADAM(params(svae), eta)
 
     # train
     for i in 1:iterations
@@ -347,11 +348,12 @@ mutable struct sVAEmodel <: genmodel
     Beta
     xsigma
     history
+    eta
 end
 
 """
     sVAEmodel(ensize, decsize, dissize, lambda, threshold, contamination, iterations, 
-    cbit, verbfit, L, [M, activation, rdelta, alpha, Beta, xsigma, tracked])
+    cbit, verbfit, L, [M, activation, rdelta, alpha, Beta, xsigma, tracked, eta])
 
 Initialize a sVAE model with given parameters.
 
@@ -373,17 +375,18 @@ alpha [0.5] - weighs between the reconstruction error (1) and discriminator scor
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 xsigma [1.0] - static estiamte of data variance
 tracked [false] - is training progress (losses) stored?
+eta [0.001] - learning rate
 """
 function sVAEmodel(ensize::Array{Int64,1}, decsize::Array{Int64,1},
     dissize::Array{Int64,1}, lambda::Real, threshold::Real, contamination::Real, 
     iterations::Int, cbit::Int, verbfit::Bool, L::Int; M=1, activation = Flux.relu, 
     layer = Flux.Dense,
-    rdelta = Inf, alpha=0.5, Beta = 1.0, xsigma = 1.0, tracked = false)
+    rdelta = Inf, alpha=0.5, Beta = 1.0, xsigma = 1.0, tracked = false, eta = 0.001)
     # construct the AE object
     svae = sVAE(ensize, decsize, dissize, activation = activation, layer = layer)
     (tracked)? history = MVHistory() : history = nothing
     model = sVAEmodel(svae, lambda, threshold, contamination, iterations, cbit, L, M, 
-        verbfit, rdelta, alpha, Beta, xsigma, history)
+        verbfit, rdelta, alpha, Beta, xsigma, history, eta)
     return model
 end
 
@@ -424,7 +427,7 @@ function fit!(model::sVAEmodel, X)
     # train the sVAE NN
     fit!(model.svae, X, model.L, model.lambda, M=model.M,
      iterations=model.iterations, cbit = model.cbit, verb = model.verbfit, 
-     rdelta = model.rdelta, history = model.history)
+     rdelta = model.rdelta, history = model.history, eta = model.eta)
 end
 
 """

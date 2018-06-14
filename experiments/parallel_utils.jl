@@ -574,7 +574,8 @@ const PARAMS = Dict(
 				:layer => :(Flux.Dense),
 				:tracked => true,
 				:rdelta => 1e-5,
-				:pz => :(randn)
+				:pz => :(randn),
+				:eta => 0.001
 				)
 			),
 		# this is going to be iterated over for the fit function
@@ -613,7 +614,8 @@ const PARAMS = Dict(
 				:tracked => true,
 				:rdelta => 1e-5,
 				:pz => :(randn),
-				:alpha => 0 # to be iterated over
+				:alpha => 0, # to be iterated over,
+				:eta => 0.001
 				)
 			),
 		# this is going to be iterated over for the fit function
