@@ -1,12 +1,7 @@
 
-using Plots
-plotly()
-import Plots: plot
-clibrary(:Plots)
-using JLD
-code_path = "../src/"
-push!(LOAD_PATH, code_path)
-using AnomalyDetection
+using PyPlot, JLD, AnomalyDetection, EvalCurves
+import PyPlot: plot
+include("./plots.jl")
 
 # load data
 dataset = load("toy_data_3.jld")["data"]
@@ -41,9 +36,10 @@ Beta = 1.0 # for automatic threshold computation, in [0, 1]
 # 1.0 = tight around normal samples
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
+eta = 0.001
 model = GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, cbit,
     verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta, 
-    layer = layer, tracked = tracked)
+    layer = layer, tracked = tracked, eta = eta)
 
 # fit the model
 Z = AnomalyDetection.getcode(model, size(nX,2))
@@ -51,49 +47,17 @@ AnomalyDetection.evalloss(model, nX, Z)
 AnomalyDetection.fit!(model, nX)
 AnomalyDetection.evalloss(model, nX, Z)
 
-"""
-	plot(model)
-
-Plot the model loss.
-"""
-function plot(model::GANmodel)
-	# plot model loss
-	if model.history == nothing
-		println("No data to plot, set tracked = true before training.")
-		return
-	else
-        p = plot(model.history[:discriminator_loss], title = "model loss", 
-            label = "discriminator loss", 
-            xlabel = "iteration", ylabel = "loss", 
-            seriestype = :line, 
-            markershape = :none)
-        plot!(model.history[:reconstruction_error], label = "reconstruction error",
-            seriestype = :line, markershape = :none, title = "model loss")
-        plot!(model.history[:generator_loss], label = "generator loss",
-            seriestype = :line, markershape = :none, 
-            c = :green,
-            title = "model loss")
-        return p
-    end
-end
-
-
 # plot model loss
-display(plot(model))
-
-if !isinteractive()
-    gui()
-end
+plot(model)
+show()
 
 # generate new data
-Xgen = AnomalyDetection.generate(model, N)
+xgen = AnomalyDetection.generate(model, N)
 
 # plot them
 xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
-p = scatter(nX[1,:], nX[2,:], title = "discriminator contours",
-    xlims = xl, ylims = yl, label = "data")
-scatter!(p, Xgen[1,:], Xgen[2,:], label = "generated data", legend = (0.1, 0.8))
+
 
 x = linspace(xl[1], xl[2], 30)
 y = linspace(yl[1], yl[2], 30)
@@ -103,12 +67,16 @@ for i in 1:size(y, 1)
         zz[i,j] = AnomalyDetection.discriminate(model, AnomalyDetection.Float.([x[j], y[i]]))[1]
     end
 end
-contourf!(x, y, zz, c = :viridis)
 
-display(p)
-if !isinteractive()
-    gui()
-end
+figure()
+contourf(x, y, zz)
+scatter(nX[1,:], nX[2,:], label = "data")
+scatter(xgen[1,:], xgen[2,:], label = "generated data")
+title("discriminator contours")
+xlim(xl)
+ylim(yl)
+legend()
+show()
 
 # predict labels
 AnomalyDetection.setthreshold!(model, X)
@@ -117,49 +85,40 @@ tryhat = AnomalyDetection.predict(model, X)
 # get all the labels
 tryhat, tstyhat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
 
-# plot heatmap of the fit
+# anomaly score contour plot
+# get limits of the figure
 xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
-p = scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = :red, label = "predicted positive",
-    xlims=xl, ylims = yl, title = "classification results")
-scatter!(X[1, tryhat.==0], X[2, tryhat.==0], c = :green, label = "predicted negative",
-    legend = (0.7, 0.7))
 
+# compute the anomaly score on a grid
 x = linspace(xl[1], xl[2], 30)
 y = linspace(yl[1], yl[2], 30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
-       zz[i,j] = AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
+        zz[i,j] = AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
     end
 end
-contourf!(x, y, zz, c = :viridis)
 
-display(p)
-if !isinteractive()
-    gui()
-end
+# plot it all
+f = figure()
+contourf(x, y, zz)
+scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r", 
+    label = "predicted positive")
+scatter(X[1, tryhat.==0], X[2, tryhat.==0], c = "g", 
+    label = "predicted negative")
+title("classification results")
+xlim(xl)
+ylim(yl)
+legend()
+show()
 
-# plot the roc curve as well
+# plot ROC curve and compute AUROC score
 ascore = AnomalyDetection.anomalyscore(model, X);
-recvec, fprvec = AnomalyDetection.getroccurve(ascore, Y)
-
-function plotroc(args...)
-    # plot the diagonal line
-    p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
-    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate",
-    title = "ROC")
-    for arg in args
-        plot!(arg[1], arg[2], label = arg[3], lw = 2)
-    end
-    return p
-end
-
-plargs = [(fprvec, recvec, "GAN")]
-display(plotroc(plargs...))
-if !isinteractive()
-    gui()
-end
+fprvec, tprvec = EvalCurves.roccurve(ascore, Y)
+auroc = round(EvalCurves.auc(fprvec, tprvec),3)
+EvalCurves.plotroc((fprvec, tprvec, "AUROC = $(auroc)"))
+show()
 
 # plot EER for different settings of lambda
 using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate, false_negative_rate
@@ -174,11 +133,9 @@ for i in 1:n
     eervec[i] = (false_positive_rate(tstroc) + false_negative_rate(tstroc))/2
 end
 
-p = plot(lvec, eervec, title = "equal error rate vs lambda",
-    xlabel = "lambda",
-    ylabel = "EER")
-
-display(p)
-if !isinteractive()
-    gui()
-end
+f = figure()
+plot(lvec, eervec)
+title("equal error rate vs lambda")
+xlabel("lambda")
+ylabel("EER")
+show()
