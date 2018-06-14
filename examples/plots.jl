@@ -89,3 +89,26 @@ function plot(model::fmGANmodel)
         legend()
     end
 end
+
+"""
+    plot(model)
+
+Plot the model loss.
+"""
+function plot(model::sVAEmodel)
+    # plot model loss
+    if model.history == nothing
+        println("No data to plot, set tracked = true before training.")
+        return
+    else
+        f = figure()
+        plot(get(model.history, :discriminator_loss)..., label = "discriminator loss")
+        plot(get(model.history, :vae_loss)..., label = "VAE loss")
+        plot(get(model.history, :reconstruction_error)..., label = "reconstruction error")
+        title("model loss")
+        ylabel("loss")
+        xlabel("iteration")
+        legend()
+    end
+end
+
