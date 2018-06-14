@@ -169,9 +169,9 @@ rdelta - stopping condition for likelihood
 traindata - a dictionary for training progress control
 """
 function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
-	rdelta = Inf, history = nothing)
+	rdelta = Inf, history = nothing, eta = 0.001)
 	# settings
-	opt = ADAM(params(vae))
+	opt = ADAM(params(vae), eta)
 
 	# train
 	for i in 1:iterations
@@ -302,6 +302,7 @@ mutable struct VAEmodel <: genmodel
 	Beta::Float
 	history
 	astype
+	eta::Real
 end
 
 """
@@ -328,17 +329,18 @@ tracked [false] - is training progress (losses) stored?
 astype ["likelihood"] - type of anomaly score function
 variant - :unit - output has unit variance
 		- :sigma - the variance of the output is estimated
+eta - learning rate of the optimizer
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	lambda::Real, threshold::Real, contamination::Real, iterations::Int,
 	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu,
 	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false,
-	astype = "likelihood", variant = :unit)
+	astype = "likelihood", variant = :unit, eta = 0.001)
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation, layer = layer, variant = variant)
 	(tracked)? history = MVHistory() : history = nothing
 	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit,
-		L, M, rdelta, Beta, history, astype)
+		L, M, rdelta, Beta, history, astype, eta)
 	return model
 end
 
@@ -346,6 +348,8 @@ end
 (model::VAEmodel)(x) = model.vae(x)
 muz(model::VAEmodel, X) = mu(model.vae.encoder(X))
 sigma2z(model::VAEmodel, X) = sigma2(model.vae.encoder(X))
+mux(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? model(X) : mu(model(X))
+sigma2x(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? nothing : sigma2(model(X))sigma2(mu(vae(X)))
 sample_z(model::VAEmodel, X) = sample_z(model.vae.encoder(X))
 getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)
@@ -377,7 +381,7 @@ function fit!(model::VAEmodel, X)
 	# fit the VAE NN
 	fit!(model.vae, X, model.L, M = model.M, iterations = model.iterations,
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda,
-	rdelta = model.rdelta, history = model.history)
+	rdelta = model.rdelta, history = model.history, eta = model.eta)
 end
 
 """

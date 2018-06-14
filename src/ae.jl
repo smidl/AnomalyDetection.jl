@@ -64,7 +64,7 @@ Print ae loss function values.
 evalloss(ae::AE, X) = println("loss: ", Flux.Tracker.data(loss(ae, X)), "\n")
 
 """
-	fit!(ae, X, L, [iterations, cbit, verb, rdelta, tracked])
+	fit!(ae, X, L, [iterations, cbit, verb, rdelta, tracked, eta])
 
 Trains the AE.
 ae - AE type object
@@ -75,11 +75,12 @@ cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - MVHistory() to be filled with data of individual iterations
+eta - learning rate
 """
 function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf, 
-	history = nothing)
+	history = nothing, eta = 0.001)
 	# optimizer
-	opt = ADAM(params(ae))
+	opt = ADAM(params(ae), eta)
 
 	# training
 	for i in 1:iterations
@@ -179,11 +180,12 @@ mutable struct AEmodel <: genmodel
 	rdelta::Real
 	Beta::Float
 	history
+	eta::Real
 end
 
 """
 	AEmodel(esize, dsize, L, threshold, contamination, iteration, cbit, 
-	[activation, rdelta, Beta, tracked])
+	[activation, rdelta, Beta, tracked, eta])
 
 Initialize an autoencoder model with given parameters.
 
@@ -199,16 +201,17 @@ activation [Flux.relu] - activation function
 rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
 Beta [1.0] - how tight around normal data is the automatically computed threshold
 tracked [false] - is training progress (losses) stored?
+eta - learning rate
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
 	L::Int, threshold::Real, contamination::Real, iterations::Int, 
 	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf, Beta = 1.0,
-	tracked = false, layer = Flux.Dense)
+	tracked = false, layer = Flux.Dense, eta = 0.001)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
 	model = AEmodel(ae, L, threshold, contamination, iterations, cbit, verbfit, rdelta, 
-		Beta, history)
+		Beta, history, eta)
 	return model
 end
 
@@ -239,7 +242,7 @@ function fit!(model::AEmodel, X)
 	# train
 	fit!(model.ae, X, model.L, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
-	history = model.history)
+	history = model.history, eta = model.eta)
 end
 
 """
