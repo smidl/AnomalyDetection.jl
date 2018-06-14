@@ -83,7 +83,7 @@ function functions_params(data, matparams)
 
 	# now the rest of the params
 	for key in keys(mpars_in)
-		if (key == "alpha" && mf == AnomalyDetection.fmGANmodel)
+		if Symbol(key) in keys(model_params_out[:kwargs])
 			model_params_out[:kwargs][Symbol(key)] = mpars_in[key]
 		elseif !(key in ["nhid", "ldim"])
 			model_params_out[:args][Symbol(key)] = mpars_in[key]

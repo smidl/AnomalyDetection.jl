@@ -450,7 +450,8 @@ const PARAMS = Dict(
 				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
 				:tracked => true,
-				:rdelta => 1e-5
+				:rdelta => 1e-5,
+				:eta => 0.001
 				)
 			),
 		# this is going to be iterated over for the fit function
@@ -488,8 +489,9 @@ const PARAMS = Dict(
 				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
 				:tracked => true,
-				:rdelta => 1e-5,
-				:astype => "rerr"
+				:rdelta => Inf,
+				:astype => "likelihood",
+				:eta => 0.001
 				)
 			),
 		# this is going to be iterated over for the fit function
