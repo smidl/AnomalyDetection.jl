@@ -48,7 +48,7 @@ function test_params(matparams)
 	tras, tstas = construct_fit_score(data, model_params, mf, ff, asf)
 
 	# now compute the final criterion - testing auroc
-	tprvec, fprvec = EvalCurves.roccurve(tstas, data[2].labels)
+	fprvec, tprvec = EvalCurves.roccurve(tstas, data[2].labels)
 	auroc = EvalCurves.auc(fprvec, tprvec)
 
 	return auroc, tprvec, fprvec

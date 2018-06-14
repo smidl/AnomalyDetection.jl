@@ -214,6 +214,9 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
     trAdata = anomalous[:,1:trK]
     tstAdata = anomalous[:,trK+1:end]
 
+    # restart the seed
+    srand()
+    
     c = clusterdness(normal, anomalous)
 
     # finally, generate the dataset
@@ -254,6 +257,9 @@ function makeset(dataset::Basicset, alpha::Real; seed = false)
     # randomly sample the training and testing normal data
     trNdata, tstNdata = splitdata(normal, alpha)
     
+    # restart the seed
+    srand()
+
     # compute the clusterdness - sample variance of normal vs anomalous instances
     c = clusterdness(normal, anomalous)
 
