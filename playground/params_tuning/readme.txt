@@ -14,6 +14,8 @@ Parameter values:
 
 	"ldim" - Integer, [1, Inf]. Latent dimension, used in all models. Potentially it should not 	make sense that it is larger than the dimensionality of input data.
 
+	"eta" - Real, [0,Inf]. Learning rate of the optimizer.
+
 	VAE:
 
 	"lambda" - Real, [1e-10, 1e0]. Weight of the KLD in the loss function. Typical values are  
