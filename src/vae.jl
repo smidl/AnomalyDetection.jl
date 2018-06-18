@@ -44,11 +44,11 @@ Is the logarithm of the standard pdf of x.
 logps(x) = abs.(-1/2*x.^2 - 1/2*log(2*pi))
 
 """
-	sample_z(X)
+	samplenormal(X)
 
 Sample normal distribution with mean and sigma2 extracted from X.
 """
-function sample_z(X)
+function samplenormal(X)
 	μ, σ2 = mu(X), sigma2(X)
 	ϵ = Float.(randn(size(μ)))
 	return μ .+  ϵ .* sqrt.(σ2)
@@ -81,7 +81,7 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 	decoder = aelayerbuilder(dsize, activation, layer)
 
 	# finally construct the ae struct
-	vae = VAE(encoder, sample_z, decoder, variant)
+	vae = VAE(encoder, samplenormal, decoder, variant)
 
 	return vae
 end
@@ -230,18 +230,14 @@ Produces code z for given X.
 getcode(vae::VAE, X) = vae.sampler(vae.encoder(X))
 
 """
-	generate(vae)
+	generate(vae, [n])
 
 Generate a sample from the posterior.
 """
-generate(vae::VAE) = vae.decoder(Float.(randn(Int(size(vae.encoder.layers[end].W,1)/2)))).data
+generate(vae::VAE{E,S,D,V}, n::Int = 1) where {E,S,D,V<:Val{:unit}} = vae.decoder(Float.(randn(Int(size(vae.encoder.layers[end].W,1)/2),n))).data
+generate(vae::VAE{E,S,D,V}, n::Int = 1) where {E,S,D,V<:Val{:sigma}} =
+	 samplenormal(vae.decoder(Float.(randn(Int(size(vae.encoder.layers[end].W,1)/2),n))).data)
 
-"""
-	generate(vae, n)
-
-Generate n samples.
-"""
-generate(vae::VAE, n::Int) = vae.decoder(Float.(randn(Int(size(vae.encoder.layers[end].W,1)/2),n))).data
 
 ######################
 ### classification ###
@@ -350,8 +346,8 @@ end
 muz(model::VAEmodel, X) = mu(model.vae.encoder(X))
 sigma2z(model::VAEmodel, X) = sigma2(model.vae.encoder(X))
 mux(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? model(X) : mu(model(X))
-sigma2x(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? nothing : sigma2(model(X))sigma2(mu(vae(X)))
-sample_z(model::VAEmodel, X) = sample_z(model.vae.encoder(X))
+sigma2x(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? nothing : sigma2(model(X))
+sample_z(model::VAEmodel, X) = samplenormal(model.vae.encoder(X))
 getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)
 likelihood(model::VAEmodel, X) = likelihood(model.vae, X)

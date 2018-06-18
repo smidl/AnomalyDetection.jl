@@ -1,11 +1,7 @@
 
-using Plots
-plotly()
-clibrary(:Plots)
-using JLD
-code_path = "../src/"
-push!(LOAD_PATH, code_path)
-using AnomalyDetection
+using PyPlot, JLD, AnomalyDetection, EvalCurves
+import PyPlot: plot
+include("./plots.jl")
 
 dataset = load("toy_data_3.jld")["data"]
 
@@ -29,17 +25,17 @@ size(nX)
 AnomalyDetection.fit!(model, nX);
 AnomalyDetection.setthreshold!(model, X);
 
+AnomalyDetection.anomalyscore(model, X)
+
 # this fits the model and produces predicted labels
 tryhat, tstyhat = AnomalyDetection.rocstats(X, Y, X, Y, model);
 
-# plot heatmap of the fit
+# anomaly score contour plot
+# get limits of the figure
 xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
-p = scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = :red, label = "predicted positive",
-    xlims=xl, ylims = yl, title = "classification results")
-scatter!(X[1, tryhat.==0], X[2, tryhat.==0], c = :green, label = "predicted negative",
-    legend = (0.7, 0.7))
 
+# compute the anomaly score on a grid
 x = linspace(xl[1], xl[2], 30)
 y = linspace(yl[1], yl[2], 30)
 zz = zeros(size(y,1),size(x,1))
@@ -48,30 +44,23 @@ for i in 1:size(y, 1)
         zz[i,j] = AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
     end
 end
-contourf!(x, y, zz, c = :viridis)
 
-display(p)
-if !isinteractive()
-    gui()
-end
+# plot it all
+f = figure()
+contourf(x, y, zz)
+scatter(X[1, tryhat.==1], X[2, tryhat.==1], c = "r", 
+    label = "predicted positive")
+scatter(X[1, tryhat.==0], X[2, tryhat.==0], c = "g", 
+    label = "predicted negative")
+title("classification results")
+xlim(xl)
+ylim(yl)
+legend()
+show()
 
-# plot the roc curve as well
+# plot ROC curve and compute AUROC score
 ascore = AnomalyDetection.anomalyscore(model, X);
-recvec, fprvec = AnomalyDetection.getroccurve(ascore, Y)
-
-function plotroc(args...)
-    # plot the diagonal line
-    p = plot(linspace(0,1,100), linspace(0,1,100), c = :gray, alpha = 0.5, xlim = [0,1],
-    ylim = [0,1], label = "", xlabel = "false positive rate", ylabel = "true positive rate",
-    title = "ROC")
-    for arg in args
-        plot!(arg[1], arg[2], label = arg[3], lw = 2)
-    end
-    return p
-end
-
-plargs = [(fprvec, recvec, "kNN")]
-display(plotroc(plargs...))
-if !isinteractive()
-    gui()
-end
+fprvec, tprvec = EvalCurves.roccurve(ascore, Y)
+auroc = round(EvalCurves.auc(fprvec, tprvec),3)
+EvalCurves.plotroc((fprvec, tprvec, "AUROC = $(auroc)"))
+show()

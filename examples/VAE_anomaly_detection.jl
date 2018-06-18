@@ -5,6 +5,7 @@ include("./plots.jl")
 
 # load data
 dataset = load("toy_data_3.jld")["data"]
+#dataset = load("moon.jld")["data"]
 X = AnomalyDetection.Float.(dataset.data)
 Y = dataset.labels
 nX = X[:, Y.==0]
@@ -39,9 +40,10 @@ Beta = 1.0 # for automatic threshold computation, in [0, 1]
 # 1.0 = tight around normal samples
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
+eta = 0.001
 model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
     L, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta, 
-    tracked = tracked, variant = variant)
+    tracked = tracked, variant = variant, eta = eta)
 
 # fit the model
 AnomalyDetection.evalloss(model, nX)
@@ -56,6 +58,10 @@ model(nX)
 
 nX
 
+AnomalyDetection.mux(model, nX)
+
+AnomalyDetection.sigma2x(model, nX)
+
 AnomalyDetection.muz(model, nX)
 
 AnomalyDetection.sigma2z(model, nX)
@@ -63,7 +69,7 @@ AnomalyDetection.sigma2z(model, nX)
 AnomalyDetection.sample_z(model, nX)
 
 # predict labels on testing data
-model.M = 100 # for classification higher is better (more stable)
+model.M = 10 # for classification higher is better (more stable)
 tryhat = AnomalyDetection.predict(model, X)
 
 # get the labels and roc stats
@@ -85,7 +91,7 @@ for i in 1:size(y, 1)
 end
 
 # also generate some samples
-xgen = AnomalyDetection.generate(model, 3);
+xgen = AnomalyDetection.generate(model, 30);
 
 # plot it all
 f = figure()

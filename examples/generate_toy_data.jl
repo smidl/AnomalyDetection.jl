@@ -1,9 +1,5 @@
 using PyPlot
 using JLD
-
-code_path = "/home/vit/vyzkum/anomaly_detection/code/anomaly_detection/"
-
-push!(LOAD_PATH, joinpath(code_path, "src"))
 using AnomalyDetection
 
 # generate clusters of 2D data and some outliers
