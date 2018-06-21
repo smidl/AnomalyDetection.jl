@@ -47,7 +47,7 @@ function get_data(dataset_name, iteration, allanomalies=false)
 
 	# random seed
 	seed = Int64(iteration)
-
+	println(dataset_name)
 	if !allanomalies
 		# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
 		# some datasets dont have easy difficulty anomalies
@@ -337,6 +337,20 @@ function dataparams!{model<:AnomalyDetection.genmodel}(m::Type{model}, topparams
 	databatchsize!(trN, topparams)
 end
 
+function dataparams!(m::Type{AnomalyDetection.VAEmodel}, topparams, data)
+	# change the esize and dsize params based on data size
+	indim, trN = size(data[1].data[:,data[1].labels.==0])
+	topparams[:mparams][:args][:esize][1] = indim
+	if topparams[:mparams][:kwargs][:variant] == :unit
+		topparams[:mparams][:args][:dsize][end] = indim
+	else
+		topparams[:mparams][:args][:dsize][end] = indim*2
+	end
+
+	# modify the batchsizes
+	databatchsize!(trN, topparams)
+end
+
 function dataparams!(m::Type{AnomalyDetection.sVAEmodel}, topparams, data)
 	# change the esize and dsize params based on data size
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
@@ -397,6 +411,9 @@ function databatchsize!(N, topparams)
 	end
 	topparams[:ffparams] = IterTools.product(ls...)
 end
+
+_unit() = :unit
+_sigma() = :sigma
 
 const PARAMS = Dict(
 	### kNN ###
@@ -491,7 +508,8 @@ const PARAMS = Dict(
 				:tracked => true,
 				:rdelta => Inf,
 				:astype => "likelihood",
-				:eta => 0.001
+				:eta => 0.001,
+				:variant => :(_unit())
 				)
 			),
 		# this is going to be iterated over for the fit function
@@ -499,7 +517,50 @@ const PARAMS = Dict(
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => IterTools.product([:astype => s for s in ["rerr", "logpn"]]),
+		:asfparams => IterTools.product([:astype => s for s in ["likelihood", "logpn"]]),
+		# the model constructor
+		:model => AnomalyDetection.VAEmodel,
+		# model fit function
+		:ff => AnomalyDetection.fit!,
+		# anomaly score function
+		:asf => AnomalyDetection.anomalyscore
+		),
+	### sigmaVAE ###
+	:sigmaVAE => Dict(
+	# this is going to serve as model construction params and also to be saved
+	# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict(
+				:esize => [1; hiddendim; hiddendim; latentdim*2],
+				:dsize => [latentdim; hiddendim; hiddendim; 1],
+				:lambda => 0, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit,
+				:L => 0 # replaced in training
+				),
+			# kwargs
+			:kwargs => Dict(
+				:M => 1,
+				# input functions like this, they are evaluated later
+				:activation => :(Flux.relu),
+				:layer => :(Flux.Dense),
+				:tracked => true,
+				:rdelta => Inf,
+				:astype => "likelihood",
+				:eta => 0.001,
+				:variant => :(_sigma())
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:ffparams => IterTools.product([:L => i for i in batchsizes],
+							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
+							#[:lambda => i for i in [10.0^i for i in 0:0]]),
+		# this is going to be iterated over for the anomalyscore function
+		:asfparams => IterTools.product([:astype => s for s in ["likelihood"]]),
 		# the model constructor
 		:model => AnomalyDetection.VAEmodel,
 		# model fit function
