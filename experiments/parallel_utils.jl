@@ -47,7 +47,7 @@ function get_data(dataset_name, iteration, allanomalies=false)
 
 	# random seed
 	seed = Int64(iteration)
-	println(dataset_name)
+	
 	if !allanomalies
 		# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
 		# some datasets dont have easy difficulty anomalies

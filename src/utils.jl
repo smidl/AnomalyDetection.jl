@@ -159,7 +159,6 @@ seed - random seed
 function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::Real, variation::String;
                  seed=false)
     # first extract the basic normal and anomalous data
-    println(difficulty)
     normal = dataset.normal
     anomalous = getfield(dataset, parse(difficulty))
     if length(anomalous)==0
