@@ -66,7 +66,6 @@ function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 		# inner loop over anomaly score parameters
 		for args in asfp
 			(trdata, tstdata), _ = dataset_lmnn(data, args[1][2])
-			println(args[1][2]) 
 			ndata = trdata.data[:,trdata.labels .== 0] # normal training data
 
 			# fit the model on normal data
