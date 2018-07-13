@@ -1,3 +1,4 @@
+# create ranking tables
 (length(ARGS) > 0)? ((ARGS[1] == "v")? verb=true:verb=false ) : verb = false
 
 ARGS = ["d"]

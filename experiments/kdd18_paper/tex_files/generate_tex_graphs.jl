@@ -3,15 +3,16 @@
 
 if recomputedata
 	ARGS = []
-	include("rank_algorithms.jl")
+	include("../rank_algorithms.jl")
 else
 	ARGS = ["d"]
 	# load this to obtain the proper paths
-	include("evaluate_experiment.jl")
+	include("../evaluate_experiment.jl")
 	# then load the apropriate files
 	rankeddf = loadtable(joinpath(evalpath, "ranksummary.csv"), 2);
 end
 
+# path where the paper is
 outpath = "/home/vit/Dropbox/Cisco/kdd2018/text/misc"
 mkpath(outpath)
 

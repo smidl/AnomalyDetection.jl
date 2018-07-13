@@ -2,12 +2,11 @@ using Distances
 using Lazy
 using IterTools
 using FileIO
-push!(LOAD_PATH, "../src")
 using AnomalyDetection
 using DataStructures
 
 @everywhere begin
-	loda_path = "./Loda/public/datasets/numerical"
+	loda_path = "../datasets"
 	export_path = "./data" #master path where data will be stored
 	include("parallel_utils.jl")
 end

@@ -8,8 +8,8 @@ using PyCall, Flux, AnomalyDetection, JLD
 
 @everywhere begin
 	loda_path = "./datasets"
-	export_path = "./lmnn" #master path where data will be stored
-	include("parallel_utils.jl")
+	export_path = "./data" #master path where data will be stored
+	include("../kdd18_paper/parallel_utils.jl")
 	include("lmnn_utils.jl")
 end
 

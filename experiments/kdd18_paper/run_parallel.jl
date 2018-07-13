@@ -1,3 +1,4 @@
+# version for experiments run on AWS
 using Distances
 using Lazy
 using IterTools

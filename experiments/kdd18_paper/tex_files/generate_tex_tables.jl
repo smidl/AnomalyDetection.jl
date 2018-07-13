@@ -3,11 +3,11 @@
 
 if recomputedata
 	ARGS = []
-	include("rank_algorithms.jl")
+	include("../rank_algorithms.jl")
 else
 	ARGS = ["d"]
 	# load this to obtain the proper paths
-	include("evaluate_experiment.jl")
+	include("../evaluate_experiment.jl")
 	# then load the apropriate files
 	testauc = loadtable(joinpath(evalpath, "testauc.csv"), 2)
 	ranktestauc = loadtable(joinpath(evalpath, "ranktestauc.csv"), 2)

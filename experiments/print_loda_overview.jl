@@ -8,7 +8,7 @@ push!(LOAD_PATH, codepath)
 using AnomalyDetection
 
 # this is where the LODA datasets are stored, change if necessary
-data_path = "../../../data/Loda/public/datasets/numerical/"
+data_path = "./datasets"
 
 function print_overview()
 	# data

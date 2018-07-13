@@ -1,5 +1,5 @@
 # original data path
-datapath = "/opt/output/anomaly"
+datapath = "/opt/output/anomaly" # aws
 #datapath = "/home/vit/vyzkum/anomaly_detection/data/aws/anomaly"
 
 # where the data will be extracted to

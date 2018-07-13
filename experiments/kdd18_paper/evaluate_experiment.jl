@@ -1,7 +1,7 @@
 using IterTools
 
 @everywhere begin
-	include("./eval.jl")
+	include("../eval.jl")
 
 	# where is the data (extracted or original) stored
 	#data_path = "/opt/output/extracted"
