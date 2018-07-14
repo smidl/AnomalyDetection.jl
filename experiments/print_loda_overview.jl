@@ -1,14 +1,11 @@
 using PyPlot
 using JLD
-#using Flux
 using DataFrames
 
-codepath = "../src/"
-push!(LOAD_PATH, codepath)
 using AnomalyDetection
 
 # this is where the LODA datasets are stored, change if necessary
-data_path = "./datasets"
+data_path = joinpath(@__DIR__, "datasets")
 
 function print_overview()
 	# data
