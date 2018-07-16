@@ -15,7 +15,7 @@ dirs = readdir(inpath)
 
 p = Progress(length(dirs),0.1)
 
-for dir in dirs[1:3]
+for dir in dirs
 	indir = joinpath(inpath, dir)
 	outdir = joinpath(outpath, dir)
 	dataset2D(indir, outdir, variant)	
