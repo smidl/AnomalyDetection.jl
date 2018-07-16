@@ -57,7 +57,7 @@ function nDtsne(X, n; args = [0,1000,15], kwargs = [:verbose => true, :progress 
         try
             println("sampling $uN samples")
             Y = tsne(X[:,sample(1:N, uN, replace = false)]',n, args...; kwargs...)'
-            break
+            return Y
         catch e
             if typeof(e)==OutOfMemoryError
                 println("$uN samples are too many, getting out of memory error")
@@ -67,7 +67,6 @@ function nDtsne(X, n; args = [0,1000,15], kwargs = [:verbose => true, :progress 
             end
         end
     end
-    return Y
 end
 
 """
