@@ -18,6 +18,7 @@ p = Progress(length(dirs),0.1)
 for dir in dirs
 	indir = joinpath(inpath, dir)
 	outdir = joinpath(outpath, dir)
+	println("Processing $dir...")
 	dataset2D(indir, outdir, variant)	
 	println("$dir processed")  
 	if variant == "pca"

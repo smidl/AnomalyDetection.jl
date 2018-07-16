@@ -1,4 +1,4 @@
-using AnomalyDetection, MultivariateStats, TSne
+using AnomalyDetection, MultivariateStats, TSne, StatsBase
 import Base.cat
 
 """
@@ -50,8 +50,25 @@ nDpca(X, n) = transform(fit(PCA,X,maxoutdim=n),X)
 Returns an n-dimensional representation of X using a PCA transform.
 The arguments args and kwargs respond to the TSne.tsne function arguments.
 """
-nDtsne(X, n; args = [0,1000,15], kwargs = [:verbose => true, :progress => true]) =
-    tsne(X',n, args...; kwargs...)'
+function nDtsne(X, n; args = [0,1000,15], kwargs = [:verbose => true, :progress => true])
+    M,N = size(X)
+    uN = N # no. of used samples
+    while true
+        try
+            println("sampling $uN samples")
+            Y = tsne(X[:,sample(1:N, uN, replace = false)]',n, args...; kwargs...)'
+            break
+        catch e
+            if typeof(e)==OutOfMemoryError
+                println("$uN samples are too many, getting out of memory error")
+                uN = Int(round(uN/2))
+            else
+                throw(e)
+            end
+        end
+    end
+    return Y
+end
 
 """
     savetxt(bs::Basicset, path)
