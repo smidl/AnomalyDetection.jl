@@ -1,8 +1,8 @@
-using AnomalyDetection, MultivariateStats
+using AnomalyDetection, MultivariateStats, TSne
 import Base.cat
 
 """
-	cat(bs::Basicset)
+    cat(bs::Basicset)
 
 Return an array consisting of all concatenated arrays in bs and 
 indices identifying the original array boundaries.
@@ -22,7 +22,7 @@ function cat(bs::Basicset)
 end
 
 """
-	uncat(X, inds)
+    uncat(X, inds)
 
 Return a Basicset instance created from X with array boundaries indicated
 in inds.
@@ -38,16 +38,23 @@ function uncat(X, inds)
 end
 
 """
-	pcaXnD(X, n)
+    nDpca(X, n)
 
 Returns an n-dimensional representation of X using a PCA transform.
 """
-function pcaXnD(X, n)
-    return transform(fit(PCA,X,maxoutdim=n),X)
-end
+nDpca(X, n) = transform(fit(PCA,X,maxoutdim=n),X)
 
 """
-	savetxt(bs::Basicset, path)
+    nDtsne(X, n; [args, kwargs])
+
+Returns an n-dimensional representation of X using a PCA transform.
+The arguments args and kwargs respond to the TSne.tsne function arguments.
+"""
+nDtsne(X, n; args = [0,1000,15], kwargs = [:verbose => true, :progress => true]) =
+    tsne(X',n, args...; kwargs...)'
+
+"""
+    savetxt(bs::Basicset, path)
 
 Saves a Basicset to the folder "path" into individual .txt files.
 """
@@ -62,23 +69,30 @@ function savetxt(bs::Basicset, path)
 end
 
 """
-	data2Dpca(bs::Basicset)
+    dataset2D(bs::Basicset, variant = ["pca", "tsne"], normalize = true)
 
-Transforms a Basicset into 2D representation using PCA. 
+Transforms a Basicset into 2D representation using PCA or tSne. 
 """
-function data2Dpca(bs::Basicset)
+function dataset2D(bs::Basicset, variant = "pca", normalize = true)
+    (variant in ["pca", "tsne"])? nothing : error("variant must be one of [pca, tsne]")
     X, inds = cat(bs)
-    return uncat(pcaXnD(X, 2), inds)
+    (normalize)? X = AnomalyDetection.normalize(X) : nothing
+    if variant == "pca"
+        return uncat(nDpca(X, 2), inds)
+    else
+        return uncat(nDtsne(X, 2), inds)
+    end
 end
 
 """
-	data2Dpca(inpath, outpath)
+    dataset2D(inpath, outpath, variant = ["pca", "tsne"], normalize = true)
 
-Transforms 
+Transforms a dataset 
 """
-function data2Dpca(inpath, outpath)
+function dataset2D(inpath, outpath, variant = "pca", normalize = true)
+    (variant in ["pca", "tsne"])? nothing : error("variant must be one of [pca, tsne]")
     dataset = Basicset(inpath)
-    _dataset = data2Dpca(dataset)
+    _dataset = dataset2D(dataset, variant, normalize)
     savetxt(_dataset, outpath)
     return _dataset
 end

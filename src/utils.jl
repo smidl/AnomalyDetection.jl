@@ -69,7 +69,7 @@ end
 Scales down a 2 dimensional array so it has approx. standard normal distribution. 
 Instance = column. 
 """
-function normalize(Y::Array{Float,2})
+function normalize{T<:Real}(Y::Array{T,2})
     M, N = size(Y)
     mu = mean(Y,2);
     sigma = var(Y,2);
