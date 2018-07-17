@@ -45,28 +45,33 @@ Returns an n-dimensional representation of X using a PCA transform.
 nDpca(X, n) = transform(fit(PCA,X,maxoutdim=n),X)
 
 """
-    nDtsne(X, n; [args, kwargs])
+    nDtsne(X, n; [max_samples, args, kwargs])
 
 Returns an n-dimensional representation of X using a PCA transform.
 The arguments args and kwargs respond to the TSne.tsne function arguments.
+The second return variable are the indices of sampled samples.
 """
-function nDtsne(X, n; args = [0,1000,15], kwargs = [:verbose => true, :progress => true])
+function nDtsne(X, n; max_samples = 1000, args = [0,1000,15], 
+    kwargs = [:verbose => true, :progress => true])
     M,N = size(X)
-    uN = N # no. of used samples
-    while true
-        try
-            println("sampling $uN samples")
-            Y = tsne(X[:,sample(1:N, uN, replace = false)]',n, args...; kwargs...)'
-            return Y
-        catch e
-            if typeof(e)==OutOfMemoryError
-                println("$uN samples are too many, getting out of memory error")
-                uN = Int(round(uN/2))
-            else
-                throw(e)
-            end
-        end
-    end
+    uN = min(N,max_samples) # no. of used samples
+    println("sampling $uN samples")
+    sinds = sort(sample(1:N, uN, replace = false))
+    Y = tsne(X[:,sinds]',n, args...; kwargs...)'
+    return Y, sinds
+end
+
+"""
+    partition(xinds, sinds)
+
+Compute number of samples in individual groups defined by original group indices
+xinds and sample indices sinds.
+"""
+function partition(xinds, sinds)
+    cxinds = [0; cumsum(xinds)]
+    a = [length(sinds[cxinds[i] .< sinds .<= cxinds[i+1]]) for 
+            i in 1:length(cxinds)-1]
+    return a
 end
 
 """
@@ -96,7 +101,9 @@ function dataset2D(bs::Basicset, variant = "pca", normalize = true)
     if variant == "pca"
         return uncat(nDpca(X, 2), inds)
     else
-        return uncat(nDtsne(X, 2), inds)
+        _X, sinds = nDtsne(X,2;max_samples=1000)
+        _inds = partition(inds, sinds)
+        return uncat(_X, _inds)
     end
 end
 
@@ -112,3 +119,38 @@ function dataset2D(inpath, outpath, variant = "pca", normalize = true)
     savetxt(_dataset, outpath)
     return _dataset
 end
+
+"""
+    X = original array
+    Y = output array by tsne
+"""
+function getLSmatrices(X, Y)
+    MY, N = size(Y)
+    _y = reshape(Y, MY*N);
+    M,N = size(X)
+    _X = zeros(N*2, 2*M+1)
+    _X[:,end] = ones(N*2)
+    for n in 1:N
+        x = X[:,n]'
+        _X[2*n-1,1:M] = x
+        _X[2*n,M+1:end-1] = x
+    end
+    return _y, _X
+end
+
+"""
+    tsneLS(X,Y,bias=true)
+
+Given an original data matrix X and and a matrix Y transformed
+from X using tSne, produce the linear mapping Y = A*X + b.
+"""
+function tsneLS(X,Y)
+    M,N = size(X)
+    _y, _X = getLSmatrices(X,Y)
+    a = llsq(_X, _y,bias=false)
+    b = a[end]
+    A = [a[1:M]';a[M+1:end-1]']
+    return A, b
+end
+
+pred(X,A,b) = A*X + b
