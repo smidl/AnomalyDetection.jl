@@ -51,13 +51,14 @@ Returns an n-dimensional representation of X using a PCA transform.
 The arguments args and kwargs respond to the TSne.tsne function arguments.
 The second return variable are the indices of sampled samples.
 """
-function nDtsne(X, n; max_samples = 1000, args = [0,1000,15], 
-    kwargs = [:verbose => true, :progress => true])
+function nDtsne(X, n, reduce_dims = 0, max_iter = 1000, perplexity = 15.0;
+    max_samples = 1000, verbose = true, progress = true, kwargs...)
     M,N = size(X)
     uN = min(N,max_samples) # no. of used samples
     println("sampling $uN samples")
     sinds = sort(sample(1:N, uN, replace = false))
-    Y = tsne(X[:,sinds]',n, args...; kwargs...)'
+    Y = tsne(X[:,sinds]',n, reduce_dims, max_iter, perplexity;
+                verbose = verbose, progress = progress, kwargs...)'
     return Y, sinds
 end
 
@@ -154,3 +155,21 @@ function tsneLS(X,Y)
 end
 
 pred(X,A,b) = A*X + b
+
+"""
+   scatter_data(data,t="")
+
+Scatter a Basicset groups. 
+"""
+function scatter_data(data,t="";kwargs...)
+    figure()
+    for field in fieldnames(data)
+        X = getfield(data, field)
+        if length(X) > 0
+            scatter(X[1,:],X[2,:],label=string(field);kwargs...)
+        end
+    end
+    legend()
+    title(t)
+    show()
+end
