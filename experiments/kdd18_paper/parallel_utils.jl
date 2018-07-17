@@ -237,6 +237,11 @@ function updatearchitecture!(m::Union{Type{AnomalyDetection.GANmodel},
 	return f
 end
 
+function updatearchitecture!(m::Type{AnomalyDetection.kNN}, tp,
+	indim, ldim, nhid)
+	return ""
+end
+
 """
 	experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 
@@ -341,7 +346,7 @@ function dataparams!(m::Type{AnomalyDetection.VAEmodel}, topparams, data)
 	# change the esize and dsize params based on data size
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
 	topparams[:mparams][:args][:esize][1] = indim
-	if topparams[:mparams][:kwargs][:variant] == :unit
+	if eval(topparams[:mparams][:kwargs][:variant]) == :unit
 		topparams[:mparams][:args][:dsize][end] = indim
 	else
 		topparams[:mparams][:args][:dsize][end] = indim*2
@@ -517,7 +522,7 @@ const PARAMS = Dict(
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
-		:asfparams => IterTools.product([:astype => s for s in ["likelihood", "logpn"]]),
+		:asfparams => IterTools.product([:astype => s for s in ["likelihood"]]),
 		# the model constructor
 		:model => AnomalyDetection.VAEmodel,
 		# model fit function
