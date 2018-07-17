@@ -172,5 +172,4 @@ function scatter_data(data,t="";kwargs...)
     end
     legend()
     title(t)
-    show()
 end
