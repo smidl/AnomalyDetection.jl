@@ -1,4 +1,5 @@
 using AnomalyDetection, MultivariateStats, TSne, StatsBase
+using PyPlot
 import Base.cat
 
 """
