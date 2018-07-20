@@ -156,32 +156,34 @@ frequency - ratio of anomalous to normal data\n
 variation - low/high - should anomalies be clustered or not\n
 seed - random seed
 """
-function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::Real, variation::String;
-                 seed=false)
-    # first extract the basic normal and anomalous data
-    normal = dataset.normal
-    anomalous = getfield(dataset, parse(difficulty))
-    if length(anomalous)==0
-        error("no anomalous data of given difficulty level")
-    end
-
+function makeset(dataset::Basicset, alpha::Real, difficulty::String="", frequency::Real=0.05, 
+            variation::String="low"; seed=false)
     # test correct parameters size
     test01(frequency, "frequency must be in the interval [0,1]")
 
-    # problem dimensions
-    M, N = size(normal)
-    trN = Int(floor(N*alpha))
-    tstN = N-trN
-
-    # how many anomalous points to be sampled 
-    aM, aN = size(anomalous)
-    trK = min(Int(round(trN*frequency)), Int(round(aN*alpha)))
-    tstK = min(Int(round(tstN*frequency)), Int(round(aN*(1-alpha)))) 
+    # first extract the basic normal and anomalous data
+    normal = dataset.normal
+    if difficulty == ""
+        anomalous = getfield(dataset, :easy)
+        for dif in [:medium, :hard, :very_hard]
+            anomalous = cat(2, anomalous, getfield(dataset, dif))
+        end    
+    else
+        anomalous = getfield(dataset, parse(difficulty))
+        if length(anomalous)==0
+            error("no anomalous data of given difficulty level")
+        end
+    end
 
     # set seed
     if seed != false
         srand(seed)
     end
+
+    # problem dimensions
+    M, N = size(normal)
+    trN = Int(floor(N*alpha))
+    tstN = N-trN
 
     # normalize the data to zero mean and unit variance    
     normal, anomalous = normalize(normal, anomalous)
@@ -189,31 +191,44 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
     # randomly sample the training and testing normal data
     trNdata, tstNdata = splitdata(normal, alpha)
 
-    # now sample the anomalous data
-    K = trK + tstK
-    #if K > aN
-        #error("not enough anomalous data to sample from")
-        #warning("not enough anomalous data to sample from")
-    #end
-    if variation == "low"
-        # in this setting, simply sample trK and tstK anomalous points
-        # is this done differently in the original paper?
-        inds = sample(1:aN, K, replace = false)
-    elseif variation == "high"
-        # in this setting, randomly choose a point and then K-1 nearest points to it as a cluster
-        ind = sample(1:aN, 1)
-        x = anomalous[:, ind]
-        x = reshape(x, length(x), 1) # promote the vector to a 2D array
-        # here maybe other metrics could be used?
-        dists = pairwise(Euclidean(), x, anomalous) # get the distance vector
-        inds = sortperm(reshape(dists, length(dists))) # get the sorted indices
-        inds = inds[1:K] # get the nearest ones
-        inds = inds[sample(1:K, K, replace=false)] # scramble them
-    end
-    anomalous = anomalous[:, inds]
-    trAdata = anomalous[:,1:trK]
-    tstAdata = anomalous[:,trK+1:end]
+    if difficulty == ""
+        trAdata, tstAdata = splitdata(anomalous, alpha)
+        tstK = size(tstAdata,2)
+        trK = size(trAdata,2)
+    # this is cdone when we don't want to select all anomalies
+    else
+        # how many anomalous points to be sampled 
+        aM, aN = size(anomalous)
+        trK = min(Int(round(trN*frequency)), Int(round(aN*alpha)))
+        tstK = min(Int(round(tstN*frequency)), Int(round(aN*(1-alpha)))) 
 
+
+        # now sample the anomalous data
+        K = trK + tstK
+        #if K > aN
+            #error("not enough anomalous data to sample from")
+            #warning("not enough anomalous data to sample from")
+        #end
+        if variation == "low"
+            # in this setting, simply sample trK and tstK anomalous points
+            # is this done differently in the original paper?
+            inds = sample(1:aN, K, replace = false)
+        elseif variation == "high"
+            # in this setting, randomly choose a point and then K-1 nearest points to it as a cluster
+            ind = sample(1:aN, 1)
+            x = anomalous[:, ind]
+            x = reshape(x, length(x), 1) # promote the vector to a 2D array
+            # here maybe other metrics could be used?
+            dists = pairwise(Euclidean(), x, anomalous) # get the distance vector
+            inds = sortperm(reshape(dists, length(dists))) # get the sorted indices
+            inds = inds[1:K] # get the nearest ones
+            inds = inds[sample(1:K, K, replace=false)] # scramble them
+        end
+        anomalous = anomalous[:, inds]
+        trAdata = anomalous[:,1:trK]
+        tstAdata = anomalous[:,trK+1:end]
+    end
+    
     # restart the seed
     srand()
     
@@ -228,50 +243,6 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String, frequency::
     tstData = Dataset(
         cat(2, tstNdata, tstAdata),
         cat(1, zeros(tstN), ones(tstK))
-        )
-
-    return trData, tstData, c
-end
-
-"""
-    makeset(dataset::Basicset, alpha::Real; seed = false)
-
-Create a testing and training datasets split according to alpha. All available
-anomalies are in the testing dataset.
-"""
-function makeset(dataset::Basicset, alpha::Real; seed = false)
-    normal = dataset.normal
-    anomalous = getfield(dataset, :easy)
-    for difficulty in [:medium, :hard, :very_hard]
-        anomalous = cat(2, anomalous, getfield(dataset, difficulty))
-    end    
-
-     # set seed
-    if seed != false
-        srand(seed)
-    end
-
-    # normalize the data to zero mean and unit variance    
-    normal, anomalous = normalize(normal, anomalous)
-
-    # randomly sample the training and testing normal data
-    trNdata, tstNdata = splitdata(normal, alpha)
-    
-    # restart the seed
-    srand()
-
-    # compute the clusterdness - sample variance of normal vs anomalous instances
-    c = clusterdness(normal, anomalous)
-
-    # finally, generate the dataset
-    trData = Dataset(
-        trNdata,
-        zeros(size(trNdata, 2))
-        )
-
-    tstData = Dataset(
-        cat(2, tstNdata, anomalous),
-        cat(1, zeros(size(tstNdata,2)), ones(size(anomalous,2)))
         )
 
     return trData, tstData, c
