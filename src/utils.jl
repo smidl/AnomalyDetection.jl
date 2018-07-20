@@ -156,7 +156,7 @@ frequency - ratio of anomalous to normal data\n
 variation - low/high - should anomalies be clustered or not\n
 seed - random seed
 """
-function makeset(dataset::Basicset, alpha::Real, difficulty::String="", frequency::Real=0.05, 
+function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
             variation::String="low"; seed=false)
     # test correct parameters size
     test01(frequency, "frequency must be in the interval [0,1]")
@@ -228,7 +228,7 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String="", frequenc
         trAdata = anomalous[:,1:trK]
         tstAdata = anomalous[:,trK+1:end]
     end
-    
+
     # restart the seed
     srand()
     
@@ -248,6 +248,12 @@ function makeset(dataset::Basicset, alpha::Real, difficulty::String="", frequenc
     return trData, tstData, c
 end
 
+function getdata(datasetname::String, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
+            variation::String="low", seed=false)
+    datapath = joinpath(@__DIR__,"../experiments/datasets")
+    bs = Basicset(joinpath(datapath,datasetname))
+    return makeset(bs,alpha,difficulty,frequency,variation,seed=seed)
+end
 """
     labels2bin(y)
 
