@@ -163,10 +163,19 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
 
     # first extract the basic normal and anomalous data
     normal = dataset.normal
+
+    # problem dimensions
+    M, N = size(normal)
+    trN = Int(floor(N*alpha))
+    tstN = N-trN
+
     if difficulty == ""
-        anomalous = getfield(dataset, :easy)
-        for dif in [:medium, :hard, :very_hard]
-            anomalous = cat(2, anomalous, getfield(dataset, dif))
+        anomalous = Array{Float,2}(M,0)
+        for dif in intersect([:easy, :medium, :hard, :very_hard], fieldnames(dataset))
+            _X = getfield(dataset, dif)
+            if length(_X) > 0
+                anomalous = cat(2, anomalous, _X)
+            end
         end    
     else
         anomalous = getfield(dataset, parse(difficulty))
@@ -180,10 +189,6 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
         srand(seed)
     end
 
-    # problem dimensions
-    M, N = size(normal)
-    trN = Int(floor(N*alpha))
-    tstN = N-trN
 
     # normalize the data to zero mean and unit variance    
     normal, anomalous = normalize(normal, anomalous)
