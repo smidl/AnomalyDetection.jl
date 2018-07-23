@@ -16,7 +16,7 @@ ytrue = cat(1,trData.labels,tstData.labels)
 vae = AnomalyDetection.VAE([2,4,4,2],[1,4,4,2])
 trx = X[:,ytrue.==0]
 h = MVHistory()
-AnomalyDetection.fit!(vae,trx,256,iterations=10000, cbit=2500,lambda=0.0001,history=h)
+AnomalyDetection.fit!(vae,trx,256,iterations=10000, cbit=500,lambda=0.0001,history=h)
 l = get(h,:loss)
 #figure()
 #plot(l[1],l[2])

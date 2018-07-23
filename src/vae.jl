@@ -149,9 +149,12 @@ loss(vae::VAE, X, M, lambda) = -likelihood(vae,X,M) + Float(lambda)*KL(vae, X)
 
 Print vae loss function values.
 """
-evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X, M, lambda)),
-	"\nlikelihood: ", Flux.Tracker.data(-likelihood(vae,X,M)),
-	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
+function evalloss(vae::VAE, X, M, lambda) 
+	l, lk, kl = getlosses(vae, X, M, lambda)
+	print("loss: ", l,
+	"\nlikelihood: ", lk,
+	"\nKL: ", kl, "\n\n")
+end
 
 """
 	getlosses(vae, X, M, lambda)
@@ -202,10 +205,7 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 		Flux.Tracker.back!(l)
 		opt()
 
-		# callback
-		#if verb && i%cbit == 0
-		#	evalloss(vae, x, M, lambda)
-		#end
+		# progress
 		if verb 
 			if (i%cbit == 0 || i == 1)
 				_l, _lk, _kl = getlosses(vae, x, M, lambda)
@@ -378,6 +378,7 @@ KL(model::VAEmodel, X) = KL(model.vae, X)
 likelihood(model::VAEmodel, X) = likelihood(model.vae, X)
 loss(model::VAEmodel, X) = loss(model.vae, X, model.M, model.lambda)
 evalloss(model::VAEmodel, X) = evalloss(model.vae, X, model.M, model.lambda)
+getlosses(model::VAEmodel, X) = getlosses(model.vae, X, model.M, model.lambda)
 generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
