@@ -154,6 +154,17 @@ evalloss(vae::VAE, X, M, lambda) = print("loss: ", Flux.Tracker.data(loss(vae, X
 	"\nKL: ", Flux.Tracker.data(KL(vae, X)), "\n\n")
 
 """
+	getlosses(vae, X, M, lambda)
+
+Return the numeric values of current losses.
+"""
+getlosses(vae::VAE, X, M, lambda) = (
+	Flux.Tracker.data(loss(vae, X, M, lambda)),
+	Flux.Tracker.data(-likelihood(vae,X,M)),
+	Flux.Tracker.data(KL(vae, X))
+	)
+
+"""
 	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, history, eta])
 
 Trains the VAE neural net.
@@ -174,6 +185,13 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 	# settings
 	opt = ADAM(params(vae), eta)
 
+	# using ProgressMeter 
+	if verb
+		p = Progress(iterations, 0.3)
+		x = X[:, sample(1:size(X,2), L, replace = false)]
+		_l, _lk, _kl = getlosses(vae, x, M, lambda)
+	end
+
 	# train
 	for i in 1:iterations
 		# sample minibatch of X
@@ -185,8 +203,14 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 		opt()
 
 		# callback
-		if verb && i%cbit == 0
-			evalloss(vae, x, M, lambda)
+		#if verb && i%cbit == 0
+		#	evalloss(vae, x, M, lambda)
+		#end
+		if verb 
+			if (i%cbit == 0 || i == 1)
+				_l, _lk, _kl = getlosses(vae, x, M, lambda)
+			end
+			ProgressMeter.next!(p; showvalues = [(:loss,_l),(:likelihood, _lk),(:KL, _kl)])
 		end
 
 		# save actual iteration data
@@ -212,9 +236,10 @@ end
 Save current progress.
 """
 function track!(vae::VAE, history::MVHistory, X, M, lambda)
-	push!(history, :loss, Flux.Tracker.data(loss(vae,X,M,lambda)))
-	push!(history, :KLD, Flux.Tracker.data(KL(vae,X)))
-	push!(history, :likelihood, Flux.Tracker.data(- likelihood(vae,X,M)))
+	l, lk, kl = getlosses(vae, X, M, lambda)
+	push!(history, :loss, l)
+	push!(history, :KLD, lk)
+	push!(history, :likelihood, kl)
 end
 
 

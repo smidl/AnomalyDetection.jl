@@ -4,7 +4,7 @@ using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate,
 	false_negative_rate
 using StatsBase: sample
 using Adapt, FluxExtensions, Distances, Flux, MultivariateStats
-using ValueHistories
+using ValueHistories, ProgressMeter
 import Base.Iterators.repeated
 import Flux: params
 #using PyPlot
