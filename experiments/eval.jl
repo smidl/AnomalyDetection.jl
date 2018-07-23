@@ -1,6 +1,6 @@
 using DataFrames, Query, FileIO, ValueHistories
 import Missings: missing, skipmissing, ismissing
-using EvalCurves, AnomalyDetection
+using EvalCurves, AnomalyDetection, DataArrays, CSV
 
 """
     auroc(ascore, labels, [weights])
@@ -140,7 +140,7 @@ Load a csv file into DataFrame, reformatting specified data columnsto floats and
 """
 function loadtable(fname, datacols)
     #load the df
-    data = readtable(fname)
+    data = CSV.read(fname)
 
     # round the nubmers and replace "missing" with actual missing values
     rounddf!(convertdf!(data, datacols), 6, datacols)
@@ -188,15 +188,19 @@ function convertdf!(df, datacols)
     end
 
     for cname in cnames
-        df[isna.(df[cname]), cname] = Inf
+        df[ismissing.(df[cname]), cname] = Inf
         df[cname] = Array{Any,1}(df[cname])
     end
 
     for cname in cnames
         for i in 1:nrows
-            (df[cname][i] == Inf)? df[cname][i]=missing :
-                ((df[cname][i] == "missing") ? df[cname][i]=missing :
-                    df[cname][i]=float(df[cname][i]))
+            if df[cname][i] == Inf || df[cname][i] == "missing"
+                df[cname][i]=missing
+            elseif df[cname][i]=="NA"
+                df[cname][i]=missing
+            else 
+               df[cname][i]=float(df[cname][i])
+            end
         end
     end
 

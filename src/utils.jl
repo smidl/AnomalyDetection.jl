@@ -254,7 +254,7 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
 end
 
 function getdata(datasetname::String, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
-            variation::String="low", seed=false)
+            variation::String="low"; seed=false)
     datapath = joinpath(@__DIR__,"../experiments/datasets")
     bs = Basicset(joinpath(datapath,datasetname))
     return makeset(bs,alpha,difficulty,frequency,variation,seed=seed)
