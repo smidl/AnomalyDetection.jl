@@ -6,7 +6,8 @@ include(joinpath(fpath, "ffs_util.jl"))
 
 # paths
 datapath = joinpath(fpath, "../datasets")
-outpath = joinpath(fpath, "ffs-experiment")
+#outpath = joinpath(fpath, "ffs-experiment")
+outpath = joinpath("/home/vit/vyzkum/anomaly_detection/data/dataset-analysis/ffs-experiment")
 datasets = readdir(datapath)
 
 # arguments
@@ -23,4 +24,5 @@ for dataset in datasets
 	f = joinpath(outpath, "$dataset.csv")
 	CSV.write(f, df)
 	showall(df)
+	println("")
 end
