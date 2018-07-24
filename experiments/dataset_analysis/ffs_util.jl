@@ -47,7 +47,23 @@ function vaescore(trdata, tstdata)
     return auc
 end
 
-function scorefeatures(dataset, maxtries = 10)
+function getdata(dataset,alldata=true)
+	if alldata
+		return AnomalyDetection.getdata(dataset, seed = 518)
+	else
+		if dataset_name in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
+			"isolet", "multiple-features", "statlog-shuttle"]
+			difficulty = "medium"
+		elseif dataset_name in ["vertebral-column"]
+			difficulty = "hard"
+		else
+			difficulty = "easy"
+		end
+		return AnomalyDetection.getdata(dataset, 0.8, difficulty, seed = 518)
+	end
+end
+
+function scorefeatures(dataset, maxtries = 10, alldata = true)
     # dataframe to store results
     resdf = DataFrame(
         f1 = Int[],
@@ -58,7 +74,7 @@ function scorefeatures(dataset, maxtries = 10)
         )
     
     # get all the data
-    data = AnomalyDetection.getdata(dataset, seed=518)
+    data = getdata(dataset, alldata)
     M,N = size(data[1].data)
     
     # create pairs
