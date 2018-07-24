@@ -11,7 +11,7 @@ datasets = readdir(datapath)
 
 # arguments
 la = length(ARGS)
-maxtries = ((la > 0)?  Int(ARGS[1]) : 10)
+maxtries = ((la > 0)?  Int64(parse(ARGS[1])) : 10)
 alldata = ((la > 1)? ((ARGS[2]=="s")? false : true) : true)
 outpath = joinpath(outpath,"$maxtries_$alldata")
 mkpath(outpath)
