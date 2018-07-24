@@ -51,10 +51,10 @@ function getdata(dataset,alldata=true)
 	if alldata
 		return AnomalyDetection.getdata(dataset, seed = 518)
 	else
-		if dataset_name in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
+		if dataset in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
 			"isolet", "multiple-features", "statlog-shuttle"]
 			difficulty = "medium"
-		elseif dataset_name in ["vertebral-column"]
+		elseif dataset in ["vertebral-column"]
 			difficulty = "hard"
 		else
 			difficulty = "easy"
