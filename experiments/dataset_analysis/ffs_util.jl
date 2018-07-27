@@ -11,7 +11,9 @@ function idxpairs(N)
 end
 
 scramble(x) = x[sample(1:length(x),length(x),replace=false)]
-subfeatures(data, inds) = Dataset(data.data[inds,:], data.labels)
+subfeatures(d::AnomalyDetection.Dataset, inds) = Dataset(d.data[inds,:], d.labels)
+subfeatures(data,inds) = (subfeatures(data[1], inds),subfeatures(data[2], inds)) 
+
 
 function knnscoreall(trdata, tstdata)
     kvec = [1,3,5,11,27]
@@ -52,9 +54,9 @@ function vaescore(trdata, tstdata)
     return auc, model
 end
 
-function getdata(dataset,alldata=true)
+function getdata(dataset,alldata=true,seed=518)
     if alldata
-        return AnomalyDetection.getdata(dataset, seed = 518)
+        return AnomalyDetection.getdata(dataset, seed = seed)
     else
         if dataset in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
             "isolet", "multiple-features", "statlog-shuttle"]
@@ -64,7 +66,7 @@ function getdata(dataset,alldata=true)
         else
             difficulty = "easy"
         end
-        return AnomalyDetection.getdata(dataset, 0.8, difficulty, seed = 518)
+        return AnomalyDetection.getdata(dataset, 0.8, difficulty, seed = seed)
     end
 end
 

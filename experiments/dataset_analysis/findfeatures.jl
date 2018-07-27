@@ -1,14 +1,12 @@
 # run as 'julia findfeatures.jl 10 s'
 # s stands for some data - only anomalies of one difficulty level are sampled
 using EvalCurves, AnomalyDetection
-fpath = @__DIR__
-include(joinpath(fpath, "ffs_util.jl"))
+include(joinpath(Pkg.dir("AnomalyDetection"), "experiments/dataset_analysis/ffs_util.jl"))
 
 # paths
-datapath = joinpath(fpath, "../datasets")
 #outpath = joinpath(fpath, "ffs-experiment")
 outpath = joinpath("/home/vit/vyzkum/anomaly_detection/data/dataset-analysis/ffs-experiment")
-datasets = readdir(datapath)
+datasets = AnomalyDetection.datasetnames()
 
 # arguments
 la = length(ARGS)

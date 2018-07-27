@@ -2,6 +2,7 @@ using AnomalyDetection, MultivariateStats, TSne, StatsBase
 using PyPlot
 import Base.cat
 
+include(joinpath(@__DIR__,"ffs_util.jl"))
 """
     cat(bs::Basicset)
 
@@ -177,3 +178,339 @@ end
 ################################################
 ## this is for plotting and other evaluation ###
 ################################################
+"""
+    Xy(data)
+
+Concatenate the training and testing dataset.
+"""
+Xy(data) = (cat(2,data[1].data,data[2].data),
+            cat(1,data[1].labels,data[2].labels))
+
+"""
+    scatterbinary(X,y;kwargs...)
+
+Scatter normal and anomalous samples.
+"""
+function scatterbinary(X,y;kwargs...)
+    if length(y[y.==0]) > 0
+        scatter(X[1,y.==0],X[2,y.==0],label="normal data",c="g";kwargs...)
+    end
+    if length(y[y.==1]) > 0
+        scatter(X[1,y.==1],X[2,y.==1],label="anomalous data",c="r";kwargs...)
+    end
+end
+
+"""
+   scatteralldata(data,tit)
+
+Scatter all the points in (trdata, tstdata) tuple. 
+"""
+function scatteralldata(data;kwargs...)
+    X,y = Xy(data)
+    @assert size(X,1) == 2
+    scatterbinary(X,y;kwargs...)
+end
+
+"""
+    plot_ffs_overview(data,tit,loc="")
+
+Scatter all the points, give title and save to loc. 
+"""
+function plot_ffs_overview(data,tit,loc="")
+    scatteralldata(data,s=10)
+    title(tit)
+    legend()
+    if loc !=""
+        f = "$(dataset)_$(pair[1])_$(pair[2])_all_scatter.png"
+        savefig(joinpath(loc,f))
+    end
+end
+
+"""
+    ascontours(model,xl,yl,griddensity=30)
+
+Return anomaly score of model on a grid specified by xl, yl and density.
+"""
+function ascontours(model,xl,yl,griddensity=30)
+    # compute the anomaly score on a grid
+    x = linspace(xl[1], xl[2], griddensity)
+    y = linspace(yl[1], yl[2], griddensity)
+    zz = zeros(size(y,1),size(x,1))
+    for i in 1:size(y, 1)
+        for j in 1:size(x, 1)
+            zz[i,j] = (:encoder in fieldnames(model))?
+             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]), 1):
+            AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
+        end
+    end
+    return x,y,zz
+end
+
+"""
+    xylims(X)
+
+Compute limits for 2D plot from array X.
+"""
+function xylims{T<:Real}(X::AbstractArray{T,2})
+    xl = [minimum(X[1,:]), maximum(X[1,:])]
+    yl = [minimum(X[2,:]), maximum(X[2,:])]
+    dx = 0.05*abs(xl[2]-xl[1])
+    dy = 0.05*abs(yl[2]-yl[1])
+    xl[1] -= dx
+    xl[2] += dx
+    yl[1] -= dy
+    yl[2] += dy
+    return xl, yl
+end
+
+"""
+    xylims(data)
+
+Compute limits for 2D plot from (trdata,tstdata) tuple.
+"""
+function xylims(data)
+    X,y = Xy(data)
+    @assert size(X,1) == 2
+    return xylims(X)
+end
+
+
+"""
+    scattertraindata(data)
+
+Scatter training samples.
+"""
+function scattertraindata(data;kwargs...)
+    X = data[1].data
+    y = data[1].labels
+    scatter(X[1,y.==0],X[2,y.==0],label="training data",c="g";kwargs...)
+end
+
+"""
+    plot_contour_train(model,data,tit,loc="")
+
+Plot AS score contours and training data.
+"""
+function plot_contour_train(model,data,tit,loc="")
+    xl, yl = xylims(data)
+    x,y,zz = ascontours(model,xl,yl,50)
+    contourf(x,y,zz,100)
+    scattertraindata(data,s=10)
+    title(tit)
+    legend()
+    if loc !=""
+        if (:encoder in fieldnames(model))
+            s = "vae"
+        else
+            s = "knn"
+        end
+        f = "$(dataset)_$(pair[1])_$(pair[2])_as_contour_atrain_$(s).png"
+        savefig(joinpath(loc,f))
+    end
+end
+
+"""
+    labels(model,data)
+
+Get labels with automatically computed threshold.
+"""
+function labels(model,data)
+    X,ytrue = data[2].data, data[2].labels
+    M,N = size(X)
+    as = (:encoder in fieldnames(model))?
+        AnomalyDetection.anomalyscore(model, X, 50):
+        AnomalyDetection.anomalyscore(model, X)
+    auc = EvalCurves.auc(EvalCurves.roccurve(as,ytrue)...)
+    cont = length(ytrue[ytrue.==1])/length(ytrue)
+    sas = sort(as)
+    aN = Int(ceil(N*cont)) # number of contaminated samples
+    tr = ((aN > 0)? (sas[end-aN] + sas[end-aN+1])/2 : (sas[end]))
+    yhat = Int.(as .> tr)
+    return yhat, auc 
+end
+
+"""
+    scatterbinary(X,ytrue,yhat;kwargs...)
+
+Scatter tru,false positives and true,false negatives.
+"""
+function scatterbinary(X,ytrue,yhat;kwargs...)
+    scatter(X[1,(ytrue.==0) .& (yhat.==0)],X[2,(ytrue.==0) .& (yhat.==0)],
+        c="g",label="true negative";kwargs...)
+    scatter(X[1,(ytrue.==0) .& (yhat.==1)],X[2,(ytrue.==0) .& (yhat.==1)],
+        c="y",label="false positive";kwargs...)
+    scatter(X[1,(ytrue.==1) .& (yhat.==1)],X[2,(ytrue.==1) .& (yhat.==1)],
+        c="r",label="true positive";kwargs...)
+    scatter(X[1,(ytrue.==1) .& (yhat.==0)],X[2,(ytrue.==1) .& (yhat.==0)],
+        c="orange",label="false negative";kwargs...)
+end
+
+"""
+    plot_contour_fit(model,data,tit,loc="")
+
+Plot AS contours and fit to testing data.
+"""
+function plot_contour_fit(model,data,tit,loc="")
+    X,ytrue = data[2].data, data[2].labels
+    yhat, auc = labels(model,data)
+    xl,yl = xylims(X)
+    x,y,zz = ascontours(model,xl,yl,50)
+    contourf(x,y,zz,100)
+    scatterbinary(X,ytrue,yhat,s=10)
+    tit = string(tit, "\ntesting data, AUC = $(round(auc,2))")
+    title(tit)
+    legend()
+    if loc !=""        
+        if (:encoder in fieldnames(model))
+            s = "vae"
+        else
+            s = "knn"
+        end
+        f = "$(dataset)_$(pair[1])_$(pair[2])_as_contour_fit_$(s).png"
+        savefig(joinpath(loc,f))
+    end
+end
+
+"""
+    lineinfo(df,iline)
+    
+Get info from the line iline of df.
+"""
+function lineinfo(df,iline)
+    dataset = String(df[:dataset][iline])
+    pair = [df[:f1][iline],df[:f2][iline]]
+    vs = round(df[:vae][iline],2)
+    ks = round(df[:knn][iline],2)
+    k = Int(df[:k][iline])
+    return dataset, pair, vs, ks, k
+end
+
+function plot_all(data,k,tit="")
+    trdata=data[1]
+    tstdata=data[2]
+    
+    # plot overview of the features
+    figure(figsize=(5,25))
+    subplot(511)
+    plot_ffs_overview(data,tit)
+    
+    # train models
+    ka, knn = knnscore(trdata,tstdata,k)
+    va, vae = vaescore(trdata,tstdata)
+    
+    # plot as and training data
+    t = "VAE anomaly score contours"
+    subplot(512)
+    plot_contour_train(vae,data,t)
+    t = "kNN (k=$(k)) anomaly score contours"
+    subplot(513)
+    plot_contour_train(knn,data,t)
+    
+    # plot
+    t = "VAE anomaly score contours"
+    subplot(514)
+    plot_contour_fit(vae,data,t)
+    t = "kNN (k=$(k)) anomaly score contours"
+    subplot(515)
+    plot_contour_fit(knn,data,t)
+end
+
+"""
+   plot_ffs_all(df,iline,variant,loc="")
+
+Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
+"""
+function plot_ffs_all(df,iline,variant,loc="",showfig=false)
+    # get the information from a line in df
+    dataset, pair, vs, ks, k = lineinfo(df,iline)
+    
+    # setup other stuff
+    alldata = ((variant == "some")? false : true) 
+    if loc != ""
+        mkpath(loc)
+    end
+    
+    # get the data
+    data = getdata(dataset,alldata);
+    data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
+    
+    # do the plots
+    t = "findfeature.jl, $dataset$pair, all data,\n vae:$vs, knn:$ks"
+    plot_all(data,k,t)
+
+    # savefig
+    if loc != ""
+        savefig(joinpath(loc,"$(dataset)_$(pair[1])_$(pair[2]).png"))
+    end
+
+    if showfig
+        show()
+    end
+end
+
+"""
+   plot_tsne_all(dataset,inpath,loc="")
+
+Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
+"""
+function plot_ffs_all(df,iline,variant,loc="",showfig=false)
+    # get the information from a line in df
+    dataset, pair, vs, ks, k = lineinfo(df,iline)
+    
+    # setup other stuff
+    alldata = ((variant == "some")? false : true) 
+    if loc != ""
+        mkpath(loc)
+    end
+    
+    # get the data
+    data = getdata(dataset,alldata);
+    data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
+    
+    # do the plots
+    t = "findfeature.jl, $dataset$pair, all data,\n vae:$vs, knn:$ks"
+    plot_all(data,k,t)
+
+    # savefig
+    if loc != ""
+        savefig(joinpath(loc,"$(dataset)_$(pair[1])_$(pair[2]).png"))
+    end
+
+    if showfig
+        show()
+    end
+end
+
+"""
+    plot_ffs_overview(dataset,pair,alldata,tit,loc="")
+
+Scatter all the points given dataset name and pair of indices.
+"""
+function plot_ffs_overview(dataset::String,pair,alldata,tit,loc="")
+    @assert length(pair) == 2
+    data = subfeatures(getdata(dataset,alldata),pair)
+    plot_ffs_overview(data,tit,loc)
+end
+
+"""
+    plot_contour_train(model,dataset,pair,alldata,tit,loc="")
+
+Plot AS contours and training data.
+"""
+function plot_contour_train(model,dataset::String,pair,alldata,tit,loc="")
+    data = getdata(dataset,alldata);
+    data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
+    
+   return plot_contour_train(model,data,tit,loc) 
+end
+
+"""
+    plot_contour_fit(model,dataset,pair,alldata,tit,loc="")
+
+Plot AS contours and fit to testing data.
+"""
+function plot_contour_fit(model,dataset::String,pair,alldata,tit,loc="")
+    data = getdata(dataset,alldata);
+    data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
+    return plot_contour_fit(model,data,tit,loc)
+end
