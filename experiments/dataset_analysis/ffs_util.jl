@@ -13,22 +13,27 @@ end
 scramble(x) = x[sample(1:length(x),length(x),replace=false)]
 subfeatures(data, inds) = Dataset(data.data[inds,:], data.labels)
 
-function knnscore(trdata, tstdata)
-    # only use nonanomalous data for training
-    trx = trdata.data[:,trdata.labels.==0]
+function knnscoreall(trdata, tstdata)
     kvec = [1,3,5,11,27]
     aucvec = []
     for k in kvec
-        # construct and fit the model
-        model = AnomalyDetection.kNN(k, 0.1)
-        AnomalyDetection.fit!(model, trx)
-        # get auc on testing data
-        as = AnomalyDetection.anomalyscore(model,tstdata.data)
-        auc = EvalCurves.auc(EvalCurves.roccurve(as,tstdata.labels)...)
+        auc, _ = knnscore(trdata,tstdata,k)
         push!(aucvec, auc)
     end
     mx = findmax(aucvec)
-    return mx[1], kvec[mx[2]], model
+    return mx[1], kvec[mx[2]]
+end
+
+function knnscore(trdata,tstdata,k)
+    # only use nonanomalous data for training
+    trx = trdata.data[:,trdata.labels.==0]
+    # construct and fit the model
+    model = AnomalyDetection.kNN(k, 0.1)
+    AnomalyDetection.fit!(model, trx)
+    # get auc on testing data
+    as = AnomalyDetection.anomalyscore(model,tstdata.data)
+    auc = EvalCurves.auc(EvalCurves.roccurve(as,tstdata.labels)...)
+    return auc, model
 end
 
 function vaescore(trdata, tstdata)
@@ -91,7 +96,7 @@ function scorefeatures(dataset, maxtries = 10, alldata = true)
         tstdata = subfeatures(data[2], pair)
         
         # get the kNN scores
-        ks, k,_ = knnscore(trdata,tstdata)
+        ks, k = knnscoreall(trdata,tstdata)
         # get VAE score
         vs,_ = vaescore(trdata,tstdata)
         

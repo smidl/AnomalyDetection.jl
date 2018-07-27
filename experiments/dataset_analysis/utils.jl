@@ -174,3 +174,6 @@ function scatter_data(data,t="";kwargs...)
     title(t)
 end
 
+################################################
+## this is for plotting and other evaluation ###
+################################################
