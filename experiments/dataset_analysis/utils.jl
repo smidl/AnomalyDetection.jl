@@ -416,7 +416,7 @@ function plot_all(data,k,tit="")
 end
 
 """
-   plot_ffs_all(df,iline,variant,loc="")
+   plot_ffs_all(df,iline,variant,loc="",showfig=false)
 
 Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
 """
@@ -449,14 +449,11 @@ function plot_ffs_all(df,iline,variant,loc="",showfig=false)
 end
 
 """
-   plot_tsne_all(dataset,inpath,loc="")
+   plot_tsne_all(dataset,inpath,loc="",showfig=false)
 
 Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
 """
-function plot_ffs_all(df,iline,variant,loc="",showfig=false)
-    # get the information from a line in df
-    dataset, pair, vs, ks, k = lineinfo(df,iline)
-    
+function plot_tsne_all(dataset,inpath,loc="",showfig=false)
     # setup other stuff
     alldata = ((variant == "some")? false : true) 
     if loc != ""

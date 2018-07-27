@@ -260,8 +260,12 @@ end
 Returns a training and testing Dataset.
 """
 function getdata(datasetname::String, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
-            variation::String="low"; seed=false)
-    datapath = joinpath(@__DIR__,"../experiments/datasets")
+            variation::String="low";seed=false, loc="")
+    if loc == ""
+        datapath = datasetpath()
+    else
+        datapath = loc
+    end
     bs = Basicset(joinpath(datapath,datasetname))
     return makeset(bs,alpha,difficulty,frequency,variation,seed=seed)
 end
