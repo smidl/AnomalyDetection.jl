@@ -253,12 +253,33 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
     return trData, tstData, c
 end
 
+"""
+    getdata(datasetname, alpha=0.8, difficulty="", frequency=0.05, 
+            variation="low"; seed=false)
+
+Returns a training and testing Dataset.
+"""
 function getdata(datasetname::String, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
             variation::String="low"; seed=false)
     datapath = joinpath(@__DIR__,"../experiments/datasets")
     bs = Basicset(joinpath(datapath,datasetname))
     return makeset(bs,alpha,difficulty,frequency,variation,seed=seed)
 end
+
+"""
+    datasetpath()
+
+Return absolute path of benchmark datasets.
+"""
+datasetpath() = joinpath(Pkg.dir("AnomalyDetection"),"experiments/datasets")
+
+"""
+    datasetnames()
+
+Return list of names of available datasets.
+"""
+datasetnames() = readdir(datasetpath())
+
 """
     labels2bin(y)
 
