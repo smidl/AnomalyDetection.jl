@@ -13,7 +13,7 @@ datasets = readdir(inpath)
 reps = ((length(ARGS)>1)? Int(parse(ARGS[2])) : 1)
 
 # make the graphs
-p = Progress(length(datasets*reps),0.5)
+p = Progress(length(datasets)*reps,0.5)
 
 for dataset in datasets
 	for rep in 1:reps
