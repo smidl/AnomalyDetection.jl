@@ -54,9 +54,9 @@ function vaescore(trdata, tstdata)
     return auc, model
 end
 
-function getdata(dataset,alldata=true,seed=518)
+function getdata(dataset,alldata=true,seed=518;loc="")
     if alldata
-        return AnomalyDetection.getdata(dataset, seed = seed)
+        return AnomalyDetection.getdata(dataset, seed = seed, loc=loc)
     else
         if dataset in ["madelon", "gisette", "abalone", "haberman", "letter-recognition",
             "isolet", "multiple-features", "statlog-shuttle"]
@@ -66,7 +66,7 @@ function getdata(dataset,alldata=true,seed=518)
         else
             difficulty = "easy"
         end
-        return AnomalyDetection.getdata(dataset, 0.8, difficulty, seed = seed)
+        return AnomalyDetection.getdata(dataset, 0.8, difficulty, seed = seed, loc=loc)
     end
 end
 

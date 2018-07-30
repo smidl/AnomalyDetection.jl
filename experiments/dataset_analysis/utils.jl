@@ -239,7 +239,7 @@ function ascontours(model,xl,yl,griddensity=30)
     for i in 1:size(y, 1)
         for j in 1:size(x, 1)
             zz[i,j] = (:encoder in fieldnames(model))?
-             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]), 1):
+             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]), 10):
             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
         end
     end
@@ -294,7 +294,8 @@ Plot AS score contours and training data.
 function plot_contour_train(model,data,tit,loc="")
     xl, yl = xylims(data)
     x,y,zz = ascontours(model,xl,yl,50)
-    contourf(x,y,zz,100)
+    c = contourf(x,y,zz,100)
+    colorbar()
     scattertraindata(data,s=10)
     title(tit)
     legend()
@@ -336,13 +337,13 @@ Scatter tru,false positives and true,false negatives.
 """
 function scatterbinary(X,ytrue,yhat;kwargs...)
     scatter(X[1,(ytrue.==0) .& (yhat.==0)],X[2,(ytrue.==0) .& (yhat.==0)],
-        c="g",label="true negative";kwargs...)
+        c="w",label="true negative";kwargs...)
     scatter(X[1,(ytrue.==0) .& (yhat.==1)],X[2,(ytrue.==0) .& (yhat.==1)],
-        c="y",label="false positive";kwargs...)
+        c="r",label="false positive";kwargs...)
     scatter(X[1,(ytrue.==1) .& (yhat.==1)],X[2,(ytrue.==1) .& (yhat.==1)],
-        c="r",label="true positive";kwargs...)
+        c="k",label="true positive";kwargs...)
     scatter(X[1,(ytrue.==1) .& (yhat.==0)],X[2,(ytrue.==1) .& (yhat.==0)],
-        c="orange",label="false negative";kwargs...)
+        c="m",label="false negative";kwargs...)
 end
 
 """
@@ -356,6 +357,7 @@ function plot_contour_fit(model,data,tit,loc="")
     xl,yl = xylims(X)
     x,y,zz = ascontours(model,xl,yl,50)
     contourf(x,y,zz,100)
+    colorbar()
     scatterbinary(X,ytrue,yhat,s=10)
     tit = string(tit, "\ntesting data, AUC = $(round(auc,2))")
     title(tit)
@@ -390,7 +392,7 @@ function plot_all(data,k,tit="")
     tstdata=data[2]
     
     # plot overview of the features
-    figure(figsize=(5,25))
+    figure(figsize=(6,25))
     subplot(511)
     plot_ffs_overview(data,tit)
     
@@ -420,7 +422,7 @@ end
 
 Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
 """
-function plot_ffs_all(df,iline,variant,loc="",showfig=false)
+function plot_ffs_all(df,iline,variant,loc="",showfig=false;seed=NaN)
     # get the information from a line in df
     dataset, pair, vs, ks, k = lineinfo(df,iline)
     
@@ -431,7 +433,7 @@ function plot_ffs_all(df,iline,variant,loc="",showfig=false)
     end
     
     # get the data
-    data = getdata(dataset,alldata);
+    data = getdata(dataset,alldata,(isnan(seed))?518:seed);
     data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
     
     # do the plots
@@ -440,7 +442,12 @@ function plot_ffs_all(df,iline,variant,loc="",showfig=false)
 
     # savefig
     if loc != ""
-        savefig(joinpath(loc,"$(dataset)_$(pair[1])_$(pair[2]).png"))
+        if isnan(seed)
+            f = joinpath(loc,"$(dataset)_$(pair[1])_$(pair[2]).png")
+        else
+            f = joinpath(loc,"$(dataset)_$(pair[1])_$(pair[2])_$(seed).png")
+        end
+        savefig(f,bbox_inches="tight")
     end
 
     if showfig
@@ -449,28 +456,35 @@ function plot_ffs_all(df,iline,variant,loc="",showfig=false)
 end
 
 """
-   plot_tsne_all(dataset,inpath,loc="",showfig=false)
+   plot_all(dataset,inpath,loc="",showfig=false)
 
-Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
+Plot a 5x1 grid containing all the important information from given experimental data. 
+\ninpath - where data is stored
+\nloc - where data are to be saved
 """
-function plot_tsne_all(dataset,inpath,loc="",showfig=false)
+function plot_general_all(dataset,inpath,tit,loc="",showfig=false;seed=NaN)
     # setup other stuff
-    alldata = ((variant == "some")? false : true) 
+    alldata = false
+    k = 1
     if loc != ""
         mkpath(loc)
     end
     
     # get the data
-    data = getdata(dataset,alldata);
-    data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
+    data = getdata(dataset,alldata,(isnan(seed))?518:seed,loc=inpath);
     
     # do the plots
-    t = "findfeature.jl, $dataset$pair, all data,\n vae:$vs, knn:$ks"
+    t = "$tit, $dataset, all data"
     plot_all(data,k,t)
 
     # savefig
     if loc != ""
-        savefig(joinpath(loc,"$(dataset)_$(pair[1])_$(pair[2]).png"))
+        if isnan(seed)
+            f = joinpath(loc,"$(dataset).png")
+        else
+            f = joinpath(loc,"$(dataset)_$(seed).png")
+        end
+        savefig(f,bbox_inches="tight")
     end
 
     if showfig

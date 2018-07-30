@@ -37,13 +37,13 @@ end
 Outer constructor for the Basicset struct using a folder in the Loda database.
 Transposes the arrays so that instances are columns.
 """
-Basicset(path::String) = Basicset(
+Basicset(path::String) = (isdir(path))? Basicset(
     txt2array(joinpath(path, "normal.txt"))',
     txt2array(joinpath(path, "easy.txt"))',
     txt2array(joinpath(path, "medium.txt"))',
     txt2array(joinpath(path, "hard.txt"))',
     txt2array(joinpath(path, "very_hard.txt"))',
-    )
+    ) : error("No such path exists.")
 
 """
     loaddata(masterpath)
