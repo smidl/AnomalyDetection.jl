@@ -17,7 +17,7 @@ p = Progress(length(datasets)*reps,0.5)
 
 for dataset in datasets
 	for rep in 1:reps
-		plot_general_all(dataset, inpath, "tSne", outpath)
+		plot_general_all(dataset, inpath, "tSne", outpath; seed = rep)
 		close() # so that there are no excess plots
 		ProgressMeter.next!(p; showvalues = [(:dataset, dataset), (:rep, rep)])
 	end
