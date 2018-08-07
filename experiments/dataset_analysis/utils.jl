@@ -387,40 +387,57 @@ function lineinfo(df,iline)
     return dataset, pair, vs, ks, k
 end
 
+"""
+    plot_all(data,k,tit="")
+
+Plot a 3x2 plot of results.
+"""
 function plot_all(data,k,tit="")
     trdata=data[1]
     tstdata=data[2]
     
     # plot overview of the features
-    figure(figsize=(6,25))
-    subplot(511)
+    figure(figsize=(10,15))
+
+    # hide the first plot
+    subplot(321)
+    plt[:axis]("off")
+
+    # shift and plot the second one
+    f=subplot(322)
+    a = f[:get_position]()
+    println(a)
+    a[:x0] -= 0.211
+    a[:x1] -= 0.211
+    f[:set_position](a)
     plot_ffs_overview(data,tit)
-    
+
+
     # train models
     ka, knn = knnscore(trdata,tstdata,k)
     va, vae = vaescore(trdata,tstdata)
     
     # plot as and training data
     t = "VAE anomaly score contours"
-    subplot(512)
+    subplot(323)
     plot_contour_train(vae,data,t)
     t = "kNN (k=$(k)) anomaly score contours"
-    subplot(513)
+    subplot(324)
     plot_contour_train(knn,data,t)
     
     # plot
     t = "VAE anomaly score contours"
-    subplot(514)
+    subplot(325)
     plot_contour_fit(vae,data,t)
     t = "kNN (k=$(k)) anomaly score contours"
-    subplot(515)
+    subplot(326)
     plot_contour_fit(knn,data,t)
 end
 
 """
    plot_ffs_all(df,iline,variant,loc="",showfig=false)
 
-Plot a 5x1 grid containing all the important information using df from the findfeatures experiment. 
+Plot a 3x2 grid containing all the important information using df from the findfeatures experiment. 
 """
 function plot_ffs_all(df,iline,variant,loc="",showfig=false;seed=NaN)
     # get the information from a line in df
