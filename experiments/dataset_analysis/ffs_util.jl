@@ -19,7 +19,7 @@ function knnscoreall(trdata, tstdata)
     kvec = [1,3,5,11,27]
     aucvec = []
     for k in kvec
-        auc, _ = knnscore(trdata,tstdata,k)
+        auc, _, _ = knnscore(trdata,tstdata,k)
         push!(aucvec, auc)
     end
     mx = findmax(aucvec)
@@ -35,7 +35,7 @@ function knnscore(trdata,tstdata,k)
     # get auc on testing data
     as = AnomalyDetection.anomalyscore(model,tstdata.data)
     auc = EvalCurves.auc(EvalCurves.roccurve(as,tstdata.labels)...)
-    return auc, model
+    return auc, model, as
 end
 
 function vaescore(trdata, tstdata)
@@ -51,7 +51,7 @@ function vaescore(trdata, tstdata)
     )
     as = AnomalyDetection.anomalyscore(model,tstdata.data,10)
     auc = EvalCurves.auc(EvalCurves.roccurve(as,tstdata.labels)...)
-    return auc, model
+    return auc, model, as
 end
 
 function getdata(dataset,alldata=true,seed=518;loc="")
@@ -100,7 +100,7 @@ function scorefeatures(dataset, maxtries = 10, alldata = true)
         # get the kNN scores
         ks, k = knnscoreall(trdata,tstdata)
         # get VAE score
-        vs,_ = vaescore(trdata,tstdata)
+        vs,_,_ = vaescore(trdata,tstdata)
         
         push!(resdf, [pair[1], pair[2], vs, ks, k])
         next!(p)

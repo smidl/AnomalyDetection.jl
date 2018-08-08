@@ -413,8 +413,8 @@ function plot_all(data,k,tit="")
 
 
     # train models
-    ka, knn = knnscore(trdata,tstdata,k)
-    va, vae = vaescore(trdata,tstdata)
+    ka, knn, _ = knnscore(trdata,tstdata,k)
+    va, vae, _ = vaescore(trdata,tstdata)
     
     # plot as and training data
     t = "VAE anomaly score contours"
