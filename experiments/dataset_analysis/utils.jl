@@ -406,7 +406,6 @@ function plot_all(data,k,tit="")
     # shift and plot the second one
     f=subplot(322)
     a = f[:get_position]()
-    println(a)
     a[:x0] -= 0.211
     a[:x1] -= 0.211
     f[:set_position](a)
