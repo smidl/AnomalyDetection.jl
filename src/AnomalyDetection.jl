@@ -7,6 +7,7 @@ using Adapt, FluxExtensions, Distances, Flux, MultivariateStats
 using ValueHistories, ProgressMeter
 import Base.Iterators.repeated
 import Flux: params
+import Base.cat
 #using PyPlot
 #import PyPlot.plot # so we can add new methods to plot()
 
