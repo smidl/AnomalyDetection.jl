@@ -285,6 +285,33 @@ Return list of names of available datasets.
 datasetnames() = readdir(datasetpath())
 
 """
+    getrawdata(dataset)
+
+Returns a given Basicset.
+"""
+getrawdata(dataset::String) = Basicset(joinpath(datasetpath(),dataset))
+
+"""
+    cat(bs::Basicset)
+
+Return an array consisting of all concatenated arrays in bs and 
+indices identifying the original array boundaries.
+"""
+function cat(bs::Basicset)
+    X = bs.normal
+    inds = [size(X,2)]
+    for field in filter(x -> x != :normal, fieldnames(bs))
+        x = getfield(bs,field)
+        m = size(x,2)
+        if m!= 0
+            X = cat(2,X,x)
+        end
+        push!(inds, m)
+    end
+    return X, inds
+end
+
+"""
     labels2bin(y)
 
 Changes binary coded array from {-1,1} to {0,1}.
