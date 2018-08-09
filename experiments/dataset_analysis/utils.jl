@@ -327,7 +327,7 @@ function labels(model,data)
     aN = Int(ceil(N*cont)) # number of contaminated samples
     tr = ((aN > 0)? (sas[end-aN] + sas[end-aN+1])/2 : (sas[end]))
     yhat = Int.(as .> tr)
-    return yhat, auc 
+    return yhat, auc
 end
 
 """
@@ -336,15 +336,29 @@ end
 Scatter tru,false positives and true,false negatives.
 """
 function scatterbinary(X,ytrue,yhat;kwargs...)
-    scatter(X[1,(ytrue.==0) .& (yhat.==0)],X[2,(ytrue.==0) .& (yhat.==0)],
-        c="w",label="true negative";kwargs...)
-    scatter(X[1,(ytrue.==0) .& (yhat.==1)],X[2,(ytrue.==0) .& (yhat.==1)],
+    itn = tn(ytrue,yhat)
+    scatter(X[1,itn],X[2,itn],
+        c="g",label="true negative";kwargs...)
+    ifp = fp(ytrue,yhat)
+    scatter(X[1,ifp],X[2,ifp],
         c="r",label="false positive";kwargs...)
-    scatter(X[1,(ytrue.==1) .& (yhat.==1)],X[2,(ytrue.==1) .& (yhat.==1)],
-        c="k",label="true positive";kwargs...)
-    scatter(X[1,(ytrue.==1) .& (yhat.==0)],X[2,(ytrue.==1) .& (yhat.==0)],
-        c="m",label="false negative";kwargs...)
+    itp = tp(ytrue,yhat)
+    scatter(X[1,itp],X[2,itp],
+        c="w",label="true positive";kwargs...)
+    ifn = fn(ytrue,yhat)
+    scatter(X[1,ifn],X[2,ifn],
+        c="k",label="false negative";kwargs...)
 end
+
+tp(ytrue,yhat) = (ytrue.==1) .& (yhat.==1)
+fp(ytrue,yhat) = (ytrue.==0) .& (yhat.==1)
+tn(ytrue,yhat) = (ytrue.==0) .& (yhat.==0)
+fn(ytrue,yhat) = (ytrue.==1) .& (yhat.==0)
+
+ntp(ytrue,yhat) = sum(tp(ytrue,yhat))
+nfp(ytrue,yhat) = sum(fp(ytrue,yhat))
+ntn(ytrue,yhat) = sum(tn(ytrue,yhat))
+nfn(ytrue,yhat) = sum(fn(ytrue,yhat))
 
 """
     plot_contour_fit(model,data,tit,loc="")
@@ -354,12 +368,15 @@ Plot AS contours and fit to testing data.
 function plot_contour_fit(model,data,tit,loc="")
     X,ytrue = data[2].data, data[2].labels
     yhat, auc = labels(model,data)
+    tpr = ntp(ytrue,yhat)/sum(yhat)
+    fpr = nfp(ytrue,yhat)/sum(abs.(1-yhat))
     xl,yl = xylims(X)
     x,y,zz = ascontours(model,xl,yl,50)
     contourf(x,y,zz,100)
     colorbar()
     scatterbinary(X,ytrue,yhat,s=10)
-    tit = string(tit, "\ntesting data, AUC = $(round(auc,2))")
+    tit = string(tit, "testing data, AUC = $(round(auc,3))")
+    tit = string(tit, "\nTPR = $(round(tpr,3)), FPR = $(round(fpr,3))")
     title(tit)
     legend()
     if loc !=""        
@@ -381,8 +398,8 @@ Get info from the line iline of df.
 function lineinfo(df,iline)
     dataset = String(df[:dataset][iline])
     pair = [df[:f1][iline],df[:f2][iline]]
-    vs = round(df[:vae][iline],2)
-    ks = round(df[:knn][iline],2)
+    vs = round(df[:vae][iline],3)
+    ks = round(df[:knn][iline],3)
     k = Int(df[:k][iline])
     return dataset, pair, vs, ks, k
 end
@@ -397,7 +414,7 @@ function plot_all(data,k,tit="")
     tstdata=data[2]
     
     # plot overview of the features
-    figure(figsize=(10,15))
+    figure(figsize=(15,20))
 
     # hide the first plot
     subplot(321)
@@ -411,26 +428,29 @@ function plot_all(data,k,tit="")
     f[:set_position](a)
     plot_ffs_overview(data,tit)
 
-
     # train models
     ka, knn, _ = knnscore(trdata,tstdata,k)
     va, vae, _ = vaescore(trdata,tstdata)
     
     # plot as and training data
-    t = "VAE anomaly score contours"
+    t = "kNN (k=$(k)) anomaly score contours\ntraining data"
     subplot(323)
-    plot_contour_train(vae,data,t)
-    t = "kNN (k=$(k)) anomaly score contours"
-    subplot(324)
     plot_contour_train(knn,data,t)
-    
+    t = "VAE anomaly score contours\ntraining data"
+    subplot(324)
+    plot_contour_train(vae,data,t)    
+    ax = gca()
+    ax[:legend_][:remove]()
+
     # plot
-    t = "VAE anomaly score contours"
+    t = ""
     subplot(325)
-    plot_contour_fit(vae,data,t)
-    t = "kNN (k=$(k)) anomaly score contours"
-    subplot(326)
     plot_contour_fit(knn,data,t)
+    t = ""
+    subplot(326)
+    plot_contour_fit(vae,data,t)
+    ax = gca()
+    ax[:legend_][:remove]()
 end
 
 """
@@ -474,7 +494,7 @@ end
 """
    plot_all(dataset,inpath,loc="",showfig=false)
 
-Plot a 5x1 grid containing all the important information from given experimental data. 
+Plot a 3x2 grid containing all the important information from given experimental data. 
 \ninpath - where data is stored
 \nloc - where data are to be saved
 """

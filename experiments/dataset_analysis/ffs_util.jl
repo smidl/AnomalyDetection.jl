@@ -46,10 +46,10 @@ function vaescore(trdata, tstdata)
     AnomalyDetection.fit!(model,trx,min(N,256),
         iterations = 10000,
         cbit=500, 
-        lambda = 0.0001,
+        lambda = 0.00001,
         verb = false
     )
-    as = AnomalyDetection.anomalyscore(model,tstdata.data,10)
+    as = AnomalyDetection.anomalyscore(model,tstdata.data,50)
     auc = EvalCurves.auc(EvalCurves.roccurve(as,tstdata.labels)...)
     return auc, model, as
 end

@@ -3,8 +3,8 @@
 # top = [vae,knn]
 # nlines = number of top different results to process
 # repetitions = multiple runs with different random seed for data splitting
-fp = @__DIR__
-include(joinpath(fp,"utils.jl"))
+fpath = @__DIR__
+include(joinpath(fpath,"utils.jl"))
 using ProgressMeter
 
 # get args
@@ -18,13 +18,13 @@ reps = ((length(ARGS)>3)? Int(parse(ARGS[4])) : 1)
 variant = "some"
 ARGS = [variant, top, nlines]
 println("These findfeatures results will be processed and plotted:")
-include(joinpath(fp,"show_ffs_res.jl"))
+include(joinpath(fpath,"show_ffs_res.jl"))
 println("")
 
 # make the graphs
 p = Progress(nlines*reps,0.5)
-for i in 1:nlines
-	for rep in 1:reps
+for rep in 1:reps
+	for i in 1:nlines
 		plot_ffs_all(df, i, variant, outpath; seed = rep)
 		close() # so that there are no excess plots
 		ProgressMeter.next!(p)
