@@ -4,26 +4,6 @@ import Base.cat
 
 include(joinpath(@__DIR__,"ffs_util.jl"))
 """
-    cat(bs::Basicset)
-
-Return an array consisting of all concatenated arrays in bs and 
-indices identifying the original array boundaries.
-"""
-function cat(bs::Basicset)
-    X = bs.normal
-    inds = [size(X,2)]
-    for field in filter(x -> x != :normal, fieldnames(bs))
-        x = getfield(bs,field)
-        m = size(x,2)
-        if m!= 0
-            X = cat(2,X,x)
-        end
-        push!(inds, m)
-    end
-    return X, inds
-end
-
-"""
     uncat(X, inds)
 
 Return a Basicset instance created from X with array boundaries indicated
@@ -99,7 +79,7 @@ Transforms a Basicset into 2D representation using PCA or tSne.
 """
 function dataset2D(bs::Basicset, variant = "pca", normalize = true)
     (variant in ["pca", "tsne"])? nothing : error("variant must be one of [pca, tsne]")
-    X, inds = cat(bs)
+    X, inds = AnomalyDetection.cat(bs)
     (normalize)? X = AnomalyDetection.normalize(X) : nothing
     if variant == "pca"
         return uncat(nDpca(X, 2), inds)
