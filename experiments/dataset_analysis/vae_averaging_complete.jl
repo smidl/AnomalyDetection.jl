@@ -36,7 +36,7 @@ knnres = knnscore(trdata, tstdata, 1)
 auc_knn = knnres[1]
 
 # train all the vaes
-aucruves = []
+auccurves = []
 for run in 1:Nruns
     println("Training $(Nvaes) VAEs, iteration $(run)/$(Nruns).")
     vaes = trainvaes(data,81);
@@ -53,7 +53,7 @@ for run in 1:Nruns
         auc = EvalCurves.auc(EvalCurves.roccurve(as,ytrue)...)
         push!(aucs,auc)
     end
-    push!(aucruves, aucs)
+    push!(auccurves, aucs)
     println("Done.")
 end
 
