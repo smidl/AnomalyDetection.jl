@@ -277,26 +277,26 @@ end
 """
 	experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 
-Runs an experiment.
-data = tuple of (training data, testing data)
-mf = model constructor (function)
-mfp = model constructor parameter, contaning :args (SortedDictionary) and
-	:kwargs (Dictionary), also this parameter structure will be updated in each
-	iteration and saved to output
-ff = fit function of syntax fit = ff(model, X)
-ffp = an iterable of fit parameters with which the model will be updated in the outer
-	loop, e.g.
-
-	product([:batchsize => i for i in [100, 200]], [:lambda => i for i in [1e-2, 1e-3]])
-
-	then the model is updated "model.batchsize = 100; model.lambda = 1e-2 ..."
-asf = anomaly score function of syntax anomalyscore = asf(model, X)
-asfp = an iterable of as parameters with which the model will be updated in the inner
-	loop, e.g.
-
-	product([:alpha => i for i in [0.1, 0.9]], [:M => i for i in 1:10])
-
-	then the model is updated "model.alpha = 0.1; model.M = 1 ..."
+Runs an experiment.\n
+data = tuple of (training data, testing data)\n
+mf = model constructor (function)\n
+mfp = model constructor parameter, contaning :args (SortedDictionary) and\n
+	:kwargs (Dictionary), also this parameter structure will be updated in each\n
+	iteration and saved to output\n
+ff = fit function of syntax fit = ff(model, X)\n
+ffp = an iterable of fit parameters with which the model will be updated in the outer\n
+	loop, e.g.\n
+\n
+	product([:batchsize => i for i in [100, 200]], [:lambda => i for i in [1e-2, 1e-3]])\n
+\n
+	then the model is updated "model.batchsize = 100; model.lambda = 1e-2 ..."\n
+asf = anomaly score function of syntax anomalyscore = asf(model, X)\n
+asfp = an iterable of as parameters with which the model will be updated in the inner\n
+	loop, e.g.\n
+\n
+	product([:alpha => i for i in [0.1, 0.9]], [:M => i for i in 1:10])\n
+\n
+	then the model is updated "model.alpha = 0.1; model.M = 1 ..."\n
 """
 function experiment(data, mf, mfp, ff, ffp, asf, asfp, outpath, fname)
 	# extract datasets
