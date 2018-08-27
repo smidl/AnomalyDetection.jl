@@ -65,7 +65,7 @@ figure()
 for aucs in auccurves
     plot(Ns,aucs)
 end
-plot(Ns, ones(N)*auc_knn, label = "knn result")
+plot(Ns, ones(N)*auc_knn, "--", c = "k", label = "knn result")
 title("$(dataset)_$(seed), AUC of VAE averaging, complete reruns")
 xlabel("no of models")
 ylabel("AUC")

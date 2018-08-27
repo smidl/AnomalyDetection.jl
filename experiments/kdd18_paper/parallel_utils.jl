@@ -495,17 +495,17 @@ const PARAMS = Dict(
 			# args for the model constructor, must be in correct order
 			:args => DataStructures.OrderedDict(
 				:esize => [1; hiddendim; hiddendim; latentdim*2],
-				:dsize => [latentdim; hiddendim; hiddendim; 1],
+				:dsize => [latentdim; hiddendim; hiddendim; 1]
+				),
+			# kwargs
+			:kwargs => Dict(
 				:lambda => 0, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
 				:cbit => 10000,
 				:verbfit => verbfit,
-				:L => 0 # replaced in training
-				),
-			# kwargs
-			:kwargs => Dict(
+				:batchsize => 0, # replaced in training
 				:M => 1,
 				# input functions like this, they are evaluated later
 				:activation => :(Flux.relu),

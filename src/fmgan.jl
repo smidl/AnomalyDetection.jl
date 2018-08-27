@@ -155,7 +155,7 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
 
 		# if a stopping condition is present
 		if rdelta < Inf
-			re = rerr(fmgan, x, z) 
+			re = Flux.Tracker.data(rerr(fmgan, x, z))
 			if re < rdelta
 				println("Training ended prematurely after $i iterations,
 					\nreconstruction error $re < $rdelta")

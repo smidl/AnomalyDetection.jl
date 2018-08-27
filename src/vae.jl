@@ -328,20 +328,20 @@ mutable struct VAEmodel <: genmodel
 end
 
 """
-	VAEmodel(esize, dsize, lambda, threshold, contamination, iteration,
-	L, cbit, [M, activation, layer, rdelta, Beta, tracked, astype, eta])
+	VAEmodel(esize, dsize, [lambda, threshold, contamination, iterations,
+	batchsize,  verbfit, cbit, M, activation, layer, rdelta, Beta, tracked, astype, eta])
 
 Initialize a variational autoencoder model with given parameters.
 
-esize - encoder architecture
-dsize - decoder architecture
+esize - encoder architecture, e.g. [input_dim, 10, z_dim*2]
+dsize - decoder architecture, e.g. [z_dim, 10, input_dim]
 lambda - weight of the KL divergence in the total loss
 threshold - anomaly score threshold for classification, is set automatically using contamination during fit
 contamination - percentage of anomalous samples in all data for automatic threshold computation
 iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
 verbfit - is progress printed?
-L - batchsize
+batchsize - batchsize
 M [1] - number of samples taken during computation of likelihood, higher may produce more stable classification results
 activation [Flux.relu] - activation function
 layer [Flux.dense] - layer type
@@ -353,16 +353,18 @@ variant - :unit - output has unit variance
 		- :sigma - the variance of the output is estimated
 eta - learning rate of the optimizer
 """
-function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
-	lambda::Real, threshold::Real, contamination::Real, iterations::Int,
-	cbit::Int, verbfit::Bool, L::Int; M::Int =1, activation = Flux.relu,
+function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
+	contamination::Real = 0.0, iterations::Int = 10000,
+	cbit::Int=1000, verbfit::Bool=true, batchsize::Int=256, 
+	lambda::Real = 1e-4, threshold::Real = 0.0, 
+	M::Int =1, activation = Flux.relu,
 	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false,
 	astype = "likelihood", variant = :unit, eta = 0.001)
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation, layer = layer, variant = variant)
 	(tracked)? history = MVHistory() : history = nothing
 	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit,
-		L, M, rdelta, Beta, history, astype, eta)
+		batchsize, M, rdelta, Beta, history, astype, eta)
 	return model
 end
 

@@ -28,5 +28,6 @@ include("gan.jl")
 include("fmgan.jl")
 include("knn.jl")
 include("utils.jl")
+include("ensembles.jl")
 
 end

@@ -7,7 +7,7 @@ using AnomalyDetection
 # this is where the LODA datasets are stored, change if necessary
 data_path = joinpath(@__DIR__, "datasets")
 
-function print_overview()
+function overview()
 	# data
 	datasets = AnomalyDetection.loaddata(data_path);
 
@@ -32,8 +32,8 @@ function print_overview()
 	rename!(df, f => t for (f, t) = 
 	    zip([:x1, :x2, :x3, :x4, :x5, :x6, :x7], 
 	        [:name, :M, :normal, :easy, :medium, :hard, :very_hard]))
-	showall(sort(df, cols = (:M)))
-	println("")
+	return sort(df, :M)
 end
-
-print_overview()
+df = overview()
+showall(df)
+println("")

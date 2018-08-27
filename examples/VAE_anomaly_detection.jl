@@ -24,14 +24,14 @@ esize = [indim; hiddendim; hiddendim; latentdim*2] # encoder architecture
 # decoder architecture
 (variant == :unit)? dsize = [latentdim; hiddendim; hiddendim; indim] :
     dsize = [latentdim; hiddendim; hiddendim; 2*indim]
-lambda = 1 # KLD weight in loss function
+lambda = 1e-3 # KLD weight in loss function
 threshold = 0 # classification threshold, is recomputed using setthreshold!()
 contamination = size(Y[Y.==1],1)/size(Y, 1) # for automatic threshold computation
 iterations = 2000
 cbit = 500 # after this number of iteratiosn, callback is printed
 verbfit = true
 M = 1 # reconstruction error samples, for training 1 is OK
-L = 50 # batchsize 
+batchsize = 50 # batchsize 
 # set low for training but high for classification
 activation = Flux.relu
 layer = Flux.Dense
@@ -41,13 +41,16 @@ Beta = 1.0 # for automatic threshold computation, in [0, 1]
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
 eta = 0.001
-model = VAEmodel(esize, dsize, lambda, threshold, contamination, iterations, cbit, verbfit, 
-    L, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta, 
+model = VAEmodel(esize, dsize, lambda = lambda, threshold = threshold, 
+    contamination = contamination, iterations = iterations, cbit = cbit, 
+    verbfit = verbfit, batchsize = batchsize, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta, 
     tracked = tracked, variant = variant, eta = eta)
 
 # fit the model
+println("\ninitial loss")
 AnomalyDetection.evalloss(model, nX)
 @time AnomalyDetection.fit!(model, nX)
+println("\nfinal loss")
 AnomalyDetection.evalloss(model, nX)
 AnomalyDetection.setthreshold!(model, X)
 
