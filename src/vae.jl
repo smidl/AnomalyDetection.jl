@@ -168,12 +168,12 @@ getlosses(vae::VAE, X, M, lambda) = (
 	)
 
 """
-	fit!(vae, X, L, [M, iterations, cbit, verb, lambda, rdelta, history, eta])
+	fit!(vae, X, batchsize, [M, iterations, cbit, verb, lambda, rdelta, history, eta])
 
 Trains the VAE neural net.
 vae - a VAE object
 X - data array with instances as columns
-L - batchsize
+batchsize - batchsize
 M - number of samples for likelihood
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
@@ -183,7 +183,7 @@ rdelta - stopping condition for likelihood
 traindata - a dictionary for training progress control
 eta - learning rate
 """
-function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
+function fit!(vae::VAE, X, batchsize; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
 	rdelta = Inf, history = nothing, eta = 0.001)
 	# settings
 	opt = ADAM(params(vae), eta)
@@ -191,14 +191,14 @@ function fit!(vae::VAE, X, L; M=1, iterations=1000, cbit = 200, verb::Bool = tru
 	# using ProgressMeter 
 	if verb
 		p = Progress(iterations, 0.3)
-		x = X[:, sample(1:size(X,2), L, replace = false)]
+		x = X[:, sample(1:size(X,2), batchsize, replace = false)]
 		_l, _lk, _kl = getlosses(vae, x, M, lambda)
 	end
 
 	# train
 	for i in 1:iterations
 		# sample minibatch of X
-		x = X[:, sample(1:size(X,2), L, replace = false)]
+		x = X[:, sample(1:size(X,2), batchsize, replace = false)]
 
 		# gradient computation and update
 		l = loss(vae, x, M, lambda)
@@ -286,22 +286,6 @@ Classify an instance x using likelihood and threshold.
 """
 classify(vae::VAE, X, threshold, M) = Int.(anomalyscore(vae, X, M) .> threshold)
 
-"""
-	getthreshold(vae, x, M, contamination, [beta])
-
-Compute threshold for VAE classification based on known contamination level.
-"""
-function getthreshold(vae::VAE, x, M, contamination; Beta = 1.0)
-	N = size(x, 2)
-	Beta = Float(Beta)
-	# get anomaly score
-	ascore  = anomalyscore(vae, x, M)
-	# sort it
-	ascore = sort(ascore)
-	aN = Int(ceil(N*contamination)) # number of contaminated samples
-	# get the threshold - could this be done more efficiently?
-	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
-end
 
 ##############################################################################
 ### A SK-learn like model based on VAE with the same methods and some new. ###
@@ -318,7 +302,7 @@ mutable struct VAEmodel <: genmodel
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
-	L::Int # batchsize
+	batchsize::Int # batchsize
 	M::Int # sampling rate for likelihood
 	rdelta::Float
 	Beta::Float
@@ -355,7 +339,7 @@ eta - learning rate of the optimizer
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
 	contamination::Real = 0.0, iterations::Int = 10000,
-	cbit::Int=1000, verbfit::Bool=true, batchsize::Int=256, 
+	cbit::Int=1000, verbfit::Bool=true, batchsize::Int=1, 
 	lambda::Real = 1e-4, threshold::Real = 0.0, 
 	M::Int =1, activation = Flux.relu,
 	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false,
@@ -384,7 +368,7 @@ getlosses(model::VAEmodel, X) = getlosses(model.vae, X, model.M, model.lambda)
 generate(model::VAEmodel) = generate(model.vae)
 generate(model::VAEmodel, n::Int) = generate(model.vae, n)
 classify(model::VAEmodel, x) = classify(model.vae, x, model.threshold, model.M)
-getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.M, model.contamination, Beta = model.Beta)
+getthreshold(model::VAEmodel, x) = getthreshold(model.vae, x, model.contamination, model.M; Beta = model.Beta)
 anomalyscore(model::VAEmodel, X) = anomalyscore(model.vae, X, model.M, model.astype)
 params(model::VAEmodel) = Flux.params(model.vae)
 
@@ -404,7 +388,7 @@ Fit the VAE model, instances are columns of X.
 """
 function fit!(model::VAEmodel, X)
 	# fit the VAE NN
-	fit!(model.vae, X, model.L, M = model.M, iterations = model.iterations,
+	fit!(model.vae, X, model.batchsize, M = model.M, iterations = model.iterations,
 	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda,
 	rdelta = model.rdelta, history = model.history, eta = model.eta)
 end

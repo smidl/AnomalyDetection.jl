@@ -127,16 +127,16 @@ Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(Float(1)-σ.(distrain(svae,qX, qZ
     mean(log.(σ.(distrain(svae, pX, pZ)) + eps(Float)))
 
 """
-    Dloss(svae, X, L)
+    Dloss(svae, X, batchsize)
 
-sVAE discriminator loss, L is batchsize.
+sVAE discriminator loss, batchsize is batchsize.
 """
-function Dloss(svae::sVAE, X, L::Int64)
+function Dloss(svae::sVAE, X, batchsize::Int64)
     N = size(X, 2)
     latentdim = Int(size(svae.encoder.layers[end].W,1)/2)
 
     # sample q(x, z)
-    qX = X[:, sample(1:N, L, replace = false)]
+    qX = X[:, sample(1:N, batchsize, replace = false)]
     qZ = Flux.Tracker.data(getcode(svae, qX))
 
     # sample p(x,z)
@@ -147,22 +147,22 @@ function Dloss(svae::sVAE, X, L::Int64)
 end
 
 """
-    VAEloss(svae, X, L, lambda; xsigma = 1.0)
+    VAEloss(svae, X, batchsize, lambda; xsigma = 1.0)
 
 Variational loss for sVAE.
 """
-function VAEloss(svae::sVAE, X, L, lambda; xsigma = 1.0)
+function VAEloss(svae::sVAE, X, batchsize, lambda; xsigma = 1.0)
     N = size(X, 2)
     latentdim = Int(size(svae.encoder.layers[end].W,1)/2)
     xsigma = Float(xsigma)
     lambda = Float(lambda)
 
     # sample q(x,z)
-    qX = X[:, sample(1:N, L, replace = false)]
+    qX = X[:, sample(1:N, batchsize, replace = false)]
     qZ = getcode(svae, qX)
 
     # sample p(x,z)
-    pZ = randn(Float, latentdim, L)
+    pZ = randn(Float, latentdim, batchsize)
     pX = svae.decoder(pZ)
     
     # also, gather the params of q(z|x)
@@ -184,21 +184,32 @@ sVAE reconstruction error, M is number of samples.
 rerr(svae::sVAE, X, M) = Flux.mse(mean([svae(X) for m in 1:M]), X)
 
 """
-    evalloss(svae, X, L, lambda, M)
+    evalloss(svae, X, batchsize, lambda, M)
 """
-evalloss(svae::sVAE, X, L, lambda, M) = println(
-    "discriminator loss: ", Flux.Tracker.data(Dloss(svae, X, L)),
-    "\nVAE loss: ", Flux.Tracker.data(VAEloss(svae, X, L, lambda)),
+evalloss(svae::sVAE, X, batchsize, lambda, M) = println(
+    "discriminator loss: ", Flux.Tracker.data(Dloss(svae, X, batchsize)),
+    "\nVAE loss: ", Flux.Tracker.data(VAEloss(svae, X, batchsize, lambda)),
     "\nreconstruction error: ", Flux.Tracker.data(rerr(svae, X, M)), "\n"
     )
 
 """
-    fit!(svae, X, L, lambda, [M, iterations, cbit, verb, rdelta, history, eta])
+    getlosses(svae, X, M, lambda)
+
+Return the numeric values of current losses.
+"""
+getlosses(svae::sVAE, X, batchsize, lambda, M) = (
+    Flux.Tracker.data(Dloss(svae, X, batchsize)),
+    Flux.Tracker.data(VAEloss(svae, X, batchsize, lambda)),
+    Flux.Tracker.data(rerr(svae, X, M))
+    )
+
+"""
+    fit!(svae, X, batchsize, lambda, [M, iterations, cbit, verb, rdelta, history, eta])
 
 Trains the sVAE neural net.
 svae - a sVAE object
 X - data array with instances as columns
-L - batchsize
+batchsize - batchsize
 lambda - scaling for the p(x|z) and q(z|x) logs, >= 0
 M - sampling repetition
 iterations - number of iterations
@@ -208,15 +219,22 @@ rdelta - stopping condition for reconstruction error
 history - a dictionary for training progress control
 eta - learning rate
 """
-function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200, 
+function fit!(svae::sVAE, X, batchsize, lambda; M=1, iterations=1000, cbit = 200, 
         verb = true, rdelta = Inf, history = nothing, eta = 0.001)
     # settings
     opt = ADAM(params(svae), eta)
 
+    # using ProgressMeter 
+    if verb
+        p = Progress(iterations, 0.3)
+        x = X[:, sample(1:size(X,2), batchsize, replace = false)]
+        _dl, _vl, _r = getlosses(svae, x, batchsize, lambda, M)
+    end
+
     # train
     for i in 1:iterations
         # train the discriminator
-        Dl = Dloss(svae, X, L)
+        Dl = Dloss(svae, X, batchsize)
         if isnan(Dl)
             warn("Discriminator loss is NaN, ending fit.")
             return
@@ -225,18 +243,22 @@ function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200,
         opt()
         
         # train the VAE part of the net
-        Vl = VAEloss(svae, X, L, lambda)
+        Vl = VAEloss(svae, X, batchsize, lambda)
         Flux.Tracker.back!(Vl)
         opt()
 
-        # callback
-        if verb && i%cbit == 0
-            evalloss(svae, X, L, lambda, M)
+        # progress
+        if verb 
+            if (i%cbit == 0 || i == 1)
+                _dl, _vl, _r = getlosses(svae, x, batchsize, lambda, M)
+            end
+            ProgressMeter.next!(p; showvalues = [(:"discriminator loss",_dl),
+                (:"vae loss", _vl),(:"reconstruction error", _r)])
         end
 
         # save actual iteration data
         if history != nothing
-            track!(svae, history, X, L, lambda, M)
+            track!(svae, history, X, batchsize, lambda, M)
         end
 
         # if stopping condition is present
@@ -252,13 +274,13 @@ function fit!(svae::sVAE, X, L, lambda; M=1, iterations=1000, cbit = 200,
 end
 
 """
-    track!(svae, history, X, L, lambda, M)
+    track!(svae, history, X, batchsize, lambda, M)
 
 Save current progress.
 """
-function track!(svae::sVAE, history, X, L, lambda, M)
-    push!(history, :discriminator_loss, Flux.Tracker.data(Dloss(svae, X, L)))
-    push!(history, :vae_loss, Flux.Tracker.data(VAEloss(svae, X, L, lambda)))
+function track!(svae::sVAE, history, X, batchsize, lambda, M)
+    push!(history, :discriminator_loss, Flux.Tracker.data(Dloss(svae, X, batchsize)))
+    push!(history, :vae_loss, Flux.Tracker.data(VAEloss(svae, X, batchsize, lambda)))
     push!(history, :reconstruction_error, Flux.Tracker.data(rerr(svae, X, M)))
 end
 
@@ -309,22 +331,6 @@ Classify an instance x using reconstruction error and threshold.
 """
 classify(svae::sVAE, X, threshold, M, alpha) = Int.(anomalyscore(svae, X, M, alpha) .> Float(threshold))
 
-"""
-    getthreshold(svae, x, M, alpha, contamination, [beta])
-
-Compute threshold for sVAE classification based on known contamination level.
-"""
-function getthreshold(svae::sVAE, x, M, alpha, contamination; Beta = 1.0)
-    N = size(x, 2)
-    Beta = Float(Beta)
-    # get reconstruction errors
-    ascore  = anomalyscore(svae, x, M, alpha)
-    # sort it
-    ascore = sort(ascore)
-    aN = Int(ceil(N*contamination)) # number of contaminated samples
-    # get the threshold - could this be done more efficiently?
-    (aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
-end
 
 ###############################################################################
 ### A SK-learn like model based on sVAE with the same methods and some new. ###
@@ -340,7 +346,7 @@ mutable struct sVAEmodel <: genmodel
     contamination::Real
     iterations::Int
     cbit::Real
-    L::Int # batchsize
+    batchsize::Int # batchsize
     M::Int # sampling rate for reconstruction error
     verbfit::Bool
     rdelta
@@ -352,8 +358,8 @@ mutable struct sVAEmodel <: genmodel
 end
 
 """
-    sVAEmodel(ensize, decsize, dissize, lambda, threshold, contamination, iterations, 
-    cbit, verbfit, L, [M, activation, rdelta, alpha, Beta, xsigma, tracked, eta])
+    sVAEmodel(ensize, decsize, dissize, [lambda, threshold, contamination, iterations, 
+    cbit, verbfit, batchsize, M, activation, rdelta, alpha, Beta, xsigma, tracked, eta])
 
 Initialize a sVAE model with given parameters.
 
@@ -366,7 +372,7 @@ contamination - percentage of anomalous samples in all data for automatic thresh
 iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
 verbfit - is progress printed?
-L - batchsize
+batchsize - batchsize
 M [1] - number of samples taken during computation of reconstruction error, higher may produce more stable classification results
 activation [Flux.relu] - activation function
 layer - NN layer type
@@ -378,14 +384,15 @@ tracked [false] - is training progress (losses) stored?
 eta [0.001] - learning rate
 """
 function sVAEmodel(ensize::Array{Int64,1}, decsize::Array{Int64,1},
-    dissize::Array{Int64,1}, lambda::Real, threshold::Real, contamination::Real, 
-    iterations::Int, cbit::Int, verbfit::Bool, L::Int; M=1, activation = Flux.relu, 
-    layer = Flux.Dense,
-    rdelta = Inf, alpha=0.5, Beta = 1.0, xsigma = 1.0, tracked = false, eta = 0.001)
+    dissize::Array{Int64,1}; lambda::Real=0.5, threshold::Real=0.0, 
+    contamination::Real=0.0, iterations::Int=10000, cbit::Int=1000, 
+    verbfit::Bool=true, batchsize::Int=1, M=1, activation = Flux.relu, 
+    layer = Flux.Dense, rdelta = Inf, alpha=0.5, Beta = 1.0, xsigma = 1.0, 
+    tracked = false, eta = 0.001)
     # construct the AE object
     svae = sVAE(ensize, decsize, dissize, activation = activation, layer = layer)
     (tracked)? history = MVHistory() : history = nothing
-    model = sVAEmodel(svae, lambda, threshold, contamination, iterations, cbit, L, M, 
+    model = sVAEmodel(svae, lambda, threshold, contamination, iterations, cbit, batchsize, M, 
         verbfit, rdelta, alpha, Beta, xsigma, history, eta)
     return model
 end
@@ -398,15 +405,15 @@ sample_z(model::sVAEmodel, X) = sample_z(model.svae, model.svae.encoder(X))
 getcode(model::sVAEmodel, X) = getcode(model.svae, X)
 discriminate(model::sVAEmodel, X, Z) = discriminate(model.svae, X, Z)
 Dloss(model::sVAEmodel, pX, pZ, qX, qZ) = Dloss(model.svae, pX, pZ, qX, qZ)
-Dloss(model::sVAEmodel, X) = Dloss(model.svae, X, model.L)
-VAEloss(model::sVAEmodel, X) = VAEloss(model.svae, X, model.L, model.lambda, xsigma = model.xsigma)
+Dloss(model::sVAEmodel, X) = Dloss(model.svae, X, model.batchsize)
+VAEloss(model::sVAEmodel, X) = VAEloss(model.svae, X, model.batchsize, model.lambda, xsigma = model.xsigma)
 rerr(model::sVAEmodel, X) = rerr(model.svae, X, model.M)
-evalloss(model::sVAEmodel, X) = evalloss(model.svae, X, model.L, model.lambda, model.M)
+evalloss(model::sVAEmodel, X) = evalloss(model.svae, X, model.batchsize, model.lambda, model.M)
 generate(model::sVAEmodel) = generate(model.svae)
 generate(model::sVAEmodel, n) = generate(model.svae, n)
 anomalyscore(model::sVAEmodel, X) = anomalyscore(model.svae, X, model.M, model.alpha)
 classify(model::sVAEmodel, X) = classify(model.svae, X, model.threshold, model.M, model.alpha)
-getthreshold(model::sVAEmodel, x) = getthreshold(model.svae, x, model.M, model.alpha, model.contamination, Beta = model.Beta)
+getthreshold(model::sVAEmodel, x) = getthreshold(model.svae, x, model.contamination, model.M, model.alpha; Beta = model.Beta)
 params(model::sVAEmodel) = Flux.params(model.svae)
 
 """
@@ -425,7 +432,7 @@ Trains a sVAEmodel.
 """
 function fit!(model::sVAEmodel, X)
     # train the sVAE NN
-    fit!(model.svae, X, model.L, model.lambda, M=model.M,
+    fit!(model.svae, X, model.batchsize, model.lambda, M=model.M,
      iterations=model.iterations, cbit = model.cbit, verb = model.verbfit, 
      rdelta = model.rdelta, history = model.history, eta = model.eta)
 end

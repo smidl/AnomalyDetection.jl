@@ -64,12 +64,12 @@ Print ae loss function values.
 evalloss(ae::AE, X) = println("loss: ", Flux.Tracker.data(loss(ae, X)), "\n")
 
 """
-	fit!(ae, X, L, [iterations, cbit, verb, rdelta, tracked, eta])
+	fit!(ae, X, batchsize, [iterations, cbit, verb, rdelta, tracked, eta])
 
 Trains the AE.
 ae - AE type object
 X - data array with instances as columns
-L - batchsize
+batchsize - batchsize
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
@@ -77,7 +77,7 @@ rdelta - stopping condition for reconstruction error
 history - MVHistory() to be filled with data of individual iterations
 eta - learning rate
 """
-function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf, 
+function fit!(ae::AE, X, batchsize; iterations=1000, cbit = 200, verb = true, rdelta = Inf, 
 	history = nothing, eta = 0.001)
 	# optimizer
 	opt = ADAM(params(ae), eta)
@@ -85,7 +85,7 @@ function fit!(ae::AE, X, L; iterations=1000, cbit = 200, verb = true, rdelta = I
 	# training
 	for i in 1:iterations
 		# sample from data
-		x = X[:, sample(1:size(X,2), L, replace = false)]
+		x = X[:, sample(1:size(X,2), batchsize, replace = false)]
 
 		# gradient computation and update
 		l = loss(ae, x)
@@ -145,23 +145,6 @@ Classify an instance x using reconstruction error and threshold.
 """
 classify(ae::AE, X, threshold) = Int.(anomalyscore(ae, X) .> threshold)
 
-"""
-	getthreshold(ae, x, contamination, [Beta])
-
-Compute threshold for AE classification based on known contamination level.
-"""
-function getthreshold(ae::AE, x, contamination; Beta = 1.0)
-	N = size(x, 2)
-	Beta = Float(Beta)
-	# get reconstruction errors
-	ascore = anomalyscore(ae, x)
-	# sort it
-	ascore = sort(ascore)
-	aN = Int(ceil(N*contamination)) # number of contaminated samples
-	# get the threshold - could this be done more efficiently?
-	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
-end
-
 #############################################################################
 ### A SK-learn like model based on AE with the same methods and some new. ###
 #############################################################################
@@ -171,7 +154,7 @@ Struct to be used as scikitlearn-like model with fit and predict methods.
 """
 mutable struct AEmodel <: genmodel
 	ae::AE
-	L::Int
+	batchsize::Int
 	threshold::Real
 	contamination::Real
 	iterations::Int
@@ -184,14 +167,14 @@ mutable struct AEmodel <: genmodel
 end
 
 """
-	AEmodel(esize, dsize, L, threshold, contamination, iteration, cbit, 
-	[activation, rdelta, Beta, tracked, eta])
+	AEmodel(esize, dsize, [batchsize, threshold, contamination, iteration, cbit, 
+	activation, rdelta, Beta, tracked, eta])
 
 Initialize an autoencoder model with given parameters.
 
 esize - encoder architecture
 dsize - decoder architecture
-L - batchsize
+batchsize - batchsize
 threshold - anomaly score threshold for classification, is set automatically using contamination during fit
 contamination - percentage of anomalous samples in all data for automatic threshold computation
 iterations - number of training iterations
@@ -203,14 +186,15 @@ Beta [1.0] - how tight around normal data is the automatically computed threshol
 tracked [false] - is training progress (losses) stored?
 eta - learning rate
 """
-function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1},
-	L::Int, threshold::Real, contamination::Real, iterations::Int, 
-	cbit::Real, verbfit::Bool; activation = Flux.relu, rdelta = Inf, Beta = 1.0,
+function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
+	batchsize::Int=1, threshold::Real=0.0, contamination::Real=0.0, 
+	iterations::Int=10000, cbit::Real=1000, verbfit::Bool=true, 
+	activation = Flux.relu, rdelta = Inf, Beta = 1.0,
 	tracked = false, layer = Flux.Dense, eta = 0.001)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
-	model = AEmodel(ae, L, threshold, contamination, iterations, cbit, verbfit, rdelta, 
+	model = AEmodel(ae, batchsize, threshold, contamination, iterations, cbit, verbfit, rdelta, 
 		Beta, history, eta)
 	return model
 end
@@ -240,7 +224,7 @@ Fit the AE model, instances are columns of X, X are normal samples!!!.
 """
 function fit!(model::AEmodel, X) 
 	# train
-	fit!(model.ae, X, model.L, iterations = model.iterations, 
+	fit!(model.ae, X, model.batchsize, iterations = model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history, eta = model.eta)
 end

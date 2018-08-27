@@ -107,28 +107,12 @@ Classify an instance x using the discriminator and a threshold.
 classify(model::kNN, X) = Int.(anomalyscore(model, X) .> model.threshold)
 
 """
-    getthreshold(knn, x, [Beta])
-
-Compute threshold for kNN classification based on known contamination level.
-"""
-function getthreshold(model::kNN, x)
-    N = size(x, 2)
-    # get reconstruction errors
-    ascore = anomalyscore(model, x)
-    # sort it
-    ascore = sort(ascore)
-    aN = Int(ceil(N*model.contamination)) # number of contaminated samples
-    # get the threshold - could this be done more efficiently?
-    (aN > 0)? (return model.Beta*ascore[end-aN] + (1-model.Beta)*ascore[end-aN+1]) : (return ascore[end])
-end
-
-"""
     setthreshold!(knn, X)
 
 Set model classification threshold based ratior of labels in Y.
 """
 function setthreshold!(model::kNN, X)
-    model.threshold = getthreshold(model, X)
+    model.threshold = getthreshold(model, X, model.contamination; Beta = model.Beta)
 end
 
 """

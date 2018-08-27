@@ -209,6 +209,38 @@ function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
 	return f
 end
 
+function netsize(m::Type{AnomalyDetection.sVAEmodel}, indim, ldim, nhid)
+	# create linearly spaced layer sizes
+	decsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	ensize = decsize[nhid+3:-1:1]
+	ensize[end] = 2*ensize[end]
+	dissize = [i for i in Int.(round.(linspace(indim+latentdim, 1, nhid+3)))]
+	return decsize, ensize, dissize
+end
+
+function updatearchitecture!(m::Type{AnomalyDetection.sVAEmodel}, tp,
+	indim, ldim, nhid)
+	decsize, ensize, dissize = netsize(m, indim, ldim, nhid)
+
+	tp[:mparams][:args][:decsize] = decsize
+	tp[:mparams][:args][:ensize] = ensize
+	tp[:mparams][:args][:dissize] = dissize
+	# create the name string
+	f = "ensize"
+	for s in ensize
+		f=string(f,"-$(s)")
+	end
+	f=string(f,"_decsize")
+	for s in decsize
+		f=string(f,"-$(s)")
+	end
+	f=string(f,"_dissize")
+	for s in dissize
+		f=string(f,"-$(s)")
+	end
+	return f
+end
+
 function netsize(m::Union{Type{AnomalyDetection.GANmodel},
 	Type{AnomalyDetection.fmGANmodel}}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
@@ -237,7 +269,7 @@ function updatearchitecture!(m::Union{Type{AnomalyDetection.GANmodel},
 	return f
 end
 
-function updatearchitecture!(m::Type{AnomalyDetection.kNN}, tp,
+function updatearchitecture!(m, tp,
 	indim, ldim, nhid)
 	return ""
 end
@@ -313,7 +345,7 @@ function updateparams!(model, fname, args, mparams)
 	for a in args
 		setfield!(model, a...)
 		fname = string(fname, "_$(a[1])-$(a[2])")
-		mparams[:args][a[1]] = a[2]
+		mparams[:kwargs][a[1]] = a[2]
 	end
 	return fname
 end
@@ -407,11 +439,11 @@ function databatchsize!(N, topparams)
 	# 3) remove duplicates (if there are more pairs with :L > trN)
 	ls = Array{Any,1}([x for x in topparams[:ffparams].xss])
 	for l in ls
-		map(x -> ((x[1]==:L && x[2] > N)? push!(l, (x[1] => N)) : (nothing)), l)
+		map(x -> ((x[1]==:batchsize && x[2] > N)? push!(l, (x[1] => N)) : (nothing)), l)
 	end
 
 	for i in 1:size(ls,1)
-	 	ls[i] = filter(x -> !(x[1]==:L && x[2] > N), ls[i])
+	 	ls[i] = filter(x -> !(x[1]==:batchsize && x[2] > N), ls[i])
 	    ls[i] = unique(ls[i])
 	end
 	topparams[:ffparams] = IterTools.product(ls...)
@@ -420,7 +452,7 @@ end
 _unit() = :unit
 _sigma() = :sigma
 
-const PARAMS = Dict(
+PARAMS = Dict(
 	### kNN ###
 	:kNN => Dict(
 		# this serves as model construction params and also to be saved
@@ -449,7 +481,7 @@ const PARAMS = Dict(
 		:ff => AnomalyDetection.fit!,
 		# anomaly score function
 		:asf => AnomalyDetection.anomalyscore
-		),
+		),	
 	### AE ###
 	:AE => Dict(
 	# this is going to serve as model construction params and also to be saved
@@ -458,16 +490,16 @@ const PARAMS = Dict(
 			# args for the model constructor, must be in correct order
 			:args => DataStructures.OrderedDict(
 				:esize => [1; hiddendim; hiddendim; latentdim],
-				:dsize => [latentdim; hiddendim; hiddendim; 1],
-				:L => 0, # replaced in training
+				:dsize => [latentdim; hiddendim; hiddendim; 1]
+				),
+			# kwargs
+			:kwargs => Dict(
+				:batchsize => 0, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
 				:cbit => 10000,
-				:verbfit => verbfit
-				),
-			# kwargs
-			:kwargs => Dict(
+				:verbfit => verbfit,
 				# input functions like this, they are evaluated later (only here)
 				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
@@ -477,7 +509,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes]),
+		:ffparams => IterTools.product([:batchsize => i for i in batchsizes]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => IterTools.product(),
 		# the model constructor
@@ -499,7 +531,7 @@ const PARAMS = Dict(
 				),
 			# kwargs
 			:kwargs => Dict(
-				:lambda => 0, # replaced in training
+				:lambda => 1, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
@@ -518,7 +550,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes],
+		:ffparams => IterTools.product([:batchsize => i for i in batchsizes],
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
@@ -582,17 +614,17 @@ const PARAMS = Dict(
 			:args => DataStructures.OrderedDict(
 				:ensize => [1; hiddendim; hiddendim; latentdim*2],
 				:decsize => [latentdim; hiddendim; hiddendim; 1],
-				:dissize => [1 + latentdim; hiddendim; hiddendim; 1],
+				:dissize => [1 + latentdim; hiddendim; hiddendim; 1]
+				),
+			# kwargs
+			:kwargs => Dict(
 				:lambda => 0, # replaced in training
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
 				:cbit => 10000,
 				:verbfit => verbfit,
-				:L => 0 # replaced in training
-				),
-			# kwargs
-			:kwargs => Dict(
+				:batchsize => 0, # replaced in training
 				:M => 1,
 				# input functions like this, they are evaluated later
 				:activation => :(Flux.relu),
@@ -604,7 +636,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes],
+		:ffparams => IterTools.product([:batchsize => i for i in batchsizes],
 							 [:lambda => i for i in [0.0; [10.0^i for i in -4:2:4]]]),
 # 							 [:lambda => i for i in [0.0]]),
 		# this is going to be iterated over for the anomalyscore function
@@ -625,16 +657,16 @@ const PARAMS = Dict(
 			:args => DataStructures.OrderedDict(
 				:gsize => [latentdim; hiddendim; hiddendim; 1],
 				:dsize => [1; hiddendim; hiddendim; 1],
-				:lambda => 0, # replaced in training
-				:threshold => 0, # useless
-				:contamination => 0, # useless
-				:L => 0, # replaced in training
-				:iterations => 10000,
-				:cbit => 10000,
-				:verbfit => verbfit
 				),
 			# kwargs
 			:kwargs => Dict(
+				:lambda => 0.5, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:batchsize => 0, # replaced in training
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit,
 				# input functions like this, they are evaluated later
 				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
@@ -645,7 +677,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes]),
+		:ffparams => IterTools.product([:batchsize => i for i in batchsizes]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => IterTools.product([:lambda => i for i in linspace(0,1,6)]),
 		# the model constructor
@@ -663,17 +695,17 @@ const PARAMS = Dict(
 			# args for the model constructor, must be in correct order
 			:args => DataStructures.OrderedDict(
 				:gsize => [latentdim; hiddendim; hiddendim; 1],
-				:dsize => [1; hiddendim; hiddendim; 1],
-				:lambda => 0, # replaced in training
-				:threshold => 0, # useless
-				:contamination => 0, # useless
-				:L => 0, # replaced in training
-				:iterations => 10000,
-				:cbit => 10000,
-				:verbfit => verbfit
+				:dsize => [1; hiddendim; hiddendim; 1]
 				),
 			# kwargs
 			:kwargs => Dict(
+				:lambda => 0.5, # replaced in training
+				:threshold => 0, # useless
+				:contamination => 0, # useless
+				:batchsize => 0, # replaced in training
+				:iterations => 10000,
+				:cbit => 10000,
+				:verbfit => verbfit,
 				# input functions like this, they are evaluated later
 				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
@@ -685,7 +717,7 @@ const PARAMS = Dict(
 				)
 			),
 		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes],
+		:ffparams => IterTools.product([:batchsize => i for i in batchsizes],
 							 [:alpha => i for i in [0; [10.0^i for i in -4:2:4]]]),
 #							 [:alpha => i for i in [0]]),
 		# this is going to be iterated over for the anomalyscore function
@@ -698,3 +730,36 @@ const PARAMS = Dict(
 		:asf => AnomalyDetection.anomalyscore
 		)
 )
+
+if isoforest
+	PARAMS[:IsoForest] = 
+	    Dict(
+		# this is going to serve as model construction params and also to be saved
+		# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict( 
+				:n_estimators => 500,
+				:max_samples => "auto",
+				:contamination => 0, 
+				:max_features => 1.0, # useless
+				:bootstrap => false, # useless
+				:njobs => 1,
+				:verbose => 0, # replaced in training
+				), 
+			# kwargs
+			:kwargs => Dict(
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:ffparams => IterTools.product(),
+		# this is going to be iterated over for the anomalyscore function
+		:asfparams => IterTools.product(),
+		# the model constructor
+		:model => IsolationForest,
+		# model fit function
+		:ff => fit!,
+		# anomaly score function
+		:asf => anomalyscore
+		)
+end

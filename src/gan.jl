@@ -86,13 +86,13 @@ evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(gan, X, Z)), "\n\n")
 
 """
-	fit!(gan, X, L, [iterations, cbit, verb, rdelta, history, eta])
+	fit!(gan, X, batchsize, [iterations, cbit, verb, rdelta, history, eta])
 
 Trains a GAN.
 
 gan - struct of type GAN
 X - data array with instances as columns
-L - batchsize
+batchsize - batchsize
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
@@ -100,7 +100,7 @@ rdelta - stopping condition for reconstruction error
 history - for storing of training progress
 eta - learning rate
 """
-function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
+function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
 	history = nothing, eta = 0.001)
 	# settings
 	#Dopt = ADAM(params(gan.d))
@@ -114,8 +114,8 @@ function fit!(gan::GAN, X, L; iterations=1000, cbit = 200, verb = true, rdelta =
 	# train the GAN
 	for i in 1:iterations
 		# sample data and generate codes
-		x = X[:,sample(1:N, L, replace=false)]
-		z = getcode(gan, L)
+		x = X[:,sample(1:N, batchsize, replace=false)]
+		z = getcode(gan, batchsize)
 
 		# discriminator training
 		Dl = Dloss(gan, x,z)
@@ -229,23 +229,6 @@ Classify an instance x using the discriminator and a threshold.
 """
 classify(gan::GAN, X, threshold, lambda) = Int.(anomalyscore(gan, X, lambda) .> Float(threshold))
 
-"""
-	getthreshold(gan, x, contamination, lambda, [Beta])
-
-Compute threshold for GAN classification based on known contamination level.
-"""
-function getthreshold(gan::GAN, X, contamination, lambda; Beta = 1.0)
-	N = size(X, 2)
-	Beta = Float(Beta)
-	# get reconstruction errors
-	ascore  = anomalyscore(gan, X, lambda)
-	# sort it
-	ascore = sort(ascore)
-	aN = Int(ceil(N*contamination)) # number of contaminated samples
-	# get the threshold - could this be done more efficiently?
-	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
-end
-
 ##############################################################################
 ### A SK-learn like model based on GAN with the same methods and some new. ###
 ##############################################################################
@@ -258,7 +241,7 @@ mutable struct GANmodel <: genmodel
 	lambda::Real
 	threshold::Real
 	contamination::Real
-	L::Int
+	batchsize::Int
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
@@ -269,8 +252,8 @@ mutable struct GANmodel <: genmodel
 end
 
 """
-	GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations,
-	cbit, verbfit, [pz, activation, layer, rdelta, Beta, tracked, eta])
+	GANmodel(gsize, dsize, [lambda, threshold, contamination, batchsize, iterations,
+	cbit, verbfit, pz, activation, layer, rdelta, Beta, tracked, eta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
@@ -279,7 +262,7 @@ dsize - discriminator architecture
 lambda - weighs between the reconstruction error (1) and discriminator score (0) in classification
 threshold - anomaly score threshold for classification, is set automatically using contamination during fit
 contamination - percentage of anomalous samples in all data for automatic threshold computation
-L - batchsize
+batchsize - batchsize
 iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
 verbfit - is progress printed?
@@ -291,15 +274,17 @@ Beta [1.0] - how tight around normal data is the automatically computed threshol
 tracked [false] - is training progress (losses) stored?
 eta [0.001] - learning rate
 """
-function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
-	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int,
-	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu,
+function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
+	lambda::Real=0.5, threshold::Real=0.0, contamination::Real=0.0, 
+	batchsize::Int=1, iterations::Int=10000,
+	cbit::Int=1000, verbfit::Bool=true,
+	pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense, rdelta = Inf,
 	Beta = 1.0, tracked = false, eta = 0.001)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
-	model = GANmodel(gan, lambda, threshold, contamination, L, iterations, cbit,
+	model = GANmodel(gan, lambda, threshold, contamination, batchsize, iterations, cbit,
 		verbfit, rdelta, Beta, history, eta)
 	return model
 end
@@ -313,7 +298,7 @@ generate(model::GANmodel) = generate(model.gan)
 generate(model::GANmodel, n::Int) = generate(model.gan, n)
 anomalyscore(model::GANmodel, X) = anomalyscore(model.gan, X, model.lambda)
 classify(model::GANmodel, x) = classify(model.gan, x, model.threshold, model.lambda)
-getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda, Beta = model.Beta)
+getthreshold(model::GANmodel, X) = getthreshold(model.gan, X, model.contamination, model.lambda; Beta = model.Beta)
 getcode(model::GANmodel) = getcode(model.gan)
 getcode(model::GANmodel, n) = getcode(model.gan, n)
 discriminate(model::GANmodel, X) = discriminate(model.gan, X)
@@ -335,7 +320,7 @@ Trains a GANmodel.
 """
 function fit!(model::GANmodel, X)
 	# train the GAN NN
-	fit!(model.gan, X, model.L; iterations=model.iterations,
+	fit!(model.gan, X, model.batchsize; iterations=model.iterations,
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history, eta = model.eta)
 end

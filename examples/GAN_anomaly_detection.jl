@@ -23,7 +23,7 @@ lambda = 0.5 # anomaly score parameter in [0, 1]
 # 0- ignores the reconstruction error score
 threshold = 0 # classification threshold, is recomputed (getthreshold or when using fit!)
 contamination = size(Y[Y.==1],1)/size(Y, 1) # contamination ratio
-L = 30 # batchsize
+batchsize = 30 # batchsize
 iterations = 15000 # no of iterations
 cbit = 5000 # when should output be printed
 verbfit = true # if output should be produced
@@ -37,8 +37,10 @@ Beta = 1.0 # for automatic threshold computation, in [0, 1]
 tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
 eta = 0.001
-model = GANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, cbit,
-    verbfit, pz = pz, activation = activation, rdelta = rdelta, Beta = Beta, 
+model = GANmodel(gsize, dsize; lambda=lambda, threshold=threshold, 
+    contamination=contamination, batchsize=batchsize, iterations=iterations, 
+    cbit=cbit, verbfit=verbfit, 
+    pz = pz, activation = activation, rdelta = rdelta, Beta = Beta, 
     layer = layer, tracked = tracked, eta = eta)
 
 # fit the model

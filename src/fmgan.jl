@@ -93,13 +93,13 @@ evalloss(fmgan::fmGAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(D
 	"\nreconstruction error: ", Flux.Tracker.data(rerr(fmgan, X, Z)), "\n\n")
 
 """
-	fit!(fmgan, X, L, [alpha, iterations, cbit, verb, rdelta, eta])
+	fit!(fmgan, X, batchsize, [alpha, iterations, cbit, verb, rdelta, eta])
 
 Trains a fmGAN with the feature-matching loss.
 
 fmgan - struct of type fmGAN
 X - data array with instances as columns
-L - batchsize
+batchsize - batchsize
 alpha - weight of the classical generator loss in the total loss
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
@@ -108,7 +108,7 @@ rdelta - stopping condition for reconstruction error
 history - a dictionary for training progress control
 eta - learning rate
 """
-function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb = true, rdelta = Inf,
+function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 200, verb = true, rdelta = Inf,
 	history = nothing, eta = 0.001)
 	# settings
 	#Dopt = ADAM(params(fmgan.d))
@@ -122,8 +122,8 @@ function fit!(fmgan::fmGAN, X, L; alpha = 1.0, iterations=1000, cbit = 200, verb
 	# train the fmGAN
 	for i in 1:iterations
 		# sample data and generate codes
-		x = X[:,sample(1:N, L, replace=false)]
-		z = getcode(fmgan, L)
+		x = X[:,sample(1:N, batchsize, replace=false)]
+		z = getcode(fmgan, batchsize)
                 
         # discriminator training
         Dl = Dloss(fmgan, x, z)
@@ -240,22 +240,6 @@ feature-matching GAN setting.
 """
 classify(fmgan::fmGAN, X, threshold, lambda) = Int.(anomalyscore(fmgan, X, lambda) .> Float(threshold))
 
-"""
-	getthreshold(fmgan, x, contamination, lambda, [Beta])
-
-Compute threshold for fmGAN classification based on known contamination level.
-"""
-function getthreshold(fmgan::fmGAN, X, contamination, lambda; Beta = 1.0)
-	N = size(X, 2)
-	Beta = Float(Beta)
-	# get anomaly score
-	ascore = anomalyscore(fmgan, X, lambda)
-	# sort it
-	ascore = sort(ascore)
-	aN = Int(ceil(N*contamination)) # number of contaminated samples
-	# get the threshold - could this be done more efficiently?
-	(aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
-end
 
 ################################################################################
 ### A SK-learn like model based on fmGAN with the same methods and some new. ###
@@ -269,7 +253,7 @@ mutable struct fmGANmodel <:genmodel
 	lambda::Real
 	threshold::Real
 	contamination::Real
-	L::Int
+	batchsize::Int
 	iterations::Int
 	cbit::Real
 	verbfit::Bool
@@ -281,8 +265,8 @@ mutable struct fmGANmodel <:genmodel
 end
 
 """
-	fmGANmodel(gsize, dsize, lambda, threshold, contamination, L, iterations, 
-	cbit, verbfit, [pz, activation, rdelta, alpha, Beta, tracked, eta])
+	fmGANmodel(gsize, dsize, [lambda, threshold, contamination, batchsize, iterations, 
+	cbit, verbfit, pz, activation, rdelta, alpha, Beta, tracked, eta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
@@ -291,7 +275,7 @@ dsize - discriminator architecture
 lambda - weighs between the reconstruction error (1) and discriminator score (0) in classification
 threshold - anomaly score threshold for classification, is set automatically using contamination during fit
 contamination - percentage of anomalous samples in all data for automatic threshold computation
-L - batchsize
+batchsize - batchsize
 iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
 verbfit - is progress printed?
@@ -303,15 +287,16 @@ Beta [Beta] - how tight around normal data is the automatically computed thresho
 tracked [false] - is training progress (losses) stored?
 eta [0.001] - learning rate
 """
-function fmGANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1},
-	lambda::Real, threshold::Real, contamination::Real, L::Int, iterations::Int, 
-	cbit::Int, verbfit::Bool; pz = randn, activation = Flux.leakyrelu, 
+function fmGANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
+	lambda::Real=0.5, threshold::Real=0.0, contamination::Real=0.0, 
+	batchsize::Int=1, iterations::Int=10000, 
+	cbit::Int=1000, verbfit::Bool=true, pz = randn, activation = Flux.leakyrelu, 
 	layer = Flux.Dense, rdelta = Inf,
 	alpha = 1.0, Beta = 1.0, tracked = false, eta= 0.001)
 	# construct the fmGAN object
 	fmgan = fmGAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
-	model = fmGANmodel(fmgan, lambda, threshold, contamination, L, iterations, cbit, 
+	model = fmGANmodel(fmgan, lambda, threshold, contamination, batchsize, iterations, cbit, 
 		verbfit, rdelta, alpha, Beta, history, eta)
 	return model
 end
@@ -326,7 +311,7 @@ generate(model::fmGANmodel) = generate(model.fmgan)
 generate(model::fmGANmodel, n::Int) = generate(model.fmgan, n)
 anomalyscore(model::fmGANmodel, X) = anomalyscore(model.fmgan, X, model.lambda)
 classify(model::fmGANmodel, x) = classify(model.fmgan, x, model.threshold, model.lambda)
-getthreshold(model::fmGANmodel, X) = getthreshold(model.fmgan, X, model.contamination, model.lambda, Beta = model.Beta)
+getthreshold(model::fmGANmodel, X) = getthreshold(model.fmgan, X, model.contamination, model.lambda; Beta = model.Beta)
 getcode(model::fmGANmodel) = getcode(model.fmgan)
 getcode(model::fmGANmodel, n) = getcode(model.fmgan, n)
 discriminate(model::fmGANmodel, X) = discriminate(model.fmgan, X)
@@ -348,7 +333,7 @@ Trains a fmGANmodel.
 """
 function fit!(model::fmGANmodel, X)
 	# train the fmGAN NN
-	fit!(model.fmgan, X, model.L; alpha = model.alpha, iterations=model.iterations, 
+	fit!(model.fmgan, X, model.batchsize; alpha = model.alpha, iterations=model.iterations, 
 	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history, eta = model.eta)
 end

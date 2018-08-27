@@ -6,6 +6,16 @@ using AnomalyDetection
 using DataStructures
 
 @everywhere begin
+	algorithms = ["IsoForest"]
+
+	if "IsoForest" in algorithms
+		println("For Isolation Forest, paralell run is not implemented. Run without the -p flag.")
+		isoforest = true
+		include("isolation_forest.jl")
+	else
+		isoforest = false
+	end
+
 	loda_path = "../datasets"
 	export_path = "./data" #master path where data will be stored
 	include("parallel_utils.jl")
@@ -18,5 +28,4 @@ datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filt
 
 datasets = datasets[1:1]
 pmap(x -> runexperiments(x[1], iteration, x[2], nhdims),
-	#product(datasets, ["VAE", "kNN", "AE", "GAN", "VAE", "sVAE", "fmGAN"], iteration))
-	product(datasets, ["VAE"]))
+	product(datasets, algorithms))

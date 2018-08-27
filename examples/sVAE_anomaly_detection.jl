@@ -26,7 +26,7 @@ contamination = size(Y[Y.==1],1)/size(Y, 1) # for automatic threshold computatio
 iterations = 10000
 cbit = 5000 # after this number of iteratiosn, callback is printed
 verbfit = true
-L = 50 # batchsize
+batchsize = 50 # batchsize
 M = 1 #  number of samples of X in reconstruction error
 activation = Flux.relu
 layer = Flux.Dense
@@ -39,8 +39,10 @@ tracked = true # do you want to store training progress?
 # it can be later retrieved from model.traindata
 xsigma = 1.0 # static estimate of data variance
 eta = 0.001
-model = sVAEmodel(ensize, decsize, dissize, lambda, threshold, contamination, iterations, cbit, verbfit, 
-    L, M = M, activation = activation, rdelta = rdelta, Beta = Beta, xsigma = xsigma,
+model = sVAEmodel(ensize, decsize, dissize; lambda=lambda, threshold=threshold, 
+    contamination=contamination, iterations=iterations, cbit=cbit, 
+    verbfit=verbfit, batchsize=batchsize, 
+    M = M, activation = activation, rdelta = rdelta, Beta = Beta, xsigma = xsigma,
     tracked = tracked, layer = layer, eta = eta)
 
 # fit the model
@@ -75,7 +77,7 @@ contourf(x, y, zz)
 scatter(X[1, Y.==0], X[2, Y.==0], c = "r", label = "data")
 scatter(Xrec[1,:], Xrec[2,:], label = "reconstructed")
 scatter(Xgen[1,:], Xgen[2,:], c = "k", label = "generated")
-title("discrimiantor contours")
+title("discriminator contours")
 xlim(xl)
 ylim(yl)
 legend()
@@ -95,6 +97,8 @@ AnomalyDetection.sample_z(model, nX)
 AnomalyDetection.setthreshold!(model, X)
 model.M = 20 # number of samples - for classification higher is better (more stable)
 tryhat = AnomalyDetection.predict(model, X)
+
+AnomalyDetection.anomalyscore(model, X)
 
 # get the labels and roc stats
 tryhat, tstyhat = AnomalyDetection.rocstats(dataset, dataset, model);

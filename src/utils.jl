@@ -312,6 +312,23 @@ function cat(bs::Basicset)
 end
 
 """
+    getthreshold(model, X, contamination, [asargs; beta, askwargs])
+
+Compute threshold for model classification based on known contamination level.
+"""
+function getthreshold(model, x, contamination, asargs...; Beta = 1.0, askwargs...)
+    N = size(x, 2)
+    Beta = Float(Beta)
+    # get anomaly score
+    ascore  = anomalyscore(model, x, asargs...; askwargs...)
+    # sort it
+    ascore = sort(ascore)
+    aN = Int(ceil(N*contamination)) # number of contaminated samples
+    # get the threshold - could this be done more efficiently?
+    (aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
+end
+
+"""
     labels2bin(y)
 
 Changes binary coded array from {-1,1} to {0,1}.
