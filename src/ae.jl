@@ -73,26 +73,33 @@ getlosses(ae::AE, X) = (
 	)
 
 """
-	fit!(ae, X, batchsize, [iterations, cbit, verb, rdelta, tracked, eta])
+	fit!(ae, X, batchsize, [iterations, cbit, nepochs, verb, rdelta, tracked, eta])
 
 Trains the AE.
 ae - AE type object
 X - data array with instances as columns
 batchsize - batchsize
 iterations - number of iterations
+nepochs - if this is supplied, epoch training will be used instead of fixed iterations
 cbit - after this # of iterations, output is printed
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - MVHistory() to be filled with data of individual iterations
 eta - learning rate
 """
-function fit!(ae::AE, X, batchsize; iterations=1000, cbit = 200, verb = true, rdelta = Inf, 
-	history = nothing, eta = 0.001)
+function fit!(ae::AE, X, batchsize; iterations=1000, cbit = 200, nepochs = nothing, 
+	verb = true, rdelta = Inf, history = nothing, eta = 0.001)
 	# optimizer
 	opt = ADAM(params(ae), eta)
 
 	# sampler
-	sampler = UniformSampler(X,iterations,batchsize)
+	if nepochs == nothing
+		sampler = UniformSampler(X,iterations,batchsize)
+	else
+		sampler = EpochSampler(X,nepochs,batchsize)
+		cbit = sampler.epochsize
+		iterations = nepochs*cbit
+	end
 	# it might be smaller than the original one if there is not enough data
 	batchsize = sampler.batchsize 
 
@@ -181,6 +188,7 @@ mutable struct AEmodel <: genmodel
 	contamination::Real
 	iterations::Int
 	cbit::Real
+	nepochs
 	verbfit::Bool
 	rdelta::Real
 	Beta::Float
@@ -190,7 +198,7 @@ end
 
 """
 	AEmodel(esize, dsize, [batchsize, threshold, contamination, iteration, cbit, 
-	activation, rdelta, Beta, tracked, eta])
+	nepochs, activation, rdelta, Beta, tracked, eta])
 
 Initialize an autoencoder model with given parameters.
 
@@ -201,6 +209,7 @@ threshold - anomaly score threshold for classification, is set automatically usi
 contamination - percentage of anomalous samples in all data for automatic threshold computation
 iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
+nepochs - if this is supplied, epoch training will be used instead of fixed iterations
 verbfit - is progress printed?
 activation [Flux.relu] - activation function
 rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
@@ -210,14 +219,15 @@ eta - learning rate
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
 	batchsize::Int=1, threshold::Real=0.0, contamination::Real=0.0, 
-	iterations::Int=10000, cbit::Real=1000, verbfit::Bool=true, 
+	iterations::Int=10000, cbit::Real=1000,
+	nepochs = nothing, verbfit::Bool=true, 
 	activation = Flux.relu, rdelta = Inf, Beta = 1.0,
 	tracked = false, layer = Flux.Dense, eta = 0.001)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
-	model = AEmodel(ae, batchsize, threshold, contamination, iterations, cbit, verbfit, rdelta, 
-		Beta, history, eta)
+	model = AEmodel(ae, batchsize, threshold, contamination, iterations, cbit, 
+		nepochs, verbfit, rdelta, Beta, history, eta)
 	return model
 end
 
@@ -247,7 +257,8 @@ Fit the AE model, instances are columns of X, X are normal samples!!!.
 function fit!(model::AEmodel, X) 
 	# train
 	fit!(model.ae, X, model.batchsize, iterations = model.iterations, 
-	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
+	cbit = model.cbit, nepochs = model.nepochs,
+	verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history, eta = model.eta)
 end
 

@@ -44,11 +44,41 @@ mutable struct EpochSampler
 	M
 	N
 	nepochs
+	epochsize
 	batchsize
 	iter
+	buffer
 end
 
-EpochSampler(X::Matrix, nepochs::Int, batchsize::Int) = 
-	EpochSampler(X,size(X,1),size(X,2),nepochs,batchsize,0)
+function EpochSampler(X::Matrix, nepochs::Int, batchsize::Int)
+	M,N = size(X) 
+	batchsize = checkbatchsize(N,batchsize,false)
+	return EpochSampler(X,M,N,nepochs,Int(ceil(N/batchsize)),batchsize,0,
+		sample(1:N,N,replace = false))
+end
 
+function next!(s::EpochSampler)
+	if s.iter < s.nepochs
+		L = length(s.buffer)
+		if  L > s.batchsize
+			inds = s.buffer[1:s.batchsize]
+			s.buffer = s.buffer[s.batchsize+1:end]
+		else
+			inds = s.buffer
+			s.buffer = sample(1:s.N,s.N,replace = false)
+			s.iter += 1
+		end
+		return s.data[:,inds]
+	else
+		return nothing
+	end
+end
 
+function enumerate(s::EpochSampler)
+	return [(i,next!(s)) for i in 1:(s.nepochs*s.epochsize)]
+end
+
+function reset!(s::EpochSampler)
+	s.iter = 0
+	s.buffer = sample(1:s.N,s.N,replace=false)
+end

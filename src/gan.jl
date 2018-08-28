@@ -100,7 +100,7 @@ getlosses(gan::GAN, X, Z) = (
 	)
 
 """
-	fit!(gan, X, batchsize, [iterations, cbit, verb, rdelta, history, eta])
+	fit!(gan, X, batchsize, [iterations, cbit, nepochs, verb, rdelta, history, eta])
 
 Trains a GAN.
 
@@ -109,20 +109,27 @@ X - data array with instances as columns
 batchsize - batchsize
 iterations - number of iterations
 cbit - after this # of iterations, output is printed
+nepochs - if this is supplied, epoch training will be used instead of fixed iterations
 verb - if output should be produced
 rdelta - stopping condition for reconstruction error
 history - for storing of training progress
 eta - learning rate
 """
-function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, verb = true, rdelta = Inf,
-	history = nothing, eta = 0.001)
+function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, nepochs = nothing,
+	verb = true, rdelta = Inf, history = nothing, eta = 0.001)
 	# settings
 	#Dopt = ADAM(params(gan.d))
 	Dopt = ADAM(params(gan.d), eta)
 	Gopt = ADAM(params(gan.g), eta)
 
 	# sampler
-	sampler = UniformSampler(X,iterations,batchsize)
+	if nepochs == nothing
+		sampler = UniformSampler(X,iterations,batchsize)
+	else
+		sampler = EpochSampler(X,nepochs,batchsize)
+		cbit = sampler.epochsize
+		iterations = nepochs*cbit
+	end
 	# it might be smaller than the original one if there is not enough data
 	batchsize = sampler.batchsize 
 
@@ -276,6 +283,7 @@ mutable struct GANmodel <: genmodel
 	batchsize::Int
 	iterations::Int
 	cbit::Real
+	nepochs
 	verbfit::Bool
 	rdelta::Float
 	Beta::Float
@@ -285,7 +293,7 @@ end
 
 """
 	GANmodel(gsize, dsize, [lambda, threshold, contamination, batchsize, iterations,
-	cbit, verbfit, pz, activation, layer, rdelta, Beta, tracked, eta])
+	cbit, nepochs, verbfit, pz, activation, layer, rdelta, Beta, tracked, eta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
@@ -297,6 +305,7 @@ contamination - percentage of anomalous samples in all data for automatic thresh
 batchsize - batchsize
 iterations - number of training iterations
 cbit - current training progress is printed every cbit iterations
+nepochs - if this is supplied, epoch training will be used instead of fixed iterations
 verbfit - is progress printed?
 pz [randn] - code generating distribution
 activation [Flux.relu] - activation function
@@ -309,7 +318,7 @@ eta [0.001] - learning rate
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
 	lambda::Real=0.5, threshold::Real=0.0, contamination::Real=0.0, 
 	batchsize::Int=1, iterations::Int=10000,
-	cbit::Int=1000, verbfit::Bool=true,
+	cbit::Int=1000, nepochs = nothing, verbfit::Bool=true,
 	pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense, rdelta = Inf,
 	Beta = 1.0, tracked = false, eta = 0.001)
@@ -317,7 +326,7 @@ function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
 	gan = GAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
 	model = GANmodel(gan, lambda, threshold, contamination, batchsize, iterations, cbit,
-		verbfit, rdelta, Beta, history, eta)
+		nepochs, verbfit, rdelta, Beta, history, eta)
 	return model
 end
 
@@ -353,7 +362,8 @@ Trains a GANmodel.
 function fit!(model::GANmodel, X)
 	# train the GAN NN
 	fit!(model.gan, X, model.batchsize; iterations=model.iterations,
-	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
+	cbit = model.cbit, nepochs = model.nepochs,
+	verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history, eta = model.eta)
 end
 
