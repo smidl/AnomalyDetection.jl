@@ -81,9 +81,23 @@ rerr(gan::GAN, X, Z) = Flux.mse(gan.g(Z), X) # which of these is better?
 """
 	evalloss(gan, X, Z)
 """
-evalloss(gan::GAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss(gan, X, Z)),
-	"\ngenerator loss: ", Flux.Tracker.data(Gloss(gan, Z)),
-	"\nreconstruction error: ", Flux.Tracker.data(rerr(gan, X, Z)), "\n\n")
+function evalloss(gan::GAN, X, Z) 
+	dl, gl, r = getlosses(gan,X,Z)
+	print("discriminator loss: ", dl,
+	"\ngenerator loss: ", gl,
+	"\nreconstruction error: ", r, "\n\n")
+end
+
+"""
+	getlosses(gan, X, Z)
+
+Return the numeric values of current losses.
+"""
+getlosses(gan::GAN, X, Z) = (
+	Flux.Tracker.data(Dloss(gan, X, Z)),
+	Flux.Tracker.data(Gloss(gan, Z)),
+	Flux.Tracker.data(rerr(gan, X, Z))
+	)
 
 """
 	fit!(gan, X, batchsize, [iterations, cbit, verb, rdelta, history, eta])
@@ -107,14 +121,27 @@ function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, verb = true, 
 	Dopt = ADAM(params(gan.d), eta)
 	Gopt = ADAM(params(gan.g), eta)
 
+	# sampler
+	sampler = UniformSampler(X,iterations,batchsize)
+	# it might be smaller than the original one if there is not enough data
+	batchsize = sampler.batchsize 
+
+	# using ProgressMeter 
+	if verb
+		p = Progress(iterations, 0.3)
+		x = next!(sampler)
+		reset!(sampler)
+		z = getcode(gan, batchsize)
+		_dl, _gl, _r = getlosses(gan,x,z)
+	end
+
 	# problem size
 	N = size(X,2)
 	zdim = size(params(gan.g)[1],2)
 
 	# train the GAN
-	for i in 1:iterations
+	for (i,x) in enumerate(sampler)
 		# sample data and generate codes
-		x = X[:,sample(1:N, batchsize, replace=false)]
 		z = getcode(gan, batchsize)
 
 		# discriminator training
@@ -135,9 +162,14 @@ function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, verb = true, 
 		Flux.Tracker.back!(Gl)
 		Gopt()
 
-		# callback
-		if verb && i%cbit==0
-			evalloss(gan, x, z)
+		# progress
+		if verb 
+			if (i%cbit == 0 || i == 1)
+				_dl, _gl, _r = getlosses(gan,x,z)
+			end
+			ProgressMeter.next!(p; showvalues = [(:"discriminator loss",_dl),
+				(:"generator loss", _gl),
+				(:"reconstruction error", _r)])
 		end
 
 		# save actual iteration data

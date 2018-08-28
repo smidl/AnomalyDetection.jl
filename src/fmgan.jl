@@ -88,9 +88,23 @@ rerr(fmgan::fmGAN, X, Z) = Flux.mse(fmgan.g(Z), X)
 """
 	evalloss(fmgan, X, Z)
 """
-evalloss(fmgan::fmGAN, X, Z) = print("discriminator loss: ", Flux.Tracker.data(Dloss(fmgan, X, Z)),  
-	"\nfeature-matching loss: ", Flux.Tracker.data(fmloss(fmgan, X, Z)), 
-	"\nreconstruction error: ", Flux.Tracker.data(rerr(fmgan, X, Z)), "\n\n")
+function evalloss(fmgan::fmGAN, X, Z) 
+	dl, fml, r = getlosses(fmgan,X,Z)
+	print("discriminator loss: ", dl,  
+	"\nfeature-matching loss: ", fml, 
+	"\nreconstruction error: ", r, "\n\n")
+end
+
+"""
+	getlosses(fmgan, X, Z)
+
+Return the numeric values of current losses.
+"""
+getlosses(fmgan::fmGAN, X, Z) = (
+	Flux.Tracker.data(Dloss(fmgan, X, Z)),
+	Flux.Tracker.data(fmloss(fmgan,X,Z)),
+	Flux.Tracker.data(rerr(fmgan,X,Z))
+	)
 
 """
 	fit!(fmgan, X, batchsize, [alpha, iterations, cbit, verb, rdelta, eta])
@@ -119,10 +133,23 @@ function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 2
 	N = size(X,2)
 	zdim = size(params(fmgan.g)[1],2)
 
+	# sampler
+	sampler = UniformSampler(X,iterations,batchsize)
+	# it might be smaller than the original one if there is not enough data
+	batchsize = sampler.batchsize 
+
+	# using ProgressMeter 
+	if verb
+		p = Progress(iterations, 0.3)
+		x = next!(sampler)
+		reset!(sampler)
+		z = getcode(fmgan, batchsize)
+		_dl, _fml, _r = getlosses(fmgan,x,z)
+	end
+
 	# train the fmGAN
-	for i in 1:iterations
+	for (i,x) in enumerate(sampler)
 		# sample data and generate codes
-		x = X[:,sample(1:N, batchsize, replace=false)]
 		z = getcode(fmgan, batchsize)
                 
         # discriminator training
@@ -142,10 +169,15 @@ function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 2
 		end
 		Flux.Tracker.back!(Gl)
         Gopt()
-	
-		# callback
-		if verb && i%cbit==0
-			evalloss(fmgan, x, z)
+
+		# progress
+		if verb 
+			if (i%cbit == 0 || i == 1)
+				_dl, _fml, _r = getlosses(fmgan,x,z)
+			end
+			ProgressMeter.next!(p; showvalues = [(:"discriminator loss",_dl),
+				(:"feature-matching loss", _fml),
+				(:"reconstruction error", _r)])
 		end
 
 		# save actual iteration data

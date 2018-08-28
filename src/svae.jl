@@ -42,8 +42,10 @@ sigma(svae::sVAE, X) = softplus(X[Int(size(svae.encoder.layers[end].W,1)/2+1):en
 Sample from the last encoder layer.
 """
 function sample_z(svae::sVAE, X) 
-    res = mu(svae,X)
-    return res .+ Float.(randn(size(res))) .* sigma(svae,X) 
+    μ = mu(svae,X)
+    σ = sigma(svae, X)
+    ϵ = Float.(randn(size(μ)))
+    return μ + ϵ.*σ 
 end
 
 """
@@ -127,16 +129,16 @@ Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(Float(1)-σ.(distrain(svae,qX, qZ
     mean(log.(σ.(distrain(svae, pX, pZ)) + eps(Float)))
 
 """
-    Dloss(svae, X, batchsize)
+    Dloss(svae, X)
 
-sVAE discriminator loss, batchsize is batchsize.
+sVAE discriminator loss.
 """
-function Dloss(svae::sVAE, X, batchsize::Int64)
+function Dloss(svae::sVAE, X)
     N = size(X, 2)
     latentdim = Int(size(svae.encoder.layers[end].W,1)/2)
 
     # sample q(x, z)
-    qX = X[:, sample(1:N, batchsize, replace = false)]
+    qX = X
     qZ = Flux.Tracker.data(getcode(svae, qX))
 
     # sample p(x,z)
@@ -147,22 +149,22 @@ function Dloss(svae::sVAE, X, batchsize::Int64)
 end
 
 """
-    VAEloss(svae, X, batchsize, lambda; xsigma = 1.0)
+    VAEloss(svae, X, lambda; xsigma = 1.0)
 
 Variational loss for sVAE.
 """
-function VAEloss(svae::sVAE, X, batchsize, lambda; xsigma = 1.0)
+function VAEloss(svae::sVAE, X, lambda; xsigma = 1.0)
     N = size(X, 2)
     latentdim = Int(size(svae.encoder.layers[end].W,1)/2)
     xsigma = Float(xsigma)
     lambda = Float(lambda)
 
     # sample q(x,z)
-    qX = X[:, sample(1:N, batchsize, replace = false)]
+    qX = X
     qZ = getcode(svae, qX)
 
     # sample p(x,z)
-    pZ = randn(Float, latentdim, batchsize)
+    pZ = randn(Float, latentdim, N)
     pX = svae.decoder(pZ)
     
     # also, gather the params of q(z|x)
@@ -184,22 +186,25 @@ sVAE reconstruction error, M is number of samples.
 rerr(svae::sVAE, X, M) = Flux.mse(mean([svae(X) for m in 1:M]), X)
 
 """
-    evalloss(svae, X, batchsize, lambda, M)
+    evalloss(svae, X, lambda, M)
 """
-evalloss(svae::sVAE, X, batchsize, lambda, M) = println(
-    "discriminator loss: ", Flux.Tracker.data(Dloss(svae, X, batchsize)),
-    "\nVAE loss: ", Flux.Tracker.data(VAEloss(svae, X, batchsize, lambda)),
-    "\nreconstruction error: ", Flux.Tracker.data(rerr(svae, X, M)), "\n"
+function evalloss(svae::sVAE, X, lambda, M) 
+    dl, vl, r = getlosses(svae, X, lambda, M)
+    println(
+    "discriminator loss: ", dl,
+    "\nVAE loss: ", vl,
+    "\nreconstruction error: ", r, "\n"
     )
+end
 
 """
     getlosses(svae, X, M, lambda)
 
 Return the numeric values of current losses.
 """
-getlosses(svae::sVAE, X, batchsize, lambda, M) = (
-    Flux.Tracker.data(Dloss(svae, X, batchsize)),
-    Flux.Tracker.data(VAEloss(svae, X, batchsize, lambda)),
+getlosses(svae::sVAE, X, lambda, M) = (
+    Flux.Tracker.data(Dloss(svae, X)),
+    Flux.Tracker.data(VAEloss(svae, X, lambda)),
     Flux.Tracker.data(rerr(svae, X, M))
     )
 
@@ -224,17 +229,23 @@ function fit!(svae::sVAE, X, batchsize, lambda; M=1, iterations=1000, cbit = 200
     # settings
     opt = ADAM(params(svae), eta)
 
+    # sampler
+    sampler = UniformSampler(X,iterations,batchsize)
+    # it might be smaller than the original one if there is not enough data
+    batchsize = sampler.batchsize 
+
     # using ProgressMeter 
     if verb
         p = Progress(iterations, 0.3)
-        x = X[:, sample(1:size(X,2), batchsize, replace = false)]
-        _dl, _vl, _r = getlosses(svae, x, batchsize, lambda, M)
+        x = next!(sampler)
+        reset!(sampler)
+        _dl, _vl, _r = getlosses(svae, x, lambda, M)
     end
 
     # train
-    for i in 1:iterations
+    for (i,x) in enumerate(sampler)
         # train the discriminator
-        Dl = Dloss(svae, X, batchsize)
+        Dl = Dloss(svae, x)
         if isnan(Dl)
             warn("Discriminator loss is NaN, ending fit.")
             return
@@ -243,14 +254,14 @@ function fit!(svae::sVAE, X, batchsize, lambda; M=1, iterations=1000, cbit = 200
         opt()
         
         # train the VAE part of the net
-        Vl = VAEloss(svae, X, batchsize, lambda)
+        Vl = VAEloss(svae, x, lambda)
         Flux.Tracker.back!(Vl)
         opt()
 
         # progress
         if verb 
             if (i%cbit == 0 || i == 1)
-                _dl, _vl, _r = getlosses(svae, x, batchsize, lambda, M)
+                _dl, _vl, _r = getlosses(svae, x, lambda, M)
             end
             ProgressMeter.next!(p; showvalues = [(:"discriminator loss",_dl),
                 (:"vae loss", _vl),(:"reconstruction error", _r)])
@@ -258,12 +269,12 @@ function fit!(svae::sVAE, X, batchsize, lambda; M=1, iterations=1000, cbit = 200
 
         # save actual iteration data
         if history != nothing
-            track!(svae, history, X, batchsize, lambda, M)
+            track!(svae, history, x, lambda, M)
         end
 
         # if stopping condition is present
         if rdelta < Inf
-            re = Flux.Tracker.data(rerr(svae, X, M))[1]
+            re = Flux.Tracker.data(rerr(svae, x, M))[1]
             if re < rdelta
                 println("Training ended prematurely after $i iterations,\n",
                     "reconstruction error $re < $rdelta")
@@ -274,13 +285,13 @@ function fit!(svae::sVAE, X, batchsize, lambda; M=1, iterations=1000, cbit = 200
 end
 
 """
-    track!(svae, history, X, batchsize, lambda, M)
+    track!(svae, history, X, lambda, M)
 
 Save current progress.
 """
-function track!(svae::sVAE, history, X, batchsize, lambda, M)
-    push!(history, :discriminator_loss, Flux.Tracker.data(Dloss(svae, X, batchsize)))
-    push!(history, :vae_loss, Flux.Tracker.data(VAEloss(svae, X, batchsize, lambda)))
+function track!(svae::sVAE, history, X, lambda, M)
+    push!(history, :discriminator_loss, Flux.Tracker.data(Dloss(svae, X)))
+    push!(history, :vae_loss, Flux.Tracker.data(VAEloss(svae, X, lambda)))
     push!(history, :reconstruction_error, Flux.Tracker.data(rerr(svae, X, M)))
 end
 
@@ -405,10 +416,10 @@ sample_z(model::sVAEmodel, X) = sample_z(model.svae, model.svae.encoder(X))
 getcode(model::sVAEmodel, X) = getcode(model.svae, X)
 discriminate(model::sVAEmodel, X, Z) = discriminate(model.svae, X, Z)
 Dloss(model::sVAEmodel, pX, pZ, qX, qZ) = Dloss(model.svae, pX, pZ, qX, qZ)
-Dloss(model::sVAEmodel, X) = Dloss(model.svae, X, model.batchsize)
-VAEloss(model::sVAEmodel, X) = VAEloss(model.svae, X, model.batchsize, model.lambda, xsigma = model.xsigma)
+Dloss(model::sVAEmodel, X) = Dloss(model.svae, X)
+VAEloss(model::sVAEmodel, X) = VAEloss(model.svae, X, model.lambda, xsigma = model.xsigma)
 rerr(model::sVAEmodel, X) = rerr(model.svae, X, model.M)
-evalloss(model::sVAEmodel, X) = evalloss(model.svae, X, model.batchsize, model.lambda, model.M)
+evalloss(model::sVAEmodel, X) = evalloss(model.svae, X, model.lambda, model.M)
 generate(model::sVAEmodel) = generate(model.svae)
 generate(model::sVAEmodel, n) = generate(model.svae, n)
 anomalyscore(model::sVAEmodel, X) = anomalyscore(model.svae, X, model.M, model.alpha)

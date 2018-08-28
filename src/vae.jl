@@ -188,18 +188,21 @@ function fit!(vae::VAE, X, batchsize; M=1, iterations=1000, cbit = 200, verb::Bo
 	# settings
 	opt = ADAM(params(vae), eta)
 
+	# sampler
+	sampler = UniformSampler(X,iterations,batchsize)
+	# it might be smaller than the original one if there is not enough data
+	batchsize = sampler.batchsize 
+
 	# using ProgressMeter 
 	if verb
 		p = Progress(iterations, 0.3)
-		x = X[:, sample(1:size(X,2), batchsize, replace = false)]
+		x = next!(sampler)
+		reset!(sampler)
 		_l, _lk, _kl = getlosses(vae, x, M, lambda)
 	end
 
 	# train
-	for i in 1:iterations
-		# sample minibatch of X
-		x = X[:, sample(1:size(X,2), batchsize, replace = false)]
-
+	for (i,x) in enumerate(sampler)
 		# gradient computation and update
 		l = loss(vae, x, M, lambda)
 		Flux.Tracker.back!(l)

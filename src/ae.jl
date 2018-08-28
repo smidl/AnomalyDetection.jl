@@ -61,7 +61,16 @@ loss(ae::AE, X) = Flux.mse(ae(X), X)
 
 Print ae loss function values.	
 """
-evalloss(ae::AE, X) = println("loss: ", Flux.Tracker.data(loss(ae, X)), "\n")
+evalloss(ae::AE, X) = println("loss: ", getlosses(ae,X)[1], "\n")
+
+"""
+	getlosses(ae, X)
+
+Return the numeric values of current losses.
+"""
+getlosses(ae::AE, X) = (
+	Flux.Tracker.data(loss(ae, X))
+	)
 
 """
 	fit!(ae, X, batchsize, [iterations, cbit, verb, rdelta, tracked, eta])
@@ -82,19 +91,32 @@ function fit!(ae::AE, X, batchsize; iterations=1000, cbit = 200, verb = true, rd
 	# optimizer
 	opt = ADAM(params(ae), eta)
 
-	# training
-	for i in 1:iterations
-		# sample from data
-		x = X[:, sample(1:size(X,2), batchsize, replace = false)]
+	# sampler
+	sampler = UniformSampler(X,iterations,batchsize)
+	# it might be smaller than the original one if there is not enough data
+	batchsize = sampler.batchsize 
 
+	# using ProgressMeter 
+	if verb
+		p = Progress(iterations, 0.3)
+		x = next!(sampler)
+		reset!(sampler)
+		_l = getlosses(ae, x)
+	end
+
+	# training
+	for (i,x) in enumerate(sampler)
 		# gradient computation and update
 		l = loss(ae, x)
 		Flux.Tracker.back!(l)
 		opt()
 
-		# callback
-		if verb && i%cbit == 0
-			evalloss(ae, x)
+		# progress
+		if verb 
+			if (i%cbit == 0 || i == 1)
+				_l = getlosses(ae, x)
+			end
+			ProgressMeter.next!(p; showvalues = [(:loss,_l)])
 		end
 
 		# save actual iteration data
