@@ -20,7 +20,7 @@ using DataStructures
 	#master path where data will be stored
 	if host == "vit"
 		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D_full/output" 
-	elseif host = "axolotl.utia.cas.cz"
+	elseif host == "axolotl.utia.cas.cz"
 		export_path = "home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D_full/output/"
 	end
 

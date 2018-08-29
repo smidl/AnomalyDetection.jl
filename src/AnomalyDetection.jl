@@ -29,6 +29,6 @@ include("fmgan.jl")
 include("knn.jl")
 include("utils.jl")
 include("samplers.jl")
-#include("ensembles.jl")
+include("ensembles.jl")
 
 end
