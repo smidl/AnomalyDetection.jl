@@ -6,7 +6,7 @@ const latentdim = 8
 const activation = Flux.relu
 const verbfit = false
 const batchsizes = [256]
-const useepochs = true
+const useepochs = false
 ###############################
 
 """
@@ -39,16 +39,12 @@ save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, t
 Returns training and testing dataset.
 """
 function get_data(dataset_name, iteration, allanomalies=false)
-	# get the dataset
-	basicset = AnomalyDetection.Basicset(joinpath(loda_path, dataset_name))
-	# settings
-
 	# ratio of training to all data
 	alpha = 0.8
 
 	# random seed
 	seed = Int64(iteration)
-	
+
 	if !allanomalies
 		# easy/medium/hard/very_hard problem based on similarity of anomalous measurements to normal
 		# some datasets dont have easy difficulty anomalies
@@ -66,15 +62,16 @@ function get_data(dataset_name, iteration, allanomalies=false)
 		variation = "low"
 
 		# this might fail for url
-		trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, difficulty,
-			frequency, variation, seed = seed)
+		trdata, tstdata, clusterdness = AnomalyDetection.getdata(dataset_name, alpha, 
+			difficulty, frequency, variation, seed = seed, loc = loda_path)
 	else
-		trdata, tstdata, clusterdness = AnomalyDetection.makeset(basicset, alpha, seed = seed)
+		trdata, tstdata, clusterdness = AnomalyDetection.getdata(dataset_name, alpha, 
+			seed = seed, loc = loda_path)
 	end
 
 	return trdata, tstdata
 end
-
+	
 """
 	getas(dataset_name, m, as)
 

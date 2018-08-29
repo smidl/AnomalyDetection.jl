@@ -6,7 +6,7 @@ using AnomalyDetection
 using DataStructures
 
 @everywhere begin
-	algorithms = ["kNN", "AE", "VAE", "sigmaVAE", "GAN", "fmGAN", "sVAE"]
+	algorithms = ["kNN", "AE", "VAE", "GAN", "fmGAN"]
 
 	if "IsoForest" in algorithms
 		println("For Isolation Forest, paralell run is not implemented. Run without the -p flag.")
@@ -16,17 +16,16 @@ using DataStructures
 		isoforest = false
 	end
 
-	loda_path = "../datasets"
-	#loda_path = "../dataset_analysis/tsne_2D-data"
-	export_path = "./data" #master path where data will be stored
+	loda_path = "../dataset_analysis/tsne_2D-data"
+	export_path = "~/vyzkum/anomaly_detection/data/benchmarks/tsne_2D/output" #master path where data will be stored
 	include("../benchmarks/parallel_utils.jl")
 end
 
 iteration = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
 nhdims = (size(ARGS,1) >0) ? parse(Int64, ARGS[2]) : 1
 
-datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(!(s -> s in ["url", "gisette", "persistent-connection"]))
+datasets = ["abalone", "glass", "haberman", "ionosphere", "isolet", "miniboone", 
+"multiple-features", "musk-2", "page-blocks", "pendigits"]
 
-datasets = datasets[1:1]
 pmap(x -> runexperiments(x[1], iteration, x[2], nhdims),
 	product(datasets, algorithms))

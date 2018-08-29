@@ -257,7 +257,8 @@ end
     getdata(datasetname, alpha=0.8, difficulty="", frequency=0.05, 
             variation="low"; seed=false)
 
-Returns a training and testing Dataset.
+Returns a training and testing Dataset. If difficulty = "" (default),
+all anomalies are sampled from.
 """
 function getdata(datasetname::String, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
             variation::String="low";seed=false, loc="")
