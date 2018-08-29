@@ -15,7 +15,7 @@ import Base.cat
 const Float = Float32
 
 export Basicset, Dataset, VAE, VAEmodel, AE, AEmodel, GAN, GANmodel, 
-	sVAE, sVAEmodel, fmGAN, fmGANmodel, kNN
+	sVAE, sVAEmodel, fmGAN, fmGANmodel, kNN, Ensemble
 
 # generative model abstract type
 abstract type genmodel
