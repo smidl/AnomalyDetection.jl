@@ -6,6 +6,7 @@ const latentdim = 8
 const activation = Flux.relu
 const verbfit = false
 const batchsizes = [256]
+const useepochs = true
 ###############################
 
 """
@@ -351,6 +352,22 @@ function updateparams!(model, fname, args, mparams)
 end
 
 """
+	setnepochs(topparams, N)
+
+Set the number of epochs so that there is still a set number of iterations going on.
+"""
+function setnepochs(topparams, N)
+	if useepochs
+		iters = topparams[:mparams][:kwargs][:iterations]
+		batchsize = batchsizes[1]
+		topparams[:mparams][:kwargs][:nepochs] = 
+			Int(ceil(batchsize*iters/N))
+	else
+		topparams[:mparams][:kwargs][:nepochs] = nothing
+	end
+end
+
+"""
 	dataparams!(model, topparams, data)
 
 Define operations needed to be done with params according to data prior to
@@ -370,6 +387,9 @@ function dataparams!{model<:AnomalyDetection.genmodel}(m::Type{model}, topparams
 	topparams[:mparams][:args][:esize][1] = indim
 	topparams[:mparams][:args][:dsize][end] = indim
 
+	# set epoch number if needed
+	setnepochs(topparams, trN)
+
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -384,6 +404,9 @@ function dataparams!(m::Type{AnomalyDetection.VAEmodel}, topparams, data)
 		topparams[:mparams][:args][:dsize][end] = indim*2
 	end
 
+	# set epoch number if needed
+	setnepochs(topparams, trN)
+
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -397,6 +420,9 @@ function dataparams!(m::Type{AnomalyDetection.sVAEmodel}, topparams, data)
 	topparams[:mparams][:args][:dissize][1] = indim +
 		topparams[:mparams][:args][:decsize][1]
 
+	# set epoch number if needed
+	setnepochs(topparams, trN)
+	
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -407,6 +433,9 @@ function dataparams!(m::Type{AnomalyDetection.GANmodel}, topparams, data)
 	topparams[:mparams][:args][:gsize][end] = indim
 	topparams[:mparams][:args][:dsize][1] = indim
 
+	# set epoch number if needed
+	setnepochs(topparams, trN)
+	
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
@@ -417,11 +446,12 @@ function dataparams!(m::Type{AnomalyDetection.fmGANmodel}, topparams, data)
 	topparams[:mparams][:args][:gsize][end] = indim
 	topparams[:mparams][:args][:dsize][1] = indim
 
+	# set epoch number if needed
+	setnepochs(topparams, trN)
+	
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
 end
-
-
 
 """
 	databatchsize!(N, topparams)
@@ -498,8 +528,9 @@ PARAMS = Dict(
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
-				:cbit => 10000,
+				:cbit => 1000,
 				:verbfit => verbfit,
+				:nepochs => nothing,
 				# input functions like this, they are evaluated later (only here)
 				:activation => :(Flux.relu),
 				:layer => :(Flux.Dense),
@@ -535,7 +566,7 @@ PARAMS = Dict(
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
-				:cbit => 10000,
+				:cbit => 1000,
 				:verbfit => verbfit,
 				:batchsize => 0, # replaced in training
 				:M => 1,
@@ -551,49 +582,6 @@ PARAMS = Dict(
 			),
 		# this is going to be iterated over for the fit function
 		:ffparams => IterTools.product([:batchsize => i for i in batchsizes],
-							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
-							#[:lambda => i for i in [10.0^i for i in 0:0]]),
-		# this is going to be iterated over for the anomalyscore function
-		:asfparams => IterTools.product([:astype => s for s in ["likelihood"]]),
-		# the model constructor
-		:model => AnomalyDetection.VAEmodel,
-		# model fit function
-		:ff => AnomalyDetection.fit!,
-		# anomaly score function
-		:asf => AnomalyDetection.anomalyscore
-		),
-	### sigmaVAE ###
-	:sigmaVAE => Dict(
-	# this is going to serve as model construction params and also to be saved
-	# in io
-		:mparams => Dict(
-			# args for the model constructor, must be in correct order
-			:args => DataStructures.OrderedDict(
-				:esize => [1; hiddendim; hiddendim; latentdim*2],
-				:dsize => [latentdim; hiddendim; hiddendim; 1],
-				:lambda => 0, # replaced in training
-				:threshold => 0, # useless
-				:contamination => 0, # useless
-				:iterations => 10000,
-				:cbit => 10000,
-				:verbfit => verbfit,
-				:L => 0 # replaced in training
-				),
-			# kwargs
-			:kwargs => Dict(
-				:M => 1,
-				# input functions like this, they are evaluated later
-				:activation => :(Flux.relu),
-				:layer => :(Flux.Dense),
-				:tracked => true,
-				:rdelta => Inf,
-				:astype => "likelihood",
-				:eta => 0.001,
-				:variant => :(_sigma())
-				)
-			),
-		# this is going to be iterated over for the fit function
-		:ffparams => IterTools.product([:L => i for i in batchsizes],
 							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
 							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
@@ -622,7 +610,8 @@ PARAMS = Dict(
 				:threshold => 0, # useless
 				:contamination => 0, # useless
 				:iterations => 10000,
-				:cbit => 10000,
+				:cbit => 1000,
+				:nepochs => nothing,
 				:verbfit => verbfit,
 				:batchsize => 0, # replaced in training
 				:M => 1,
@@ -665,7 +654,8 @@ PARAMS = Dict(
 				:contamination => 0, # useless
 				:batchsize => 0, # replaced in training
 				:iterations => 10000,
-				:cbit => 10000,
+				:cbit => 1000,
+				:nepochs =>nothing,
 				:verbfit => verbfit,
 				# input functions like this, they are evaluated later
 				:activation => :(Flux.relu),
@@ -704,7 +694,8 @@ PARAMS = Dict(
 				:contamination => 0, # useless
 				:batchsize => 0, # replaced in training
 				:iterations => 10000,
-				:cbit => 10000,
+				:cbit => 1000,
+				:nepochs => nothing,
 				:verbfit => verbfit,
 				# input functions like this, they are evaluated later
 				:activation => :(Flux.relu),
@@ -730,6 +721,10 @@ PARAMS = Dict(
 		:asf => AnomalyDetection.anomalyscore
 		)
 )
+
+	### sigmaVAE ###
+PARAMS[:sigmaVAE] = copy(PARAMS[:VAE])
+PARAMS[:sigmaVAE][:mparams][:kwargs][:variant] = :(_sigma())
 
 if isoforest
 	PARAMS[:IsoForest] = 

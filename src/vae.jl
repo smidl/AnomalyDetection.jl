@@ -58,12 +58,13 @@ end
 	VAE(esize, dsize; [activation, layer])
 
 Initialize a variational autoencoder with given encoder size and decoder size.
+
 esize - vector of ints specifying the width anf number of layers of the encoder
-dsize - size of decoder
-activation - arbitrary activation function
-layer - type of layer
-variant - :unit - output has unit variance
-		- :sigma - the variance of the output is estimated
+\ndsize - size of decoder
+\nactivation [Flux.relu] - arbitrary activation function
+\nlayer [Flux.Dense] - type of layer
+\nvariant [:unit] - :unit - output has unit variance
+\n 		          - :sigma - the variance of the output is estimated
 """
 function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu,
 		layer = Flux.Dense, variant = :unit)
@@ -168,28 +169,39 @@ getlosses(vae::VAE, X, M, lambda) = (
 	)
 
 """
-	fit!(vae, X, batchsize, [M, iterations, cbit, verb, lambda, rdelta, history, eta])
+	fit!(vae, X, batchsize, [M, iterations, cbit, nepochs, 
+	verb, lambda, rdelta, history, eta])
 
 Trains the VAE neural net.
+
 vae - a VAE object
-X - data array with instances as columns
-batchsize - batchsize
-M - number of samples for likelihood
-iterations - number of iterations
-cbit - after this # of iterations, output is printed
-verb - if output should be produced
-lambda - scaling for the KLD loss
-rdelta - stopping condition for likelihood
-traindata - a dictionary for training progress control
-eta - learning rate
+\nX - data array with instances as columns
+\nbatchsize - batchsize
+\nM [1] - number of samples for likelihood
+\niterations [1000] - number of iterations
+\ncbit [200] - after this # of iterations, output is printed
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverb [true] - if output should be produced
+\nlambda [1] - scaling for the KLD loss
+\nrdelta [Inf] - stopping condition for likelihood
+\nhistory [nothing] - a dictionary for training progress control
+\neta [eta] - learning rate
 """
-function fit!(vae::VAE, X, batchsize; M=1, iterations=1000, cbit = 200, verb::Bool = true, lambda = 1,
+function fit!(vae::VAE, X, batchsize; M=1, iterations=1000, cbit = 200, 
+	nepochs = nothing, verb::Bool = true, lambda = 1,
 	rdelta = Inf, history = nothing, eta = 0.001)
 	# settings
 	opt = ADAM(params(vae), eta)
 
 	# sampler
-	sampler = UniformSampler(X,iterations,batchsize)
+	# sampler
+	if nepochs == nothing
+		sampler = UniformSampler(X,iterations,batchsize)
+	else
+		sampler = EpochSampler(X,nepochs,batchsize)
+		cbit = sampler.epochsize
+		iterations = nepochs*cbit
+	end
 	# it might be smaller than the original one if there is not enough data
 	batchsize = sampler.batchsize 
 
@@ -275,6 +287,7 @@ generate(vae::VAE{E,S,D,V}, n::Int = 1) where {E,S,D,V<:Val{:sigma}} =
 	anomalyscore(vae, X, M, [t])
 
 Compute anomaly score for X.
+
 t = type, default "likelihood", otherwise "logpn".
 """
 anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "likelihood") =
@@ -304,6 +317,7 @@ mutable struct VAEmodel <: genmodel
 	contamination::Real
 	iterations::Int
 	cbit::Real
+	nepochs
 	verbfit::Bool
 	batchsize::Int # batchsize
 	M::Int # sampling rate for likelihood
@@ -316,33 +330,36 @@ end
 
 """
 	VAEmodel(esize, dsize, [lambda, threshold, contamination, iterations,
-	batchsize,  verbfit, cbit, M, activation, layer, rdelta, Beta, tracked, astype, eta])
+	batchsize,  verbfit, cbit, nepochs,
+	M, activation, layer, rdelta, Beta, tracked, astype, eta])
 
 Initialize a variational autoencoder model with given parameters.
 
 esize - encoder architecture, e.g. [input_dim, 10, z_dim*2]
-dsize - decoder architecture, e.g. [z_dim, 10, input_dim]
-lambda - weight of the KL divergence in the total loss
-threshold - anomaly score threshold for classification, is set automatically using contamination during fit
-contamination - percentage of anomalous samples in all data for automatic threshold computation
-iterations - number of training iterations
-cbit - current training progress is printed every cbit iterations
-verbfit - is progress printed?
-batchsize - batchsize
-M [1] - number of samples taken during computation of likelihood, higher may produce more stable classification results
-activation [Flux.relu] - activation function
-layer [Flux.dense] - layer type
-rdelta [Inf] - training stops if likelihood is smaller than rdelta
-Beta [1.0] - how tight around normal data is the automatically computed threshold
-tracked [false] - is training progress (losses) stored?
-astype ["likelihood"] - type of anomaly score function
-variant - :unit - output has unit variance
-		- :sigma - the variance of the output is estimated
-eta - learning rate of the optimizer
+\ndsize - decoder architecture, e.g. [z_dim, 10, input_dim]
+\nlambda [1e-4] - weight of the KL divergence in the total loss
+\nthreshold [0.0] - anomaly score threshold for classification, is set automatically using contamination during fit
+\ncontamination [0.0] - percentage of anomalous samples in all data for automatic threshold computation
+\niterations [10000] - number of training iterations
+\ncbit [1000] - current training progress is printed every cbit iterations
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverbfit [true] - is progress printed?
+\nbatchsize [256] - batchsize
+\nM [1] - number of samples taken during computation of likelihood, higher may produce more stable classification results
+\nactivation [Flux.relu] - activation function
+\nlayer [Flux.dense] - layer type
+\nrdelta [Inf] - training stops if likelihood is smaller than rdelta
+\nBeta [1.0] - how tight around normal data is the automatically computed threshold
+\ntracked [false] - is training progress (losses) stored?
+\nastype ["likelihood"] - type of anomaly score function
+\nvariant [:unit] - :unit - output has unit variance
+\n		          - :sigma - the variance of the output is estimated
+\neta [0.001] - learning rate of the optimizer
 """
 function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
 	contamination::Real = 0.0, iterations::Int = 10000,
-	cbit::Int=1000, verbfit::Bool=true, batchsize::Int=1, 
+	cbit::Int=1000, nepochs = nothing,
+	verbfit::Bool=true, batchsize::Int=256, 
 	lambda::Real = 1e-4, threshold::Real = 0.0, 
 	M::Int =1, activation = Flux.relu,
 	layer = Flux.Dense, rdelta = Inf, Beta = 1.0, tracked = false,
@@ -350,7 +367,8 @@ function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation, layer = layer, variant = variant)
 	(tracked)? history = MVHistory() : history = nothing
-	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, verbfit,
+	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, 
+		nepochs, verbfit,
 		batchsize, M, rdelta, Beta, history, astype, eta)
 	return model
 end
@@ -392,7 +410,8 @@ Fit the VAE model, instances are columns of X.
 function fit!(model::VAEmodel, X)
 	# fit the VAE NN
 	fit!(model.vae, X, model.batchsize, M = model.M, iterations = model.iterations,
-	cbit = model.cbit, verb = model.verbfit, lambda = model.lambda,
+	cbit = model.cbit, nepochs = model.nepochs,
+	verb = model.verbfit, lambda = model.lambda,
 	rdelta = model.rdelta, history = model.history, eta = model.eta)
 end
 

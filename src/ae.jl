@@ -19,12 +19,14 @@ end
 Flux.treelike(AE)
 
 """
-	AE(esize, dsize; [activation])
+	AE(esize, dsize; [activation, layer])
 
 Initialize an autoencoder with given encoder size and decoder size.
+
 esize - vector of ints specifying the width anf number of layers of the encoder
-dsize - size of decoder
-activation - arbitrary activation function
+\ndsize - size of decoder
+\nactivation [Flux.relu] - arbitrary activation function
+\nlayer [Flux.Dense] - layer type
 """
 function AE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.relu,
 		layer = Flux.Dense)
@@ -73,19 +75,20 @@ getlosses(ae::AE, X) = (
 	)
 
 """
-	fit!(ae, X, batchsize, [iterations, cbit, nepochs, verb, rdelta, tracked, eta])
+	fit!(ae, X, batchsize, [iterations, cbit, nepochs, verb, rdelta, history, eta])
 
 Trains the AE.
+
 ae - AE type object
-X - data array with instances as columns
-batchsize - batchsize
-iterations - number of iterations
-nepochs - if this is supplied, epoch training will be used instead of fixed iterations
-cbit - after this # of iterations, output is printed
-verb - if output should be produced
-rdelta - stopping condition for reconstruction error
-history - MVHistory() to be filled with data of individual iterations
-eta - learning rate
+\nX - data array with instances as columns
+\nbatchsize - batchsize
+\niterations [1000] - number of iterations
+\ncbit [200] - after this # of iterations, output is printed
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverb [true] - if output should be produced
+\nrdelta [Inf] - stopping condition for reconstruction error
+\nhistory [nothing] - MVHistory() to be filled with data of individual iterations
+\neta [0.001] - learning rate
 """
 function fit!(ae::AE, X, batchsize; iterations=1000, cbit = 200, nepochs = nothing, 
 	verb = true, rdelta = Inf, history = nothing, eta = 0.001)
@@ -100,6 +103,7 @@ function fit!(ae::AE, X, batchsize; iterations=1000, cbit = 200, nepochs = nothi
 		cbit = sampler.epochsize
 		iterations = nepochs*cbit
 	end
+
 	# it might be smaller than the original one if there is not enough data
 	batchsize = sampler.batchsize 
 
@@ -203,22 +207,22 @@ end
 Initialize an autoencoder model with given parameters.
 
 esize - encoder architecture
-dsize - decoder architecture
-batchsize - batchsize
-threshold - anomaly score threshold for classification, is set automatically using contamination during fit
-contamination - percentage of anomalous samples in all data for automatic threshold computation
-iterations - number of training iterations
-cbit - current training progress is printed every cbit iterations
-nepochs - if this is supplied, epoch training will be used instead of fixed iterations
-verbfit - is progress printed?
-activation [Flux.relu] - activation function
-rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
-Beta [1.0] - how tight around normal data is the automatically computed threshold
-tracked [false] - is training progress (losses) stored?
-eta - learning rate
+\ndsize - decoder architecture
+\nbatchsize [256] - batchsize
+\nthreshold [0.0] - anomaly score threshold for classification, is set automatically using contamination during fit
+\ncontamination [0.0] - percentage of anomalous samples in all data for automatic threshold computation
+\niterations [10000] - number of training iterations
+\ncbit [1000] - current training progress is printed every cbit iterations
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverbfit [true] - is progress printed?
+\nactivation [Flux.relu] - activation function
+\nrdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+\nBeta [1.0] - how tight around normal data is the automatically computed threshold
+\ntracked [false] - is training progress (losses) stored?
+\neta [0.001] - learning rate
 """
 function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
-	batchsize::Int=1, threshold::Real=0.0, contamination::Real=0.0, 
+	batchsize::Int=256, threshold::Real=0.0, contamination::Real=0.0, 
 	iterations::Int=10000, cbit::Real=1000,
 	nepochs = nothing, verbfit::Bool=true, 
 	activation = Flux.relu, rdelta = Inf, Beta = 1.0,

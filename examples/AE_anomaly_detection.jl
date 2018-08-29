@@ -28,7 +28,7 @@ threshold = 0 # classification threshold, is recomputed when calling fit!
 contamination = size(Y[Y.==1],1)/size(Y,1) # to set the decision threshold
 iterations = 5000
 cbit = 1000 # when callback is printed
-nepochs = Int(ceil(batchsize*iterations/size(nX,2)))
+nepochs = Int(ceil(batchsize*iterations/size(nX,2))) # if this is supplied, do epoch training
 verbfit = true 
 activation = Flux.relu
 rdelta = 0.002 # reconstruction error threshold when training is stopped

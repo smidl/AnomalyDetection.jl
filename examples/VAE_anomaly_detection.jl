@@ -29,9 +29,10 @@ threshold = 0 # classification threshold, is recomputed using setthreshold!()
 contamination = size(Y[Y.==1],1)/size(Y, 1) # for automatic threshold computation
 iterations = 2000
 cbit = 500 # after this number of iteratiosn, callback is printed
+batchsize = 50 # batchsize 
+nepochs = Int(ceil(batchsize*iterations/size(nX,2))) # if this is supplied, do epoch training
 verbfit = true
 M = 1 # reconstruction error samples, for training 1 is OK
-batchsize = 50 # batchsize 
 # set low for training but high for classification
 activation = Flux.relu
 layer = Flux.Dense
@@ -43,7 +44,9 @@ tracked = true # do you want to store training progress?
 eta = 0.001
 model = VAEmodel(esize, dsize, lambda = lambda, threshold = threshold, 
     contamination = contamination, iterations = iterations, cbit = cbit, 
-    verbfit = verbfit, batchsize = batchsize, M=M, activation = activation, layer = layer, rdelta = rdelta, Beta = Beta, 
+    nepochs = nepochs,
+    verbfit = verbfit, batchsize = batchsize, M=M, activation = activation, 
+    layer = layer, rdelta = rdelta, Beta = Beta, 
     tracked = tracked, variant = variant, eta = eta)
 
 # fit the model

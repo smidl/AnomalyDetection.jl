@@ -52,11 +52,12 @@ end
 	sVAE(ensize, decsize, dissize; [activation, layer])
 
 Initialize a variational autoencoder with given encoder size and decoder size.
+
 ensize - vector of ints specifying the width anf number of layers of the encoder
-decsize - size of decoder
-dissize - size of discriminator
-activation - arbitrary activation function
-layer - type of layer
+\ndecsize - size of decoder
+\ndissize - size of discriminator
+\nactivation [Flux.relu] - arbitrary activation function
+\nlayer [Flux.Dense] - type of layer
 """
 function sVAE(ensize::Array{Int64,1}, decsize::Array{Int64,1}, dissize::Array{Int64,1};
         activation = Flux.relu, layer = Flux.Dense)
@@ -209,28 +210,37 @@ getlosses(svae::sVAE, X, lambda, M) = (
     )
 
 """
-    fit!(svae, X, batchsize, lambda, [M, iterations, cbit, verb, rdelta, history, eta])
+    fit!(svae, X, batchsize, lambda, [M, iterations, cbit, nepochs,
+    verb, rdelta, history, eta])
 
 Trains the sVAE neural net.
+
 svae - a sVAE object
-X - data array with instances as columns
-batchsize - batchsize
-lambda - scaling for the p(x|z) and q(z|x) logs, >= 0
-M - sampling repetition
-iterations - number of iterations
-cbit - after this # of iterations, output is printed
-verb - if output should be produced
-rdelta - stopping condition for reconstruction error
-history - a dictionary for training progress control
-eta - learning rate
+\nX - data array with instances as columns
+\nbatchsize - batchsize
+\nlambda - scaling for the p(x|z) and q(z|x) logs, >= 0
+\nM [1] - sampling repetition
+\niterations [1000] - number of iterations
+\ncbit [200] - after this # of iterations, output is printed
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverb [nothing] - if output should be produced
+\nrdelta [Inf] - stopping condition for reconstruction error
+\nhistory [nothing] - a dictionary for training progress control
+\neta [0.001] - learning rate
 """
 function fit!(svae::sVAE, X, batchsize, lambda; M=1, iterations=1000, cbit = 200, 
-        verb = true, rdelta = Inf, history = nothing, eta = 0.001)
+        nepochs=nothing, verb = true, rdelta = Inf, history = nothing, eta = 0.001)
     # settings
     opt = ADAM(params(svae), eta)
 
     # sampler
-    sampler = UniformSampler(X,iterations,batchsize)
+    if nepochs == nothing
+        sampler = UniformSampler(X,iterations,batchsize)
+    else
+        sampler = EpochSampler(X,nepochs,batchsize)
+        cbit = sampler.epochsize
+        iterations = nepochs*cbit
+    end
     # it might be smaller than the original one if there is not enough data
     batchsize = sampler.batchsize 
 
@@ -328,6 +338,7 @@ generate(svae::sVAE, n::Int) = svae.decoder(Float.(randn(Int(size(svae.encoder.l
     anomalyscore(svae, X, M, alpha)
 
 Compute anomaly score for X, M is sampling repetition.
+
 alpha - weighs between reconstruction error and discriminator term
 """
 anomalyscore(svae::sVAE, X::Array{Float, 1}, M, alpha) = 
@@ -357,6 +368,7 @@ mutable struct sVAEmodel <: genmodel
     contamination::Real
     iterations::Int
     cbit::Real
+    nepochs
     batchsize::Int # batchsize
     M::Int # sampling rate for reconstruction error
     verbfit::Bool
@@ -370,40 +382,43 @@ end
 
 """
     sVAEmodel(ensize, decsize, dissize, [lambda, threshold, contamination, iterations, 
-    cbit, verbfit, batchsize, M, activation, rdelta, alpha, Beta, xsigma, tracked, eta])
+    cbit, nepochs, verbfit, batchsize, M, activation, rdelta, alpha, Beta, xsigma, tracked, eta])
 
 Initialize a sVAE model with given parameters.
 
 ensize - encoder architecture
-decsize - decoder architecture
-dissize - discriminator architecture
-lambda - weight of the data reconstruction term in the total loss
-threshold - anomaly score threshold for classification, is set automatically using contamination during fit
-contamination - percentage of anomalous samples in all data for automatic threshold computation
-iterations - number of training iterations
-cbit - current training progress is printed every cbit iterations
-verbfit - is progress printed?
-batchsize - batchsize
-M [1] - number of samples taken during computation of reconstruction error, higher may produce more stable classification results
-activation [Flux.relu] - activation function
-layer - NN layer type
-rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
-alpha [0.5] - weighs between the reconstruction error (1) and discriminator score (0) in classification
-Beta [1.0] - how tight around normal data is the automatically computed threshold
-xsigma [1.0] - static estiamte of data variance
-tracked [false] - is training progress (losses) stored?
-eta [0.001] - learning rate
+\ndecsize - decoder architecture
+\ndissize - discriminator architecture
+\nlambda [0.5] - weight of the data reconstruction term in the total loss
+\nthreshold [0.0] - anomaly score threshold for classification, is set automatically using contamination during fit
+\ncontamination [0.0] - percentage of anomalous samples in all data for automatic threshold computation
+\niterations [10000] - number of training iterations
+\ncbit [1000] - current training progress is printed every cbit iterations
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverbfit [true] - is progress printed?
+\nbatchsize [256] - batchsize
+\nM [1] - number of samples taken during computation of reconstruction error, higher may produce more stable classification results
+\nactivation [Flux.relu] - activation function
+\nlayer - NN layer type
+\nrdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+\nalpha [0.5] - weighs between the reconstruction error (1) and discriminator score (0) in classification
+\nBeta [1.0] - how tight around normal data is the automatically computed threshold
+\nxsigma [1.0] - static estiamte of data variance
+\ntracked [false] - is training progress (losses) stored?
+\neta [0.001] - learning rate
 """
 function sVAEmodel(ensize::Array{Int64,1}, decsize::Array{Int64,1},
     dissize::Array{Int64,1}; lambda::Real=0.5, threshold::Real=0.0, 
     contamination::Real=0.0, iterations::Int=10000, cbit::Int=1000, 
-    verbfit::Bool=true, batchsize::Int=1, M=1, activation = Flux.relu, 
+    nepochs = nothing,
+    verbfit::Bool=true, batchsize::Int=256, M=1, activation = Flux.relu, 
     layer = Flux.Dense, rdelta = Inf, alpha=0.5, Beta = 1.0, xsigma = 1.0, 
     tracked = false, eta = 0.001)
     # construct the AE object
     svae = sVAE(ensize, decsize, dissize, activation = activation, layer = layer)
     (tracked)? history = MVHistory() : history = nothing
-    model = sVAEmodel(svae, lambda, threshold, contamination, iterations, cbit, batchsize, M, 
+    model = sVAEmodel(svae, lambda, threshold, contamination, iterations, cbit, 
+        nepochs, batchsize, M, 
         verbfit, rdelta, alpha, Beta, xsigma, history, eta)
     return model
 end
@@ -444,7 +459,8 @@ Trains a sVAEmodel.
 function fit!(model::sVAEmodel, X)
     # train the sVAE NN
     fit!(model.svae, X, model.batchsize, model.lambda, M=model.M,
-     iterations=model.iterations, cbit = model.cbit, verb = model.verbfit, 
+     iterations=model.iterations, cbit = model.cbit, nepochs = model.nepochs,
+     verb = model.verbfit, 
      rdelta = model.rdelta, history = model.history, eta = model.eta)
 end
 

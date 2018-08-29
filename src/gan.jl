@@ -31,9 +31,10 @@ GAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = GAN(G, freeze(G), D, freeze(D), pz
 Constructor for the GAN object.
 
 gsize - vector of Ints describing generator layers sizes
-dsize - vector of Ints describing discriminator layers sizes, including the last scalar layer
-pz - code distribution
-activation - activation function common to all layers
+\ndsize - vector of Ints describing discriminator layers sizes, including the last scalar layer
+\npz [randn] - code distribution
+\nactivation [Flux.leakyrelu] - activation function common to all layers
+\nlayer [Flux,.Dense] - layer type
 """
 function GAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense)
@@ -105,15 +106,15 @@ getlosses(gan::GAN, X, Z) = (
 Trains a GAN.
 
 gan - struct of type GAN
-X - data array with instances as columns
-batchsize - batchsize
-iterations - number of iterations
-cbit - after this # of iterations, output is printed
-nepochs - if this is supplied, epoch training will be used instead of fixed iterations
-verb - if output should be produced
-rdelta - stopping condition for reconstruction error
-history - for storing of training progress
-eta - learning rate
+\nX - data array with instances as columns
+\nbatchsize - batchsize
+\niterations [1000] - number of iterations
+\ncbit [200] - after this # of iterations, output is printed
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverb [true] - if output should be produced
+\nrdelta [Inf] - stopping condition for reconstruction error
+\nhistory [nothing] - for storing of training progress
+\neta [0.001] - learning rate
 """
 function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, nepochs = nothing,
 	verb = true, rdelta = Inf, history = nothing, eta = 0.001)
@@ -130,15 +131,13 @@ function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, nepochs = not
 		cbit = sampler.epochsize
 		iterations = nepochs*cbit
 	end
-	# it might be smaller than the original one if there is not enough data
-	batchsize = sampler.batchsize 
-
+	
 	# using ProgressMeter 
 	if verb
 		p = Progress(iterations, 0.3)
 		x = next!(sampler)
 		reset!(sampler)
-		z = getcode(gan, batchsize)
+		z = getcode(gan, size(x,2))
 		_dl, _gl, _r = getlosses(gan,x,z)
 	end
 
@@ -149,8 +148,7 @@ function fit!(gan::GAN, X, batchsize; iterations=1000, cbit = 200, nepochs = not
 	# train the GAN
 	for (i,x) in enumerate(sampler)
 		# sample data and generate codes
-		z = getcode(gan, batchsize)
-
+		z = getcode(gan, size(x,2))
 		# discriminator training
 		Dl = Dloss(gan, x,z)
 		if isnan(Dl)
@@ -298,26 +296,26 @@ end
 Initialize a generative adversarial net model for classification with given parameters.
 
 gsize - generator architecture
-dsize - discriminator architecture
-lambda - weighs between the reconstruction error (1) and discriminator score (0) in classification
-threshold - anomaly score threshold for classification, is set automatically using contamination during fit
-contamination - percentage of anomalous samples in all data for automatic threshold computation
-batchsize - batchsize
-iterations - number of training iterations
-cbit - current training progress is printed every cbit iterations
-nepochs - if this is supplied, epoch training will be used instead of fixed iterations
-verbfit - is progress printed?
-pz [randn] - code generating distribution
-activation [Flux.relu] - activation function
-layer [Flux.Dense] - layer type
-rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
-Beta [1.0] - how tight around normal data is the automatically computed threshold
-tracked [false] - is training progress (losses) stored?
-eta [0.001] - learning rate
+\ndsize - discriminator architecture
+\nlambda [0.5] - weighs between the reconstruction error (1) and discriminator score (0) in classification
+\nthreshold [0.0] - anomaly score threshold for classification, is set automatically using contamination during fit
+\ncontamination [0.0] - percentage of anomalous samples in all data for automatic threshold computation
+\nbatchsize [256] - batchsize
+\niterations [10000] - number of training iterations
+\ncbit [1000] - current training progress is printed every cbit iterations
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverbfit [true] - is progress printed?
+\npz [randn] - code generating distribution
+\nactivation [Flux.relu] - activation function
+\nlayer [Flux.Dense] - layer type
+\nrdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+\nBeta [1.0] - how tight around normal data is the automatically computed threshold
+\ntracked [false] - is training progress (losses) stored?
+\neta [0.001] - learning rate
 """
 function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
 	lambda::Real=0.5, threshold::Real=0.0, contamination::Real=0.0, 
-	batchsize::Int=1, iterations::Int=10000,
+	batchsize::Int=256, iterations::Int=10000,
 	cbit::Int=1000, nepochs = nothing, verbfit::Bool=true,
 	pz = randn, activation = Flux.leakyrelu,
 	layer = Flux.Dense, rdelta = Inf,

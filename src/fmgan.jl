@@ -32,11 +32,12 @@ fmGAN(G::Flux.Chain, D::Flux.Chain; pz=randn) = fmGAN(G, freeze(G), D, freeze(D)
 	fmGAN(gsize, dsize, [pz, activation, layer])
 
 Constructor for the fmGAN object. 
+
 gsize - vector of Ints describing generator layers sizes
-dsize - vector of Ints describing discriminator layers sizes, including the last scalar layer 
-pz - code distribution
-activation - activation function common to all layers
-layer - layer type
+\ndsize - vector of Ints describing discriminator layers sizes, including the last scalar layer 
+\npz [randn] - code distribution
+\nactivation [Flux.leakyrelu] - activation function common to all layers
+\nlayer [Flux.Dense] - layer type
 """
 function fmGAN(gsize, dsize; pz = randn, activation = Flux.leakyrelu, layer = Flux.Dense)
 	@assert size(gsize,1) >= 3
@@ -107,22 +108,25 @@ getlosses(fmgan::fmGAN, X, Z) = (
 	)
 
 """
-	fit!(fmgan, X, batchsize, [alpha, iterations, cbit, verb, rdelta, eta])
+	fit!(fmgan, X, batchsize, [alpha, iterations, cbit, nepochs,
+	verb, rdelta, eta])
 
 Trains a fmGAN with the feature-matching loss.
 
 fmgan - struct of type fmGAN
-X - data array with instances as columns
-batchsize - batchsize
-alpha - weight of the classical generator loss in the total loss
-iterations - number of iterations
-cbit - after this # of iterations, output is printed
-verb - if output should be produced
-rdelta - stopping condition for reconstruction error
-history - a dictionary for training progress control
-eta - learning rate
+\nX - data array with instances as columns
+\nbatchsize - batchsize
+\nalpha [1.0] - weight of the classical generator loss in the total loss
+\niterations [1000] - number of iterations
+\ncbit [200] - after this # of iterations, output is printed
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverb [true] - if output should be produced
+\nrdelta [Inf] - stopping condition for reconstruction error
+\nhistory [nothing] - a dictionary for training progress control
+\neta [0.001] - learning rate
 """
-function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 200, verb = true, rdelta = Inf,
+function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 200, 
+	nepochs = nothing,	verb = true, rdelta = Inf,
 	history = nothing, eta = 0.001)
 	# settings
 	#Dopt = ADAM(params(fmgan.d))
@@ -134,7 +138,13 @@ function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 2
 	zdim = size(params(fmgan.g)[1],2)
 
 	# sampler
-	sampler = UniformSampler(X,iterations,batchsize)
+	if nepochs == nothing
+		sampler = UniformSampler(X,iterations,batchsize)
+	else
+		sampler = EpochSampler(X,nepochs,batchsize)
+		cbit = sampler.epochsize
+		iterations = nepochs*cbit
+	end
 	# it might be smaller than the original one if there is not enough data
 	batchsize = sampler.batchsize 
 
@@ -143,14 +153,14 @@ function fit!(fmgan::fmGAN, X, batchsize; alpha = 1.0, iterations=1000, cbit = 2
 		p = Progress(iterations, 0.3)
 		x = next!(sampler)
 		reset!(sampler)
-		z = getcode(fmgan, batchsize)
+		z = getcode(fmgan, size(x,2))
 		_dl, _fml, _r = getlosses(fmgan,x,z)
 	end
 
 	# train the fmGAN
 	for (i,x) in enumerate(sampler)
 		# sample data and generate codes
-		z = getcode(fmgan, batchsize)
+		z = getcode(fmgan, size(x,2))
                 
         # discriminator training
         Dl = Dloss(fmgan, x, z)
@@ -288,6 +298,7 @@ mutable struct fmGANmodel <:genmodel
 	batchsize::Int
 	iterations::Int
 	cbit::Real
+	nepochs
 	verbfit::Bool
 	rdelta
 	alpha
@@ -298,38 +309,40 @@ end
 
 """
 	fmGANmodel(gsize, dsize, [lambda, threshold, contamination, batchsize, iterations, 
-	cbit, verbfit, pz, activation, rdelta, alpha, Beta, tracked, eta])
+	cbit, nepochs, verbfit, pz, activation, rdelta, alpha, Beta, tracked, eta])
 
 Initialize a generative adversarial net model for classification with given parameters.
 
 gsize - generator architecture
-dsize - discriminator architecture
-lambda - weighs between the reconstruction error (1) and discriminator score (0) in classification
-threshold - anomaly score threshold for classification, is set automatically using contamination during fit
-contamination - percentage of anomalous samples in all data for automatic threshold computation
-batchsize - batchsize
-iterations - number of training iterations
-cbit - current training progress is printed every cbit iterations
-verbfit - is progress printed?
-pz [randn] - code generating distribution
-activation [Flux.relu] - activation function
-rdelta [Inf] - training stops if reconstruction error is smaller than rdelta
-alpha [1.0] - weight of the classical generator loss -D(G(Z)) in the total generator loss
-Beta [Beta] - how tight around normal data is the automatically computed threshold
-tracked [false] - is training progress (losses) stored?
-eta [0.001] - learning rate
+\ndsize - discriminator architecture
+\nlambda [0.5] - weighs between the reconstruction error (1) and discriminator score (0) in classification
+\nthreshold [0.0] - anomaly score threshold for classification, is set automatically using contamination during fit
+\ncontamination [0.0] - percentage of anomalous samples in all data for automatic threshold computation
+\nbatchsize [256] - batchsize
+\niterations [10000] - number of training iterations
+\ncbit [1000] - current training progress is printed every cbit iterations
+\nnepochs [nothing] - if this is supplied, epoch training will be used instead of fixed iterations
+\nverbfit [true] - is progress printed?
+\npz [randn] - code generating distribution
+\nactivation [Flux.relu] - activation function
+\nrdelta [Inf] - training stops if reconstruction error is smaller than rdelta
+\nalpha [1.0] - weight of the classical generator loss -D(G(Z)) in the total generator loss
+\nBeta [Beta] - how tight around normal data is the automatically computed threshold
+\ntracked [false] - is training progress (losses) stored?
+\neta [0.001] - learning rate
 """
 function fmGANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
 	lambda::Real=0.5, threshold::Real=0.0, contamination::Real=0.0, 
-	batchsize::Int=1, iterations::Int=10000, 
-	cbit::Int=1000, verbfit::Bool=true, pz = randn, activation = Flux.leakyrelu, 
+	batchsize::Int=256, iterations::Int=10000, 
+	cbit::Int=1000, nepochs=nothing,
+	verbfit::Bool=true, pz = randn, activation = Flux.leakyrelu, 
 	layer = Flux.Dense, rdelta = Inf,
 	alpha = 1.0, Beta = 1.0, tracked = false, eta= 0.001)
 	# construct the fmGAN object
 	fmgan = fmGAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
 	(tracked)? history = MVHistory() : history = nothing
 	model = fmGANmodel(fmgan, lambda, threshold, contamination, batchsize, iterations, cbit, 
-		verbfit, rdelta, alpha, Beta, history, eta)
+		nepochs, verbfit, rdelta, alpha, Beta, history, eta)
 	return model
 end
 
@@ -366,7 +379,8 @@ Trains a fmGANmodel.
 function fit!(model::fmGANmodel, X)
 	# train the fmGAN NN
 	fit!(model.fmgan, X, model.batchsize; alpha = model.alpha, iterations=model.iterations, 
-	cbit = model.cbit, verb = model.verbfit, rdelta = model.rdelta,
+	cbit = model.cbit, nepochs = model.nepochs,
+	verb = model.verbfit, rdelta = model.rdelta,
 	history = model.history, eta = model.eta)
 end
 

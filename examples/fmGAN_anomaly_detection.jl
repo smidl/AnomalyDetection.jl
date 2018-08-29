@@ -26,6 +26,7 @@ contamination = size(Y[Y.==1],1)/size(Y, 1) # contamination ratio
 batchsize = 50 # batchsize
 iterations = 10000 # no of iterations
 cbit = 2500 # when should output be printed
+nepochs = Int(ceil(batchsize*iterations/size(nX,2))) # if this is supplied, do epoch training
 verbfit = true # if output should be produced
 pz = randn # code distribution (rand should also work)
 activation = Flux.leakyrelu # should work better than relu
@@ -41,7 +42,7 @@ tracked = true # do you want to store training progress?
 eta = 0.001
 model = fmGANmodel(gsize, dsize; lambda=lambda, threshold=threshold, 
     contamination=contamination, batchsize=batchsize, iterations=iterations, 
-    cbit=cbit, verbfit=verbfit, 
+    cbit=cbit, nepochs = nepochs, verbfit=verbfit, 
     pz = pz, activation = activation, rdelta = rdelta, alpha = alpha,
     Beta = Beta, tracked = tracked, layer = layer, eta = eta)
 
