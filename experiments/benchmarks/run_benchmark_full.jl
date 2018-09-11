@@ -16,14 +16,15 @@ using DataStructures
 		isoforest = false
 	end
 
-	host = gethostname()
+#	host = gethostname()
 	#master path where data will be stored
-	if host == "vit"
-		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D_full/output" 
-	elseif host == "axolotl.utia.cas.cz"
-		export_path = "home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D_full/output/"
-	end
-
+#	if host == "vit"
+#		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D_full/output" 
+#	elseif host == "axolotl.utia.cas.cz"
+#		export_path = "home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D_full/output/"
+#	end
+	export_path = ARGS[1]
+	loda_path = ARGS[2]
 	loda_path = "../dataset_analysis/tsne_2D-data"
 	include("../benchmarks/parallel_utils.jl")
 end
