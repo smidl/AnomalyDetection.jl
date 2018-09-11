@@ -163,7 +163,7 @@ function datastats(dataset, alg, datapath, outpath)
     f = joinpath(fpath, "$alg.csv")
     if !isfile(f)
         df = computedatasetstats(datapath, dataset, [alg])
-        writetable(f, df)
+        CSV.write(f, df)
         println("Computed and saved $(f)!")
     else
         println("$f is already present!")
