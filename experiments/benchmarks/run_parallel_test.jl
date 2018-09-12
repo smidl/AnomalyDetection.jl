@@ -20,7 +20,7 @@ using DataStructures
 	loda_path = "../datasets"
 	#loda_path = "../dataset_analysis/tsne_2D-data"
 	export_path = "./data" #master path where data will be stored
-	include("../benchmarks/parallel_utils.jl")
+	include("parallel_utils.jl")
 end
 
 iteration = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
