@@ -17,9 +17,8 @@ using DataStructures
 		isoforest = false
 	end
 
-	loda_path = "../datasets"
-	#loda_path = "../dataset_analysis/tsne_2D-data"
-	export_path = "./data" #master path where data will be stored
+	export_path = ARGS[1]
+	loda_path = ARGS[2]
 	include("parallel_utils.jl")
 end
 
