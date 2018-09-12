@@ -29,7 +29,7 @@ end
 
 Fit the ensemble with X.
 """
-function fit!(e::Ensemble, X, verb = true)
+function fit!(e::Ensemble, X, verb = false)
 	verb? (p = Progress(e.N, 0.1)) : nothing
 	n = 0
 	for model in e.models

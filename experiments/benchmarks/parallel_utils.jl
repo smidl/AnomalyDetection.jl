@@ -32,6 +32,16 @@ save_io{model<:AnomalyDetection.genmodel}(path, file, m::model, mparams, tras, t
 	tstl, ft, pt) =
 	save_io(path, file, mparams, tras, trl, tstas, tstl, nothing, string(m),
 		nothing, ft, pt)
+function save_io(path, file, m::AnomalyDetection.Ensemble, mparams, tras, trl, tstas, 
+	tstl, ft, pt) 
+	_mparams = copy(mparams)
+	for param in keys(_mparams[:args])
+		_mparams[:args][param] = string(_mparams[:args][param])
+	end
+	save_io(path, file, _mparams, tras, trl, tstas, tstl, nothing, string(m),
+		nothing, ft, pt)
+end
+
 
 """
 	get_data(dataset_name, iteration, allanomalies)
@@ -207,6 +217,11 @@ function updatearchitecture!(m::Type{AnomalyDetection.VAEmodel}, tp,
 	return f
 end
 
+function updatearchitecture!(m::Type{AnomalyDetection.Ensemble}, tp, 
+	indim, ldim, nhid)
+	return updatearchitecture!(tp[:mparams][:args][:constructor], tp, indim, ldim, nhid)
+end
+
 function netsize(m::Type{AnomalyDetection.sVAEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	decsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
@@ -349,6 +364,23 @@ function updateparams!(model, fname, args, mparams)
 end
 
 """
+	updateparams!(ensemble, fname, args, mparams)
+
+Updates params of the models in the ensemble, values of params dictionary to be saved 
+and the filename according to args iterable. Outputs the modified filename.
+"""
+function updateparams!(ensemble::AnomalyDetection.Ensemble, fname, args, mparams)
+	for a in args
+		for model in ensemble.models
+			setfield!(model, a...)
+		end
+		fname = string(fname, "_$(a[1])-$(a[2])")
+		mparams[:kwargs][a[1]] = a[2]
+	end
+	return fname
+end
+
+"""
 	setnepochs(topparams, N)
 
 Set the number of epochs so that there is still a set number of iterations going on.
@@ -406,6 +438,10 @@ function dataparams!(m::Type{AnomalyDetection.VAEmodel}, topparams, data)
 
 	# modify the batchsizes
 	databatchsize!(trN, topparams)
+end
+
+function dataparams!(m::Type{AnomalyDetection.Ensemble}, topparams, data)
+	dataparams!(topparams[:mparams][:args][:constructor], topparams, data)
 end
 
 function dataparams!(m::Type{AnomalyDetection.sVAEmodel}, topparams, data)
@@ -579,7 +615,7 @@ PARAMS = Dict(
 			),
 		# this is going to be iterated over for the fit function
 		:ffparams => IterTools.product([:batchsize => i for i in batchsizes],
-							[:lambda => i for i in [10.0^i for i in 0:-1:-4]]),
+							[:lambda => i for i in [10.0^i for i in 0:-1:-6]]),
 							#[:lambda => i for i in [10.0^i for i in 0:0]]),
 		# this is going to be iterated over for the anomalyscore function
 		:asfparams => IterTools.product([:astype => s for s in ["likelihood"]]),
@@ -719,9 +755,61 @@ PARAMS = Dict(
 		)
 )
 
-	### sigmaVAE ###
+### sigmaVAE ###
 PARAMS[:sigmaVAE] = copy(PARAMS[:VAE])
 PARAMS[:sigmaVAE][:mparams][:kwargs][:variant] = :(_sigma())
+
+### dropoutVAE ###
+#PARAMS[:dropoutVAE] = copy(PARAMS[:VAE])
+#PARAMS[:dropoutVAE][:mparams][:kwargs][:layer] = :(Flux.Dropout)
+
+### VAEensemble ###
+PARAMS[:VAEensemble] = Dict(
+	# this is going to serve as model construction params and also to be saved
+	# in io
+		:mparams => Dict(
+			# args for the model constructor, must be in correct order
+			:args => DataStructures.OrderedDict(
+				:constructor => AnomalyDetection.VAEmodel,
+				:N => 2,
+				:agregf => mean, 
+				:esize => [1; hiddendim; hiddendim; latentdim*2],
+				:dsize => [latentdim; hiddendim; hiddendim; 1]
+				),
+			# kwargs
+			:kwargs => Dict(
+				:contamination => 0, # useless
+				:Beta => 1.0, # useless
+				:lambda => 1, # replaced in training
+				:threshold => 0, # useless
+				:iterations => 10000,
+				:cbit => 1000,
+				:verbfit => verbfit,
+				:batchsize => 0, # replaced in training
+				:M => 1,
+				# input functions like this, they are evaluated later
+				:activation => :(Flux.relu),
+				:layer => :(Flux.Dense),
+				:tracked => true,
+				:rdelta => Inf,
+				:astype => "likelihood",
+				:eta => 0.001,
+				:variant => :(_unit())
+				)
+			),
+		# this is going to be iterated over for the fit function
+		:ffparams => IterTools.product([:batchsize => i for i in batchsizes],
+							[:lambda => i for i in [10.0^i for i in 0:-1:-6]]),
+							#[:lambda => i for i in [10.0^i for i in 0:0]]),
+		# this is going to be iterated over for the anomalyscore function
+		:asfparams => IterTools.product([:astype => s for s in ["likelihood"]]),
+		# the model constructor
+		:model => AnomalyDetection.Ensemble,
+		# model fit function
+		:ff => AnomalyDetection.fit!,
+		# anomaly score function
+		:asf => AnomalyDetection.anomalyscore
+		)
 
 if isoforest
 	PARAMS[:IsoForest] = 
