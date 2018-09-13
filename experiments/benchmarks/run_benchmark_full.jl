@@ -7,7 +7,8 @@ using DataStructures
 
 @everywhere begin
 	#algorithms = ["kNN", "AE", "VAE", "sigmaVAE", "GAN", "fmGAN", "sVAE"]
-	algorithms = ["VAEensemble"]
+	#algorithms = ["VAEensemble"]
+	algorithms = ["IsoForest"]
 
 	if "IsoForest" in algorithms
 		println("For Isolation Forest, paralell run is not implemented. Run without the -p flag.")

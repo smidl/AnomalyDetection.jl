@@ -2,7 +2,6 @@ using IterTools
 
 master_path = ARGS[1]
 
-
 @everywhere begin
 	include("../eval.jl")
 
@@ -12,6 +11,9 @@ master_path = ARGS[1]
 	#data_path = "/home/vit/vyzkum/anomaly_detection/data/aws/extracted"
 	#data_path = "/home/vit/vyzkum/anomaly_detection/data/aws_final/extracted"
 	data_path = joinpath(master_path, "extracted")
+	if !isdir(data_path)
+		data_path = joinpath(master_path, "data")
+	end
 
 	# where the individual experimen results will be stored
 	#outpath = "/opt/output/output"
@@ -34,7 +36,8 @@ mkpath(outpath)
 mkpath(evalpath)
 
 #algnames = ["kNN", "kNNPCA", "IsoForest", "AE", "VAE", "sVAE", "GAN", "fmGAN"]
-algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN", "fmGAN"]
+#algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN", "fmGAN"]
+algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN"]
 #algnames = ["kNN", "kNNPCA"]
 
 if (length(ARGS) > 1)

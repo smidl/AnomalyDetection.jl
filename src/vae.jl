@@ -253,8 +253,8 @@ Save current progress.
 function track!(vae::VAE, history::MVHistory, X, M, lambda)
 	l, lk, kl = getlosses(vae, X, M, lambda)
 	push!(history, :loss, l)
-	push!(history, :KLD, lk)
-	push!(history, :likelihood, kl)
+	push!(history, :KLD, kl)
+	push!(history, :likelihood, lk)
 end
 
 

@@ -410,12 +410,17 @@ function preparedf(data, algs)
     df = createdf(algs)
 
     nalgs = size(algs,1)
-    dataset = data[:dataset][1]
+    
+    if size(data,1) != 0 
+        dataset = data[:dataset][1]
 
-    row = Array{Any,1}(nalgs+1)
-    row[2:end] = missing
-    row[1] = dataset
-    push!(df, reshape(row, 1, nalgs+1))
+        row = Array{Any,1}(nalgs+1)
+        row[2:end] = missing
+        row[1] = dataset
+        push!(df, reshape(row, 1, nalgs+1))
+    else
+        error("Data frame for $(algs) is empty!")
+    end
 
     return df, dataset
 end
@@ -439,7 +444,7 @@ function maxauroc(data, algs, crit_metric = :test_auroc, test_metric = :test_aur
             maxvec[i] = idf[test_metric][j]
         end
 
-        df[Symbol(alg)][1] = round(missmean(maxvec),6)
+        df[Symbol(alg)][1] = round((missmean(maxvec)).value,6)
     end
 
     return df
@@ -480,17 +485,17 @@ end
 function querydata(data, alg, dataset)
     # query the df
     dfx = @from r in data begin
-    @where r.algorithm == alg && r.dataset == dataset
+    @where r.algorithm == string(alg) && r.dataset == string(dataset)
     @select {r.settings, r.iteration, r.train_auroc, r.test_auroc,
         r.train_aauroc, r.test_aauroc, r.top_5p, r.top_1p}
     @collect DataFrame
     end
 
     #get rid of missings
-    dfx = dfx[!ismissing.(dfx[:train_auroc]),:]
-    dfx = dfx[!ismissing.(dfx[:test_auroc]),:]
-    dfx = dfx[!ismissing.(dfx[:train_aauroc]),:]
-    dfx = dfx[!ismissing.(dfx[:test_aauroc]),:]
+    dfx = dfx[.!ismissing.(dfx[:train_auroc]),:]
+    dfx = dfx[.!ismissing.(dfx[:test_auroc]),:]
+    dfx = dfx[.!ismissing.(dfx[:train_aauroc]),:]
+    dfx = dfx[.!ismissing.(dfx[:test_aauroc]),:]
 
     return dfx
 end
@@ -576,7 +581,7 @@ function topprec(data, algs, label = :top_5p, auc_type = "normal")
             end
             # and get the mean of the best setting test auroc over all iterations
             testdf = @from r in dfx begin
-                     @where r.settings == topalg
+                     @where r.settings == string(topalg)
                      @select {r.settings, r.iteration, r.test_auroc, r.test_aauroc}
                      @collect DataFrame
             end
@@ -606,14 +611,14 @@ function meantime(data, algs, t)
 
     for alg in algs
         dfx = @from r in data begin
-            @where r.algorithm == alg && r.dataset == dataset
+            @where r.algorithm == string(alg) && r.dataset == string(dataset)
             @select {r.settings, r.iteration, r.predict_time, r.fit_time}
             @collect DataFrame
         end
 
         try
             # mean aggregate it by settings
-            a = round(missmean(dfx[Symbol(t)]),6)
+            a = round((missmean(dfx[Symbol(t)])).value,6)
             df[Symbol(alg)][1] = a
         catch e
             if !isa(e, ArgumentError)
