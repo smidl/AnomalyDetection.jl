@@ -7,7 +7,7 @@ using DataStructures
 
 @everywhere begin
 	#algorithms = ["kNN", "AE", "VAE", "sigmaVAE", "GAN", "fmGAN", "sVAE"]
-	algorithms = ["AE", "VAE" "GAN", "fmGAN"]
+	algorithms = ["AE", "VAE", "GAN", "fmGAN"]
 	#algorithms = ["VAEensemble"]
 #	algorithms = ["IsoForest"]
 
