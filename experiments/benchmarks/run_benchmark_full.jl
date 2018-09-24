@@ -25,7 +25,7 @@ using DataStructures
 	if host == "vit"
 		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D-24/data" 
 	elseif host == "axolotl.utia.cas.cz"
-		export_path = "home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D-24/data"
+		export_path = "/home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D-24/data"
 	end
 	include("parallel_utils.jl")
 end
