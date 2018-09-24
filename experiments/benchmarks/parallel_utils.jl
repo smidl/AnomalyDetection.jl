@@ -3,10 +3,12 @@
 ###### run settings #######
 const hiddendim = 16
 const latentdim = 8
+const minhiddendim = 24
 const activation = Flux.relu
 const verbfit = false
 const batchsizes = [256]
 const useepochs = false
+const allanomalies = true
 ###############################
 
 """
@@ -108,7 +110,7 @@ parameter setting.
 """
 function runexperiment(dataset_name, iteration, alg)
 	# load data
-	data = get_data(dataset_name, iteration)
+	data = get_data(dataset_name, iteration, allanomalies)
 
 	# top level of the param tree
 	tp = deepcopy(PARAMS[Symbol(alg)])
@@ -135,7 +137,7 @@ parameter setting. Multiple architecture version.
 """
 function runexperiments(dataset_name, iteration, alg, nhid)
 	# load data
-	data = get_data(dataset_name, iteration)
+	data = get_data(dataset_name, iteration, allanomalies)
 
 	# top level of the param tree
 	tp = deepcopy(PARAMS[Symbol(alg)])
@@ -170,6 +172,10 @@ end
 function netsize(m::Type{AnomalyDetection.AEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	# hiddendims should be larger than a given 
+	if minhiddendim!=nothing
+		dsize[2:end-1] = max.(dsize[2:end-1], minhiddendim)
+	end
 	esize = dsize[nhid+3:-1:1]
 	return esize, dsize
 end
@@ -194,6 +200,10 @@ end
 function netsize(m::Type{AnomalyDetection.VAEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	dsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	# hiddendims should be larger than a given 
+	if minhiddendim!=nothing
+		dsize[2:end-1] = max.(dsize[2:end-1], minhiddendim)
+	end
 	esize = dsize[nhid+3:-1:1]
 	esize[end] = 2*esize[end]
 	return esize, dsize
@@ -225,9 +235,19 @@ end
 function netsize(m::Type{AnomalyDetection.sVAEmodel}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	decsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	# hiddendims should be larger than a given 
+	if minhiddendim!=nothing
+		decsize[2:end-1] = max.(decsize[2:end-1], minhiddendim)
+	end
+	
 	ensize = decsize[nhid+3:-1:1]
 	ensize[end] = 2*ensize[end]
 	dissize = [i for i in Int.(round.(linspace(indim+latentdim, 1, nhid+3)))]
+	# hiddendims should be larger than a given 
+	if minhiddendim!=nothing
+		dissize[2:end-1] = max.(dissize[2:end-1], minhiddendim)
+	end
+	
 	return decsize, ensize, dissize
 end
 
@@ -258,6 +278,10 @@ function netsize(m::Union{Type{AnomalyDetection.GANmodel},
 	Type{AnomalyDetection.fmGANmodel}}, indim, ldim, nhid)
 	# create linearly spaced layer sizes
 	gsize = [i for i in Int.(round.(linspace(ldim, indim, nhid+3)))]
+	# hiddendims should be larger than a given 
+	if minhiddendim!=nothing
+		gsize[2:end-1] = max.(gsize[2:end-1], minhiddendim)
+	end
 	dsize = gsize[nhid+3:-1:1]
 	dsize[end] = 1
 	return gsize, dsize

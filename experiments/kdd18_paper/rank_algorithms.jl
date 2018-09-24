@@ -163,7 +163,7 @@ end
 
 # summary of all experiments
 valuedf = createdf(algnames)
-rename!(valuedf, :dataset, :test)
+rename!(valuedf, :dataset => :test)
 push!(valuedf, cat(1,["test auc"],[x[1] for x in colwise(missmean, testauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["train auc"],[x[1] for x in colwise(missmean, trainauc[[Symbol(alg) for alg in algnames]])]))
 push!(valuedf, cat(1,["top 5%"],[x[1] for x in colwise(missmean, top5auc[[Symbol(alg) for alg in algnames]])]))
@@ -197,7 +197,7 @@ rankeddf = [rankeddf; ranktop5aauc[end,:]]
 rankeddf[:dataset][end] = "top 5% - augmented"
 rankeddf = [rankeddf; ranktop1aauc[end,:]]
 rankeddf[:dataset][end] = "top 1% - augmented"
-rename!(rankeddf, :dataset, :test)
+rename!(rankeddf, :dataset => :test)
 CSV.write(joinpath(evalpath, "ranksummary.csv"), rankeddf);
 
 if verb

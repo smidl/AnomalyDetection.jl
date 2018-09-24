@@ -496,7 +496,13 @@ function querydata(data, alg, dataset)
     dfx = dfx[.!ismissing.(dfx[:test_auroc]),:]
     dfx = dfx[.!ismissing.(dfx[:train_aauroc]),:]
     dfx = dfx[.!ismissing.(dfx[:test_aauroc]),:]
-
+    
+    # now, datavalue{any}() is detected by isnull
+    dfx = dfx[.!isnull.(dfx[:train_auroc]),:]
+    dfx = dfx[.!isnull.(dfx[:test_auroc]),:]
+    dfx = dfx[.!isnull.(dfx[:train_aauroc]),:]
+    dfx = dfx[.!isnull.(dfx[:test_aauroc]),:]
+        
     return dfx
 end
 
@@ -809,6 +815,9 @@ function ranks2tikzcd(ranks, algnames, c, caption = ""; label = "", pos = "h")
     n = length(ranks)
     @assert n == length(algnames)
     ranks = reshape(ranks, n)
+    for i in 1:length(ranks)
+        ranks[i] = Float64(parse(ranks[i]))
+    end
 
     # header
     s = "\\begin{figure}[$pos] \n \\center \n \\begin{tikzpicture} \n"

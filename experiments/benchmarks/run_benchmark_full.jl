@@ -7,8 +7,9 @@ using DataStructures
 
 @everywhere begin
 	#algorithms = ["kNN", "AE", "VAE", "sigmaVAE", "GAN", "fmGAN", "sVAE"]
+	algorithms = ["AE", "VAE" "GAN", "fmGAN"]
 	#algorithms = ["VAEensemble"]
-	algorithms = ["IsoForest"]
+#	algorithms = ["IsoForest"]
 
 	if "IsoForest" in algorithms
 		println("For Isolation Forest, paralell run is not implemented. Run without the -p flag.")
@@ -22,9 +23,9 @@ using DataStructures
 	host = gethostname()
 	#master path where data will be stored
 	if host == "vit"
-		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D-experiment/data" 
+		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D-24/data" 
 	elseif host == "axolotl.utia.cas.cz"
-		export_path = "home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D-experiment/data"
+		export_path = "home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D-24/data"
 	end
 	include("parallel_utils.jl")
 end

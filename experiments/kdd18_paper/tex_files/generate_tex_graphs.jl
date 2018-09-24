@@ -20,6 +20,7 @@ _algnames = ["kNN", "IForest", "AE", "VAE", "GAN", "fmGAN"]
 
 #cv = 1.1578 # Nemenyi 0.1 critical value
 cv = 1.2746 # Nemenyi 0.05 critical value
+
 tacds = ranks2tikzcd(convert(Array, rankeddf[1,2:end]), _algnames, cv, "Critical difference diagram for the first hyperparameter selection criterion.", label = "fig:cdd1")
 tracds = ranks2tikzcd(convert(Array, rankeddf[2,2:end]), _algnames, cv, "Critical difference diagram for the second hyperparameter selection criterion.", label = "fig:cdd2")
 t5acds = ranks2tikzcd(convert(Array, rankeddf[3,2:end]), _algnames, cv, "Critical difference diagram for the third hyperparameter selection criterion at 5\\% most anomalous samples.", label = "fig:cdd3")

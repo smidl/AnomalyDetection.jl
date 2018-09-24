@@ -36,9 +36,9 @@ mkpath(outpath)
 mkpath(evalpath)
 
 #algnames = ["kNN", "kNNPCA", "IsoForest", "AE", "VAE", "sVAE", "GAN", "fmGAN"]
-#algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN", "fmGAN"]
-algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN"]
-#algnames = ["kNN", "kNNPCA"]
+algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN", "fmGAN", "VAEensemble"]
+#algnames = ["kNN", "IsoForest", "AE", "VAE", "GAN"]
+#algnames = ["GAN"]
 
 if (length(ARGS) > 1)
 	if ARGS[2] == "d"

@@ -6,8 +6,8 @@ using AnomalyDetection
 using DataStructures
 
 @everywhere begin
-#	algorithms = ["kNN", "AE", "VAE", "GAN", "fmGAN"]
-	algorithms = ["VAEensemble"]
+	algorithms = ["AE", "VAE", "GAN", "fmGAN"]
+#	algorithms = ["VAEensemble"]
 
 	if "IsoForest" in algorithms
 		println("For Isolation Forest, paralell run is not implemented. Run without the -p flag.")
