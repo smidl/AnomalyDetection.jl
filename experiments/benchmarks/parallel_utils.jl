@@ -77,8 +77,17 @@ function get_data(dataset_name, iteration, allanomalies=false)
 		trdata, tstdata, clusterdness = AnomalyDetection.getdata(dataset_name, alpha, 
 			difficulty, frequency, variation, seed = seed, loc = loda_path)
 	else
-		trdata, tstdata, clusterdness = AnomalyDetection.getdata(dataset_name, alpha, 
-			seed = seed, loc = loda_path)
+		# this extracts all easy and medium anomalies
+		if dataset_name in ["vertebral_column"]
+			difficulty = ["hard"]
+		else
+			difficulty = ["easy", "medium"]
+		end
+		# ratio of anomalous to normal data in teh training dataset
+		frequency = 0.05
+		# all the remaining anomalies are in the testing dataset
+		trdata, tstdata, clusterdness = AnomalyDetection.getdata(dataset_name, alpha,
+			difficulty, seed = seed, loc = loda_path)
 	end
 
 	return trdata, tstdata

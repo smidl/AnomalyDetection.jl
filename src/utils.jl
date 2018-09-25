@@ -156,8 +156,9 @@ frequency - ratio of anomalous to normal data\n
 variation - low/high - should anomalies be clustered or not\n
 seed - random seed
 """
-function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
-            variation::String="low"; seed=false)
+function makeset(dataset::Basicset, alpha::Real=0.8, 
+    difficulty::Union{String, Array{String,1}}="", 
+    frequency::Real=0.05, variation::String="low"; seed=false)
     # test correct parameters size
     test01(frequency, "frequency must be in the interval [0,1]")
 
@@ -169,6 +170,7 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
     trN = Int(floor(N*alpha))
     tstN = N-trN
 
+    # get all anomalies
     if difficulty == ""
         anomalous = Array{Float,2}(M,0)
         for dif in intersect([:easy, :medium, :hard, :very_hard], fieldnames(dataset))
@@ -176,12 +178,25 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
             if length(_X) > 0
                 anomalous = cat(2, anomalous, _X)
             end
-        end    
+        end   
+    # select only some anomaly types
+    elseif typeof(difficulty) == Array{String,1}
+        anomalous = Array{Float,2}(M,0)
+        for dif in intersect([:easy, :medium, :hard, :very_hard], Symbol.(difficulty), 
+            fieldnames(dataset))
+            _X = getfield(dataset, dif)
+            if length(_X) > 0
+                anomalous = cat(2, anomalous, _X)
+            end
+        end
+    # get just one type
     else
         anomalous = getfield(dataset, parse(difficulty))
-        if length(anomalous)==0
-            error("no anomalous data of given difficulty level")
-        end
+    end
+
+    # check if any anomalies are actually sampled from
+    if length(anomalous)==0
+        error("no anomalous data of given difficulty level")
     end
 
     # set seed
@@ -200,7 +215,19 @@ function makeset(dataset::Basicset, alpha::Real=0.8, difficulty::String="", freq
         trAdata, tstAdata = splitdata(anomalous, alpha)
         tstK = size(tstAdata,2)
         trK = size(trAdata,2)
-    # this is cdone when we don't want to select all anomalies
+    # select only some anomaly types
+    elseif typeof(difficulty) == Array{String,1}
+        aM, aN = size(anomalous)
+        # shuffle data
+        anomalous = anomalous[:,sample(1:aN, aN, replace = false)]
+        # how many anomalies in the training dataset
+        trK = min(Int(round(trN*frequency)), Int(round(aN*alpha)))
+        trAdata = anomalous[:,1:trK]
+
+        # put the rest in teh testing dataset
+        tstAdata = anomalous[:,trK+1:end]
+        tstK = size(tstAdata,2)
+    # this is done when we don't want to select all anomalies
     else
         # how many anomalous points to be sampled 
         aM, aN = size(anomalous)
@@ -260,8 +287,9 @@ end
 Returns a training and testing Dataset. If difficulty = "" (default),
 all anomalies are sampled from.
 """
-function getdata(datasetname::String, alpha::Real=0.8, difficulty::String="", frequency::Real=0.05, 
-            variation::String="low";seed=false, loc="")
+function getdata(datasetname::String, alpha::Real=0.8, 
+    difficulty::Union{String, Array{String,1}}="", 
+    frequency::Real=0.05, variation::String="low";seed=false, loc="")
     if loc == ""
         datapath = datasetpath()
     else
