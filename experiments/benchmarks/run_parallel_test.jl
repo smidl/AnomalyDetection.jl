@@ -17,13 +17,13 @@ using DataStructures
 		isoforest = false
 	end
 
-	export_path = ARGS[1]
-	loda_path = ARGS[2]
+	export_path = "./test"
+	loda_path = "../dataset_analysis/tsne_2D-data"
 	include("parallel_utils.jl")
 end
 
-iteration = (size(ARGS,1) >2) ? parse(Int64, ARGS[3]) : 1
-nhdims = (size(ARGS,1) >2) ? parse(Int64, ARGS[4]) : 1
+iteration = 1
+nhdims = 1
 
 datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(!(s -> s in ["url", "gisette", "persistent-connection"]))
 

@@ -87,7 +87,7 @@ function get_data(dataset_name, iteration, allanomalies=false)
 		frequency = 0.2 # make this bigger so that the test auroc is more stable
 		# all the remaining anomalies are in the testing dataset
 		trdata, tstdata, clusterdness = AnomalyDetection.getdata(dataset_name, alpha,
-			difficulty, seed = seed, loc = loda_path)
+			difficulty, frequency, seed = seed, loc = loda_path)
 	end
 
 	return trdata, tstdata
