@@ -78,7 +78,7 @@ function get_data(dataset_name, iteration, allanomalies=false)
 			difficulty, frequency, variation, seed = seed, loc = loda_path)
 	else
 		# this extracts all easy and medium anomalies
-		if dataset_name in ["vertebral_column"]
+		if dataset_name in ["vertebral-column"]
 			difficulty = ["hard"]
 		else
 			difficulty = ["easy", "medium"]
