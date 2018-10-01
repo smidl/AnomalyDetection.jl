@@ -4,6 +4,7 @@
 const hiddendim = 16
 const latentdim = 8
 const minhiddendim = 24
+const minlatentdim = 2
 const activation = Flux.relu
 const verbfit = false
 const batchsizes = [256]
@@ -175,7 +176,7 @@ end
 function getlatentdims(data)
 	indim, trN = size(data[1].data[:,data[1].labels.==0])
 	maxd = min(200, indim)
-	latentdims = unique(Int.(ceil.([i/10 for i in 1:5]*maxd)))
+	latentdims = unique(max.(Int.(ceil.([i/10 for i in 1:5]*maxd)),minlatentdim))
 	return latentdims, indim
 end
 
