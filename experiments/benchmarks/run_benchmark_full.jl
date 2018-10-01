@@ -24,9 +24,9 @@ using DataStructures
 	host = gethostname()
 	#master path where data will be stored
 	if host == "vit"
-		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D-allanomalies/data" 
+		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/tsne_2D-all-minlat2/data" 
 	elseif host == "axolotl.utia.cas.cz"
-		export_path = "/home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D-allanomalies/data"
+		export_path = "/home/skvara/work/anomaly_detection/data/benchmarks/tsne_2D-all-minlat2/data"
 	end
 	include("parallel_utils.jl")
 end
