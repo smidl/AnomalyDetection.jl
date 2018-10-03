@@ -806,7 +806,7 @@ PARAMS[:VAEensemble] = Dict(
 			# args for the model constructor, must be in correct order
 			:args => DataStructures.OrderedDict(
 				:constructor => AnomalyDetection.VAEmodel,
-				:N => 30,
+				:N => 20,
 				:agregf => mean, 
 				:esize => [1; hiddendim; hiddendim; latentdim*2],
 				:dsize => [latentdim; hiddendim; hiddendim; 1]

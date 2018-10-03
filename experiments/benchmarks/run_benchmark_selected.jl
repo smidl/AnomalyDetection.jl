@@ -6,7 +6,7 @@ using AnomalyDetection
 using DataStructures
 
 @everywhere begin
-	algorithms = ["AE", "VAE", "GAN", "fmGAN"]
+	algorithms = ["kNN", "AE", "VAE", "GAN", "fmGAN"]
 #	algorithms = ["VAEensemble"]
 
 	if "IsoForest" in algorithms
@@ -17,13 +17,13 @@ using DataStructures
 		isoforest = false
 	end
 
-	loda_path = "../dataset_analysis/tsne_2D-data"
+	loda_path = ""
 	host = gethostname()
 	#master path where data will be stored
 	if host == "vit"
-		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks_selected/tsne_2D-experiment/data" 
+		export_path = "/home/vit/vyzkum/anomaly_detection/data/benchmarks/loda_full-experiment/data" 
 	elseif host == "axolotl.utia.cas.cz"
-		export_path = "home/skvara/work/anomaly_detection/data/benchmarks_selected/tsne_2D-experiment/data"
+		export_path = "/home/skvara/work/anomaly_detection/data/benchmarks/loda_full-experiment/data"
 	end
 	include("parallel_utils.jl")
 end
@@ -31,8 +31,10 @@ end
 iteration = (size(ARGS,1) >0) ? parse(Int64, ARGS[1]) : 1
 nhdims = (size(ARGS,1) >0) ? parse(Int64, ARGS[2]) : 1
 
-datasets = ["abalone", "glass", "haberman", "ionosphere", "isolet", "miniboone", 
-"multiple-features", "musk-2", "page-blocks", "pendigits"]
+#datasets = ["abalone", "glass", "haberman", "ionosphere", "isolet", "miniboone", 
+#"multiple-features", "musk-2", "page-blocks", "pendigits"]
+
+datasets = ["vertebral-column"] # breastcancer, spe?
 
 pmap(x -> runexperiments(x[1], iteration, x[2], nhdims),
 	product(datasets, algorithms))
