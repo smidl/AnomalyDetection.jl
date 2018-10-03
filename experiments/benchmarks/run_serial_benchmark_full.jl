@@ -10,7 +10,7 @@ algorithms = ["IsoForest"]
 isoforest = true
 include("isolation_forest.jl")
 
-loda_path = ""
+loda_path = "../datasets"
 host = gethostname()
 #master path where data will be stored
 if host == "vit"
