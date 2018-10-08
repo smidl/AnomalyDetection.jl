@@ -48,19 +48,19 @@ anomalyscore(e::Ensemble, X) =
 	e.agregf([AnomalyDetection.anomalyscore(model,X) for model in e.models])
 
 """
-	gettreshold(ensemble, X)
+	getthreshold(ensemble, X)
 
 Get the automatically computed threshold.
 """
-gettreshold(e::Ensemble, X) = getthreshold(e, X, e.contamination; Beta = e.Beta)
+getthreshold(e::Ensemble, X) = getthreshold(e, X, e.contamination; Beta = e.Beta)
 
 """
-	settreshold!(ensemble, X)
+	setthreshold!(ensemble, X)
 
 Set model threshold.
 """
-function settreshold!(e::Ensemble, X)
-	e.threshold = gettreshold(e, X)
+function setthreshold!(e::Ensemble, X)
+	e.threshold = getthreshold(e, X)
 end
 
 """

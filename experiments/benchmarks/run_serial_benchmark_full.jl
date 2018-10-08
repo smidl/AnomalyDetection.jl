@@ -25,7 +25,7 @@ nhdims = 1
 
 datasets = @>> readdir(loda_path) filter(s -> isdir(joinpath(loda_path,s))) filter(!(s -> s in ["url", "gisette", "persistent-connection"]))
 
-datasets = ["vertebral-column"]
+datasets = ["breast-cancer-wisconsin"]
 
 map(x -> runexperiments(x[1], iteration, x[2], nhdims),
 	product(datasets, algorithms))

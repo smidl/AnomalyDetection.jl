@@ -34,7 +34,7 @@ nhdims = (size(ARGS,1) >0) ? parse(Int64, ARGS[2]) : 1
 #datasets = ["abalone", "glass", "haberman", "ionosphere", "isolet", "miniboone", 
 #"multiple-features", "musk-2", "page-blocks", "pendigits"]
 
-datasets = ["vertebral-column"] # breastcancer, spe?
+datasets = ["breast-cancer-wisconsin"] # breastcancer, spe?
 
 pmap(x -> runexperiments(x[1], iteration, x[2], nhdims),
 	product(datasets, algorithms))
