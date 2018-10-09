@@ -294,6 +294,8 @@ anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "likelihood") =
 	(t=="likelihood")? Flux.Tracker.data(-mean([likelihood(vae, X) for i in 1:M])) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
 anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "likelihood") =
 	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, 1), size(X,2))
+anomalyscore(vae::VAE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, M, t = "likelihood") = 
+	anomalyscore(vae,Float.(X),M,t)
 
 """
 	classify(vae, x, threshold, M)

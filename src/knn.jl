@@ -91,6 +91,8 @@ function anomalyscore(model::kNN, X::Array{Float,2}, k)
     return ascore
 end
 anomalyscore(model::kNN, x::Array{Float, 1}, k) = anomalyscore(model, reshape(x, size(x,1), 1), k)[1]
+anomalyscore(model::kNN, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, k) = 
+    anomalyscore(model,Float.(X),k)
 
 """
     anomalyscore(knn, X)

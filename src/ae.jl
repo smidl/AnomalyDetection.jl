@@ -170,6 +170,8 @@ Compute anomaly score for X.
 anomalyscore(ae::AE, X::Array{Float, 1}) = Flux.Tracker.data(loss(ae, X))
 anomalyscore(ae::AE, X::Array{Float, 2}) = 
 	reshape(mapslices(y -> anomalyscore(ae, y), X, 1), size(X,2))
+anomalyscore(ae::AE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real) = 
+	anomalyscore(ae,Float.(X))
 
 """
 	classify(ae, x, threshold)

@@ -273,6 +273,8 @@ anomalyscore(fmgan::fmGAN, X::Array{Float, 1}, lambda) =
 	Float(lambda)*rerr(fmgan, X, getcode(fmgan, size(X,2))))
 anomalyscore(fmgan::fmGAN, X::Array{Float, 2}, lambda) = 
 	reshape(mapslices(y -> anomalyscore(fmgan, y, lambda), X, 1), size(X,2))
+anomalyscore(fmgan::fmGAN, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, lambda) = 
+	anomalyscore(fmgan,Float.(X),lambda)
 
 """
 	classify(fmgan, x, threshold, lambda)

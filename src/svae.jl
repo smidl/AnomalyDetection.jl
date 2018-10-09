@@ -345,6 +345,8 @@ anomalyscore(svae::sVAE, X::Array{Float, 1}, M, alpha) =
     Flux.Tracker.data(Float(alpha)*rerr(svae, X, M) + Float(1-alpha)*mean(discriminate(svae, X, getcode(svae, X))))
 anomalyscore(svae::sVAE, X::Array{Float, 2}, M, alpha) = 
     reshape(mapslices(y -> anomalyscore(svae, y, M, alpha), X, 1), size(X,2))
+anomalyscore(svae::sVAE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, M, alpha) = 
+    anomalyscore(svae,Float.(X),M,alpha)
 
 """
     classify(svae, x, threshold, M, alpha)

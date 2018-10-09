@@ -258,6 +258,8 @@ anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) =
 	Float(lambda)*Flux.Tracker.data(rerr(gan, X, getcode(gan, size(X,2))))
 anomalyscore(gan::GAN, X::Array{Float, 2}, lambda) =
 	reshape(mapslices(y -> anomalyscore(gan, y, lambda), X, 1), size(X,2))
+anomalyscore(gan::GAN, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, lambda) = 
+	anomalyscore(gan,Float.(X),lambda)
 
 """
 	classify(gan, x, threshold, lambda)
