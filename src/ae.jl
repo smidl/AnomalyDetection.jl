@@ -16,7 +16,7 @@ end
 (ae::AE)(X) = ae.decoder(ae.encoder(X))
 
 # and make it trainable
-Flux.treelike(AE)
+Flux.@treelike AE
 
 """
 	AE(esize, dsize; [activation, layer])
@@ -169,7 +169,7 @@ Compute anomaly score for X.
 """
 anomalyscore(ae::AE, X::Array{Float, 1}) = Flux.Tracker.data(loss(ae, X))
 anomalyscore(ae::AE, X::Array{Float, 2}) = 
-	reshape(mapslices(y -> anomalyscore(ae, y), X, 1), size(X,2))
+	reshape(mapslices(y -> anomalyscore(ae, y), X, dims = 1), size(X,2))
 anomalyscore(ae::AE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real) = 
 	anomalyscore(ae,Float.(X))
 
@@ -231,7 +231,7 @@ function AEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
 	tracked = false, layer = Flux.Dense, eta = 0.001)
 	# construct the AE object
 	ae = AE(esize, dsize, activation = activation, layer = layer)
-	(tracked)? history = MVHistory() : history = nothing
+	tracked ? history = MVHistory() : history = nothing
 	model = AEmodel(ae, batchsize, threshold, contamination, iterations, cbit, 
 		nepochs, verbfit, rdelta, Beta, history, eta)
 	return model

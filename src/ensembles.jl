@@ -30,12 +30,12 @@ end
 Fit the ensemble with X.
 """
 function fit!(e::Ensemble, X, verb = false)
-	verb? (p = Progress(e.N, 0.1)) : nothing
+	verb ? (p = Progress(e.N, 0.1)) : nothing
 	n = 0
 	for model in e.models
 		AnomalyDetection.fit!(model, X)
 		n += 1
-		verb? ProgressMeter.next!(p; showvalues = [(:"training model", "$n/$(e.N)")]) : nothing
+		verb ? ProgressMeter.next!(p; showvalues = [(:"training model", "$n/$(e.N)")]) : nothing
 	end
 end
 

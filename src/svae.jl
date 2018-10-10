@@ -17,7 +17,7 @@ struct sVAE
 end
 
 # make it trainable
-Flux.treelike(sVAE)
+Flux.@treelike sVAE
 
 # make it callable - produce the vae output
 (svae::sVAE)(X) = svae.decoder(svae.sampler(svae, svae.encoder(X)))
@@ -176,7 +176,7 @@ function VAEloss(svae::sVAE, X, lambda; xsigma = 1.0)
     return -(mean(disfix(svae, qX, qZ)) - 
         #1/xsigma*lambda*Flux.mse(qX, pX) - # this converges the best
         1/xsigma*lambda*Flux.mse(qX, svae.decoder(Flux.Tracker.data(qZ))) - # but this is probably correct
-        mean(disfix(svae, pX, pZ)) - lambda*mean((zmu - pZ).^2./zsigma))
+        mean(disfix(svae, pX, pZ)) - lambda*mean((zmu - pZ).^2 ./zsigma))
 end
 
 """
@@ -418,7 +418,7 @@ function sVAEmodel(ensize::Array{Int64,1}, decsize::Array{Int64,1},
     tracked = false, eta = 0.001)
     # construct the AE object
     svae = sVAE(ensize, decsize, dissize, activation = activation, layer = layer)
-    (tracked)? history = MVHistory() : history = nothing
+    tracked ? history = MVHistory() : history = nothing
     model = sVAEmodel(svae, lambda, threshold, contamination, iterations, cbit, 
         nepochs, batchsize, M, 
         verbfit, rdelta, alpha, Beta, xsigma, history, eta)

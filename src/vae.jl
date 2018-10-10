@@ -20,7 +20,7 @@ VAE(E,S,D,V::Symbol = :unit) = VAE(E,S,D,Val(V))
 (vae::VAE)(X) = vae.decoder(vae.sampler(vae.encoder(X)))
 
 # and make it trainable
-Flux.treelike(VAE)
+Flux.@treelike VAE
 
 """
 	mu(X)
@@ -72,7 +72,7 @@ function VAE(esize::Array{Int64,1}, dsize::Array{Int64,1}; activation = Flux.rel
 	@assert size(esize, 1) >= 3
 	@assert size(dsize, 1) >= 3
 	@assert esize[end] == 2*dsize[1]
-	(variant==:unit)? (@assert esize[1] == dsize[end]) :
+	(variant==:unit) ? (@assert esize[1] == dsize[end]) :
 		(@assert esize[1]*2 == dsize[end])
 
 	# construct the encoder
@@ -114,7 +114,7 @@ end
 Likelihood of a sample X given mean and variance.
 """
 likelihood(X, μ) = - mean(sum((μ - X).^2,1))/2
-likelihood(X, μ, σ2) = - mean(sum((μ - X).^2./σ2 + log.(σ2),1))/2
+likelihood(X, μ, σ2) = - mean(sum((μ - X).^2 ./σ2 + log.(σ2),1))/2
 
 """
 	likelihood(vae, X)
@@ -291,7 +291,7 @@ Compute anomaly score for X.
 t = type, default "likelihood", otherwise "logpn".
 """
 anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "likelihood") =
-	(t=="likelihood")? Flux.Tracker.data(-mean([likelihood(vae, X) for i in 1:M])) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
+	(t=="likelihood") ? Flux.Tracker.data(-mean([likelihood(vae, X) for i in 1:M])) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
 anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "likelihood") =
 	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, 1), size(X,2))
 anomalyscore(vae::VAE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, M, t = "likelihood") = 
@@ -368,7 +368,7 @@ function VAEmodel(esize::Array{Int64,1}, dsize::Array{Int64,1};
 	astype = "likelihood", variant = :unit, eta = 0.001)
 	# construct the AE object
 	vae = VAE(esize, dsize, activation = activation, layer = layer, variant = variant)
-	(tracked)? history = MVHistory() : history = nothing
+	tracked ? history = MVHistory() : history = nothing
 	model = VAEmodel(vae, lambda, threshold, contamination, iterations, cbit, 
 		nepochs, verbfit,
 		batchsize, M, rdelta, Beta, history, astype, eta)
@@ -379,8 +379,8 @@ end
 (model::VAEmodel)(x) = model.vae(x)
 muz(model::VAEmodel, X) = mu(model.vae.encoder(X))
 sigma2z(model::VAEmodel, X) = sigma2(model.vae.encoder(X))
-mux(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? model(X) : mu(model(X))
-sigma2x(model::VAEmodel, X) = (model.vae.variant == Val{:unit}())? nothing : sigma2(model(X))
+mux(model::VAEmodel, X) = (model.vae.variant == Val{:unit}()) ? model(X) : mu(model(X))
+sigma2x(model::VAEmodel, X) = (model.vae.variant == Val{:unit}()) ? nothing : sigma2(model(X))
 sample_z(model::VAEmodel, X) = samplenormal(model.vae.encoder(X))
 getcode(model::VAEmodel, X) = getcode(model.vae, X)
 KL(model::VAEmodel, X) = KL(model.vae, X)

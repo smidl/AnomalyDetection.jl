@@ -1,4 +1,7 @@
-julia 0.6.0
+julia 0.6-
+Adapt
+ProgressMeter
+FluxExtensions
 StatsBase
 Distances
 Flux
@@ -15,3 +18,4 @@ MLDataPattern
 DataFrames
 CSV
 Query
+DelimitedFiles

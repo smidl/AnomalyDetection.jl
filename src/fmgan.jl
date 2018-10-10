@@ -18,7 +18,7 @@ struct fmGAN
 end
 
 # make it trainable
-Flux.treelike(fmGAN)
+Flux.@treelike fmGAN
 
 """
 	fmGAN(generator, discriminator)
@@ -342,7 +342,7 @@ function fmGANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
 	alpha = 1.0, Beta = 1.0, tracked = false, eta= 0.001)
 	# construct the fmGAN object
 	fmgan = fmGAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
-	(tracked)? history = MVHistory() : history = nothing
+	tracked ? history = MVHistory() : history = nothing
 	model = fmGANmodel(fmgan, lambda, threshold, contamination, batchsize, iterations, cbit, 
 		nepochs, verbfit, rdelta, alpha, Beta, history, eta)
 	return model

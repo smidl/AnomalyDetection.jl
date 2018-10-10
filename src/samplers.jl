@@ -10,7 +10,7 @@ end
 
 function checkbatchsize(N,batchsize,replace)
 	if batchsize > N && !replace
-		warn("batchsize too large, setting to $N")
+		@warn "batchsize too large, setting to $N"
 		batchsize = N
 	end
 	return batchsize

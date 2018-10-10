@@ -16,7 +16,7 @@ struct GAN
 end
 
 # make it trainable
-Flux.treelike(GAN)
+Flux.@treelike GAN 
 
 """
 	GAN(generator, discriminator)
@@ -75,8 +75,8 @@ Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z)) + eps(Float)))
 
 Crude estimate of reconstruction error.
 """
-#rerr(gan::GAN, X, Z) = Flux.mse(mean(gan.g(Z).data,2), mean(X,2))
 rerr(gan::GAN, X, Z) = Flux.mse(gan.g(Z), X) # which of these is better?
+#rerr(gan::GAN, X, Z) = Flux.mse(mean(gan.g(Z).data,2), mean(X,2))
 # the first one can easily get fooled in multimodal setting
 
 """
@@ -324,7 +324,7 @@ function GANmodel(gsize::Array{Int64,1}, dsize::Array{Int64,1};
 	Beta = 1.0, tracked = false, eta = 0.001)
 	# construct the AE object
 	gan = GAN(gsize, dsize, pz = pz, activation = activation, layer = layer)
-	(tracked)? history = MVHistory() : history = nothing
+	tracked ? history = MVHistory() : history = nothing
 	model = GANmodel(gan, lambda, threshold, contamination, batchsize, iterations, cbit,
 		nepochs, verbfit, rdelta, Beta, history, eta)
 	return model

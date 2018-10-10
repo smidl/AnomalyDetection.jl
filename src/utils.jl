@@ -37,7 +37,7 @@ end
 Outer constructor for the Basicset struct using a folder in the Loda database.
 Transposes the arrays so that instances are columns.
 """
-Basicset(path::String) = (isdir(path))? Basicset(
+Basicset(path::String) = (isdir(path)) ? Basicset(
     txt2array(joinpath(path, "normal.txt"))',
     txt2array(joinpath(path, "easy.txt"))',
     txt2array(joinpath(path, "medium.txt"))',
@@ -69,21 +69,21 @@ end
 Scales down a 2 dimensional array so it has approx. standard normal distribution. 
 Instance = column. 
 """
-function normalize{T<:Real}(Y::Array{T,2})
+function normalize(Y::Array{T,2} where T<:Real)
     M, N = size(Y)
-    mu = mean(Y,2);
-    sigma = var(Y,2);
+    mu = mean(Y,dims=2);
+    sigma = var(Y,dims=2);
 
     # if there are NaN present, then sigma is zero for a given column -> 
     # the scaled down column is also zero
     # but we treat this more economically by setting the denominator for a given column to one
     # also, we deal with numerical zeroes
     den = sigma
-    den[abs.(den) .<= 1e-15] = 1.0
-    den[den .== 0.0] = 1.0
-    den = repmat(sqrt.(den), 1, N)
-    nom = Y - repmat(mu, 1, N)
-    nom[abs.(nom) .<= 1e-8] = 0.0
+    den[abs.(den) .<= 1e-15] .= 1.0
+    den[den .== 0.0] .= 1.0
+    den = repeat(sqrt.(den), 1, N)
+    nom = Y - repeat(mu, 1, N)
+    nom[abs.(nom) .<= 1e-8] .= 0.0
     Y = nom./den
     return Y
 end
@@ -95,7 +95,7 @@ Concatenate x and y along the 2nd axis, normalize them and split them again.
 """
 function normalize(x,y)
     M,N = size(x)
-    data = cat(2, x, y)
+    data = cat(x, y, dims = 2)
     data = normalize(data)
     return data[:, 1:N], data[:, N+1:end]
 end
@@ -140,7 +140,7 @@ function clusterdness(normal, anomalous)
     varN = mean(pairwise(Euclidean(), normal[:, sample(1:N, min(1000, N), replace=false)]))/2
     varA = mean(pairwise(Euclidean(), anomalous[:, sample(1:K, min(1000, K), replace=false)]))/2
 
-    (varA>0)? (return varN/varA) : (return Inf)
+    (varA>0) ? (return varN/varA) : (return Inf)
 end
 
 """
@@ -181,12 +181,12 @@ function makeset(dataset::Basicset, alpha::Real=0.8,
         end   
     # select only some anomaly types
     elseif typeof(difficulty) == Array{String,1}
-        anomalous = Array{Float,2}(M,0)
+        anomalous = Array{Float,2}(undef, M,0)
         for dif in intersect([:easy, :medium, :hard, :very_hard], Symbol.(difficulty), 
-            fieldnames(dataset))
+            fieldnames(typeof(dataset)))
             _X = getfield(dataset, dif)
             if length(_X) > 0
-                anomalous = cat(2, anomalous, _X)
+                anomalous = cat(anomalous, _X, dims = 2)
             end
         end
     # get just one type
@@ -201,7 +201,7 @@ function makeset(dataset::Basicset, alpha::Real=0.8,
 
     # set seed
     if seed != false
-        srand(seed)
+        RAndom.seed!(seed)
     end
 
 
@@ -262,19 +262,19 @@ function makeset(dataset::Basicset, alpha::Real=0.8,
     end
 
     # restart the seed
-    srand()
+    Random.seed!()
     
     c = clusterdness(normal, anomalous)
 
     # finally, generate the dataset
     trData = Dataset(
-        cat(2, trNdata, trAdata),
-        cat(1, zeros(trN), ones(trK))
+        cat(trNdata, trAdata, dims = 2),
+        cat(zeros(trN), ones(trK), dims = 1)
         )
 
     tstData = Dataset(
-        cat(2, tstNdata, tstAdata),
-        cat(1, zeros(tstN), ones(tstK))
+        cat(tstNdata, tstAdata, dims = 2),
+        cat(zeros(tstN), ones(tstK), dims = 1)
         )
 
     return trData, tstData, c
@@ -304,7 +304,8 @@ end
 
 Return absolute path of benchmark datasets.
 """
-datasetpath() = joinpath(Pkg.dir("AnomalyDetection"),"experiments/datasets")
+datasetpath() =
+    joinpath(joinpath(dirname(pathof(AnomalyDetection)), ".."),"experiments/datasets")
 
 """
     datasetnames()
@@ -354,7 +355,7 @@ function getthreshold(model, x, contamination, asargs...; Beta = 1.0, askwargs..
     ascore = sort(ascore)
     aN = Int(ceil(N*contamination)) # number of contaminated samples
     # get the threshold - could this be done more efficiently?
-    (aN > 0)? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
+    (aN > 0) ? (return Beta*ascore[end-aN] + (1-Beta)*ascore[end-aN+1]) : (return ascore[end])
 end
 
 """
