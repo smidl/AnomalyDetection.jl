@@ -1,5 +1,4 @@
 # input data setup
-srand(123)
 L = 5
 esize = [xdim; hiddendim; latentdim*2]
 dsize = [latentdim; hiddendim; xdim]
@@ -15,13 +14,13 @@ M = 1
 	rX = net(X)
 	@test size(rX) == (xdim,N)
 	@test typeof(rX) <: Flux.TrackedArray{AnomalyDetection.Float,2}
-	@test typeof(AnomalyDetection.mu(net, net.encoder(X))) <: Flux.TrackedArray{AnomalyDetection.Float,2}
-	@test typeof(AnomalyDetection.sigma(net, net.encoder(X))) <: Flux.TrackedArray{AnomalyDetection.Float,2}
-	@test typeof(AnomalyDetection.sample_z(net, net.encoder(X)))  <: Flux.TrackedArray{AnomalyDetection.Float,2}
+	@test typeof(AnomalyDetection.mu(net.encoder(X))) <: Flux.TrackedArray{AnomalyDetection.Float,2}
+	@test typeof(AnomalyDetection.sigma2(net.encoder(X))) <: Flux.TrackedArray{AnomalyDetection.Float,2}
+	@test typeof(AnomalyDetection.samplenormal(net.encoder(X)))  <: Flux.TrackedArray{AnomalyDetection.Float,2}
 	l = AnomalyDetection.loss(net,nX, M, lambda)
 	@test size(l) == ()
 	@test size(AnomalyDetection.KL(net,nX)) == ()
-	@test size(AnomalyDetection.rerr(net, nX, M)) == ()
+	@test size(AnomalyDetection.likelihood(net, nX, M)) == ()
 	history = ValueHistories.MVHistory()
 	AnomalyDetection.fit!(net, nX, L, lambda = lambda, verb = false, history = history)
 	AnomalyDetection.fit!(net, nX, L, M=M, iterations=100, cbit = 100, rdelta = Inf, verb= false)
@@ -36,13 +35,15 @@ M = 1
 	@test labels[end] == 1
 	@test minimum(labels[1:end-1] .== 0)
 	sort!(ascore)
-	@test typeof(AnomalyDetection.getthreshold(net, X, M, 0.1)) == AnomalyDetection.Float
-	@test abs(AnomalyDetection.getthreshold(net, X, M, 0.1) - ascore[end-1]) < 1.0
-	@test abs(AnomalyDetection.getthreshold(net, X, M, 0.0) - ascore[end]) < 7.0
-	@test abs(AnomalyDetection.getthreshold(net, X, M, 0.1, Beta = 0.5) - (ascore[end-1]+ascore[end])/2) < 3.0
+	@test typeof(AnomalyDetection.getthreshold(net, X, 0.1, M)) == AnomalyDetection.Float
+	@test abs(AnomalyDetection.getthreshold(net, X, 0.1, M) - ascore[end-1]) < 1.0
+	@test abs(AnomalyDetection.getthreshold(net, X, 0.0, M) - ascore[end]) < 7.0
+	@test abs(AnomalyDetection.getthreshold(net, X, 0.1, M, Beta = 0.5) - (ascore[end-1]+ascore[end])/2) < 3.0
 
 	# test the classification model as well
-	model = VAEmodel(esize, dsize, lambda, 0.0, 0.1, 1000, 100, false, 5,
+	model = VAEmodel(esize, dsize, lambda = lambda, threshold = 0.0, 
+		contamination = 0.1, iterations = 1000, cbit = 100, 
+		verbfit = false, batchsize = 5,
 		activation = Flux.relu, layer = Flux.Dense, rdelta = Inf, Beta = 0.9, 
 		tracked = true)	
 	rX = model(X)

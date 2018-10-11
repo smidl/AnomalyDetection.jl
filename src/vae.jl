@@ -34,7 +34,7 @@ mu(X) = X[1:Int(size(X,1)/2),:]
 
 Extract sigma^2 as the second horizontal half of X. 
 """
-sigma2(X) = softplus(X[Int(size(X,1)/2+1):end,:]) + Float(1e-6)
+sigma2(X) = softplus(X[Int(size(X,1)/2+1):end,:]) .+ Float(1e-6)
 
 """
 	logps(x)
@@ -96,7 +96,7 @@ end
 
 KL divergence between a normal distribution and unit gaussian.
 """
-KL(μ, σ2) = Float(1/2)*mean(sum(σ2 + μ.^2 - log.(σ2) - 1, 1))
+KL(μ, σ2) = Float(1/2)*mean(sum(σ2 + μ.^2 - log.(σ2) .- 1, dims = 1))
 
 """
 	KL(vae, X)
@@ -113,8 +113,8 @@ end
 
 Likelihood of a sample X given mean and variance.
 """
-likelihood(X, μ) = - mean(sum((μ - X).^2,1))/2
-likelihood(X, μ, σ2) = - mean(sum((μ - X).^2 ./σ2 + log.(σ2),1))/2
+likelihood(X, μ) = - mean(sum((μ - X).^2,dims = 1))/2
+likelihood(X, μ, σ2) = - mean(sum((μ - X).^2 ./σ2 + log.(σ2),dims = 1))/2
 
 """
 	likelihood(vae, X)
@@ -293,7 +293,7 @@ t = type, default "likelihood", otherwise "logpn".
 anomalyscore(vae::VAE, X::Array{Float, 1}, M, t = "likelihood") =
 	(t=="likelihood") ? Flux.Tracker.data(-mean([likelihood(vae, X) for i in 1:M])) : mean(logps(Flux.Tracker.data(getcode(vae,X))))
 anomalyscore(vae::VAE, X::Array{Float, 2}, M, t = "likelihood") =
-	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, 1), size(X,2))
+	reshape(mapslices(y -> anomalyscore(vae, y, M, t), X, dims=1), size(X,2))
 anomalyscore(vae::VAE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, M, t = "likelihood") = 
 	anomalyscore(vae,Float.(X),M,t)
 

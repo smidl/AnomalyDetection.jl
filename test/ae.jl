@@ -34,8 +34,10 @@ L = 5
 	@test AnomalyDetection.getthreshold(net, X, 0.1, Beta = 0.5) == (ascore[end-1]+ascore[end])/2
 
 	# test the classification model as well
-	model = AEmodel(esize, dsize, 5, 0, 0.1, 1000, 100, false,
-		activation = Flux.relu, rdelta = Inf, Beta = 1.0, tracked = true)	
+	model = AEmodel(esize, dsize, batchsize = 5, threshold = .0, contamination = 0.1, 
+		iterations = 1000, cbit = 100, verbfit = false, layer = Flux.Dense,
+		activation = Flux.relu, rdelta = Inf, Beta = 1.0, tracked = true,
+		eta = 0.0001)	
 	rX = model(X)
 	@test size(rX) == (xdim,N)
 	@test typeof(rX) <: Flux.TrackedArray{AnomalyDetection.Float,2}

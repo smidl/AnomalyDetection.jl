@@ -562,7 +562,7 @@ end
 
 softplus(X) = log(exp(X) + 1)   
 """
-softplus(X) = log.(exp.(X)+1)
+softplus(X) = log.(exp.(X) .+ 1)
 
 """
     freeze(m)
