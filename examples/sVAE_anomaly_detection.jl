@@ -1,10 +1,10 @@
 
-using PyPlot, JLD, AnomalyDetection, EvalCurves
+using PyPlot, FileIO, AnomalyDetection, EvalCurves, Flux
 import PyPlot: plot
 include("./plots.jl")
 
 # load data
-dataset = load("toy_data_3.jld")["data"]
+dataset = load("toy_data_3.jld2")["data"]
 X = AnomalyDetection.Float.(dataset.data)
 Y = dataset.labels;
 nX = X[:,Y.==0]
@@ -62,8 +62,8 @@ Xrec = Flux.Tracker.data(model(X[:, Y.==0]))
 Xgen = AnomalyDetection.generate(model, 30)
 
 # also heatmap of the discriminator score
-x = linspace(xl[1], xl[2], 30)
-y = linspace(yl[1], yl[2], 30)
+x = range(xl[1], stop=xl[2], length=30)
+y = range(yl[1], stop=yl[2], length=30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
@@ -97,7 +97,7 @@ AnomalyDetection.sample_z(model, nX)
 # predict labels
 AnomalyDetection.setthreshold!(model, X)
 model.M = 20 # number of samples - for classification higher is better (more stable)
-tryhat = AnomalyDetection.predict(model, X)
+global tryhat = AnomalyDetection.predict(model, X)
 
 AnomalyDetection.anomalyscore(model, X)
 
@@ -110,8 +110,8 @@ xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
 
 # compute the anomaly score on a grid
-x = linspace(xl[1], xl[2], 30)
-y = linspace(yl[1], yl[2], 30)
+x = range(xl[1], stop=xl[2], length=30)
+y = range(yl[1], stop=yl[2], length=30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
@@ -155,18 +155,18 @@ show()
 # plot ROC curve and compute AUROC score
 ascore = AnomalyDetection.anomalyscore(model, X);
 fprvec, tprvec = EvalCurves.roccurve(ascore, Y)
-auroc = round(EvalCurves.auc(fprvec, tprvec),3)
+auroc = round(EvalCurves.auc(fprvec, tprvec),digits=3)
 EvalCurves.plotroc((fprvec, tprvec, "AUROC = $(auroc)"))
 show()
 
 using MLBase: false_positive_rate, false_negative_rate
 n = 21
-alphavec = linspace(0,1,n)
+alphavec = range(0,stop=1,length=n)
 eervec = zeros(n)
 for i in 1:n
     model.alpha = alphavec[i]
     AnomalyDetection.setthreshold!(model, X)
-    tryhat, tsthat, trroc, tstroc = AnomalyDetection.rocstats(dataset.data, dataset.labels,
+    global tryhat, tsthat, trroc, tstroc = AnomalyDetection.rocstats(dataset.data, dataset.labels,
         dataset.data, dataset.labels, model, verb = false)
     eervec[i] = (false_positive_rate(tstroc) + false_negative_rate(tstroc))/2
 end

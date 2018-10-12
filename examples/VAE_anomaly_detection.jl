@@ -1,10 +1,10 @@
 
-using PyPlot, JLD, AnomalyDetection, EvalCurves
+using PyPlot, FileIO, AnomalyDetection, EvalCurves, Flux
 import PyPlot: plot
 include("./plots.jl")
 
 # load data
-dataset = load("toy_data_3.jld")["data"]
+dataset = load("toy_data_3.jld2")["data"]
 #dataset = load("moon.jld")["data"]
 X = AnomalyDetection.Float.(dataset.data)
 Y = dataset.labels
@@ -22,7 +22,7 @@ variant = :sigma
     # :sigma - the variance of the output is estimated
 esize = [indim; hiddendim; hiddendim; latentdim*2] # encoder architecture
 # decoder architecture
-(variant == :unit)? dsize = [latentdim; hiddendim; hiddendim; indim] :
+(variant == :unit) ? dsize = [latentdim; hiddendim; hiddendim; indim] :
     dsize = [latentdim; hiddendim; hiddendim; 2*indim]
 lambda = 1e-3 # KLD weight in loss function
 threshold = 0 # classification threshold, is recomputed using setthreshold!()
@@ -87,8 +87,8 @@ xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
 
 # compute the anomaly score on a grid
-x = linspace(xl[1], xl[2], 30)
-y = linspace(yl[1], yl[2], 30)
+x = range(xl[1], stop=xl[2], length=30)
+y = range(yl[1], stop=yl[2], length=30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
@@ -132,6 +132,6 @@ show()
 # plot ROC curve and compute AUROC score
 ascore = AnomalyDetection.anomalyscore(model, X);
 fprvec, tprvec = EvalCurves.roccurve(ascore, Y)
-auroc = round(EvalCurves.auc(fprvec, tprvec),3)
+auroc = round(EvalCurves.auc(fprvec, tprvec),digits=3)
 EvalCurves.plotroc((fprvec, tprvec, "AUROC = $(auroc)"))
 show()

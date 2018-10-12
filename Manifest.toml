@@ -402,10 +402,10 @@ uuid = "6f286f6a-111f-5878-ab1e-185364afe411"
 version = "0.6.0"
 
 [[NLSolversBase]]
-deps = ["Calculus", "DiffEqDiffTools", "DiffResults", "Distributed", "ForwardDiff", "LinearAlgebra", "Random", "SparseArrays", "Test"]
-git-tree-sha1 = "75f08d4dd9174855aefe4dc9532569450bffcd93"
+deps = ["Calculus", "DiffEqDiffTools", "DiffResults", "Distributed", "ForwardDiff", "LinearAlgebra", "Pkg", "Random", "SparseArrays", "Test"]
+git-tree-sha1 = "ebfb2e96970151753575b9c4d31d47e5ae8382a5"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
-version = "7.1.0"
+version = "7.1.1"
 
 [[NNlib]]
 deps = ["Libdl", "LinearAlgebra", "MacroTools", "Requires", "Test"]
@@ -467,9 +467,9 @@ version = "0.3.0"
 
 [[PlotUtils]]
 deps = ["Colors", "Dates", "Printf", "Random", "Reexport", "Test"]
-git-tree-sha1 = "78553a920c4869d20742ba66193e3692369086ec"
+git-tree-sha1 = "fd28f30a294a38ec847de95d8ac7ac916ccd7c06"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "0.5.4"
+version = "0.5.5"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "FixedPointNumbers", "GR", "JSON", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "RecipesBase", "Reexport", "Requires", "Showoff", "SparseArrays", "StaticArrays", "Statistics", "StatsBase", "Test", "UUIDs"]

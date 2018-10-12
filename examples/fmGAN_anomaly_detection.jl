@@ -1,10 +1,10 @@
 
-using PyPlot, JLD, AnomalyDetection, EvalCurves
+using PyPlot, FileIO, AnomalyDetection, EvalCurves, Flux
 import PyPlot: plot
 include("./plots.jl")
 
 # load data
-dataset = load("toy_data_3.jld")["data"]
+dataset = load("toy_data_3.jld2")["data"]
 X = AnomalyDetection.Float.(dataset.data)
 Y = dataset.labels
 nX = X[:, Y.==0]
@@ -64,8 +64,8 @@ xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
 
 
-x = linspace(xl[1], xl[2], 30)
-y = linspace(yl[1], yl[2], 30)
+x = range(xl[1], stop=xl[2], length=30)
+y = range(yl[1], stop=yl[2], length=30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
@@ -90,7 +90,7 @@ tryhat = AnomalyDetection.predict(model, X)
 # get all the labels
 model.lambda = 0.1
 AnomalyDetection.setthreshold!(model, X)
-tryhat, tstyhat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
+global tryhat, tstyhat, _, _ = AnomalyDetection.rocstats(dataset, dataset, model);
 
 # anomaly score contour plot
 # get limits of the figure
@@ -98,8 +98,8 @@ xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
 
 # compute the anomaly score on a grid
-x = linspace(xl[1], xl[2], 30)
-y = linspace(yl[1], yl[2], 30)
+x = range(xl[1], stop=xl[2], length=30)
+y = range(yl[1], stop=yl[2], length=30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
@@ -123,19 +123,19 @@ show()
 # plot ROC curve and compute AUROC score
 ascore = AnomalyDetection.anomalyscore(model, X);
 fprvec, tprvec = EvalCurves.roccurve(ascore, Y)
-auroc = round(EvalCurves.auc(fprvec, tprvec),3)
+auroc = round(EvalCurves.auc(fprvec, tprvec),digits=3)
 EvalCurves.plotroc((fprvec, tprvec, "AUROC = $(auroc)"))
 show()
 
 # plot EER for different settings of lambda
 using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate, false_negative_rate
 n = 21
-lvec = linspace(0,1,n)
+lvec = range(0,stop=1,length=n)
 eervec = zeros(n)
 for i in 1:n
     model.lambda = lvec[i]
     AnomalyDetection.setthreshold!(model, X)
-    tryhat, tsthat, trroc, tstroc = AnomalyDetection.rocstats(dataset.data, dataset.labels,
+    global tryhat, tsthat, trroc, tstroc = AnomalyDetection.rocstats(dataset.data, dataset.labels,
         dataset.data, dataset.labels, model, verb = false)
     eervec[i] = (false_positive_rate(tstroc) + false_negative_rate(tstroc))/2
 end

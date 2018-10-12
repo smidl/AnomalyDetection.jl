@@ -33,8 +33,8 @@ Beta - for automatic threshold computation
 function kNN(k::Int, contamination::Real; metric = Euclidean(), distances = "all", 
         threshold = 0.0, reduced_dim = false, Beta = 1.0)
     @assert distances in ["all", "last"]
-    return kNN(k, Array{Float,2}(0,0), metric, distances, contamination, threshold,
-        reduced_dim, (Array{Float,2}(0,0), Array{Float,1}(0)), false, Beta)
+    return kNN(k, Array{Float,2}(undef,0,0), metric, distances, contamination, threshold,
+        reduced_dim, (Array{Float,2}(undef,0,0), Array{Float,1}(undef,0)), false, Beta)
 end
 
 """
@@ -78,7 +78,7 @@ function anomalyscore(model::kNN, X::Array{Float,2}, k)
     M, N = size(_X)
     
     # now create the output vector of labels
-    ascore = Array{Float, 1}(N)
+    ascore = Array{Float, 1}(undef,N)
     for n in 1:N
         _, dnk = knn(model.kdtree, _X[:,n], model.k)
         if model.distances == "last"

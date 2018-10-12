@@ -365,7 +365,7 @@ Changes binary coded array from {-1,1} to {0,1}.
 """
 function labels2bin(y::Array{Int64,1})
     x = copy(y)
-    x[x.==-1] = 0
+    x[x.==-1] .= 0
     return x;
 end
 

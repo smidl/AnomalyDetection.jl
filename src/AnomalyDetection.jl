@@ -5,7 +5,7 @@ using MLBase: roc, correctrate, precision, recall, f1score, false_positive_rate,
 using StatsBase: sample
 using Adapt, FluxExtensions, Distances, Flux, MultivariateStats
 using ValueHistories, ProgressMeter, DelimitedFiles, Statistics, Random
-using Pkg
+using Pkg, LinearAlgebra
 import Base.Iterators.repeated
 import Flux: params
 import Base.cat

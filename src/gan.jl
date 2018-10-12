@@ -61,14 +61,14 @@ end
 
 Discriminator loss.
 """
-Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X) + eps(Float))) + mean(log.(1 - gan.d(gan.gg(Z)) + eps(Float))))
+Dloss(gan::GAN, X, Z) = - Float(0.5)*(mean(log.(gan.d(X) .+ eps(Float))) + mean(log.(1 .- gan.d(gan.gg(Z)) .+ eps(Float))))
 
 """
 	Gloss(gan, Z)
 
 Generator loss.
 """
-Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z)) + eps(Float)))
+Gloss(gan::GAN, Z) = - mean(log.(gan.dd(gan.g(Z)) .+ eps(Float)))
 
 """
 	rerr(gan, X, Z)
@@ -254,10 +254,10 @@ discriminate(gan::GAN, X) = Flux.Tracker.data(gan.d(X))
 Computes the anomaly score of X under given GAN.
 """
 anomalyscore(gan::GAN, X::Array{Float, 1}, lambda) = 
-	Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X) + eps(Float)))) +
+	Float(1 - lambda)*-Flux.Tracker.data(mean(log.(gan.d(X) .+ eps(Float)))) +
 	Float(lambda)*Flux.Tracker.data(rerr(gan, X, getcode(gan, size(X,2))))
 anomalyscore(gan::GAN, X::Array{Float, 2}, lambda) =
-	reshape(mapslices(y -> anomalyscore(gan, y, lambda), X, 1), size(X,2))
+	reshape(mapslices(y -> anomalyscore(gan, y, lambda), X, dims=1), size(X,2))
 anomalyscore(gan::GAN, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, lambda) = 
 	anomalyscore(gan,Float.(X),lambda)
 

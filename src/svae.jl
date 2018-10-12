@@ -34,7 +34,7 @@ mu(svae::sVAE, X) = X[1:Int(size(svae.encoder.layers[end].W,1)/2),:]
 
 Extract sigmas from the last encoder layer.
 """
-sigma(svae::sVAE, X) = softplus(X[Int(size(svae.encoder.layers[end].W,1)/2+1):end,:]) + Float(1e-6)
+sigma(svae::sVAE, X) = softplus(X[Int(size(svae.encoder.layers[end].W,1)/2+1):end,:]) .+ Float(1e-6)
 
 """
 	sample_z(svae, X)
@@ -92,8 +92,8 @@ Concatenates X and Z in the direction of first dimension using matrix multiplica
 function xzcat(X, Z)
     xdim = size(X,1)
     zdim = size(Z,1)
-    return cat(1, (eye(Float, xdim)), zeros(Float, zdim, xdim))*X + 
-        cat(1, zeros(Float, xdim, zdim), eye(Float, zdim))*Z
+    return cat((Matrix{Float32}(I,xdim,xdim)), zeros(Float, zdim, xdim), dims=1)*X + 
+        cat(zeros(Float, xdim, zdim), Matrix{Float32}(I,zdim,zdim), dims=1)*Z
 end
 
 """
@@ -126,8 +126,8 @@ discriminate(svae::sVAE, X, Z) = σ.(distrain(svae, X, Z))
 
 sVAE discriminator loss.
 """
-Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(Float(1)-σ.(distrain(svae,qX, qZ)) + eps(Float))) - 
-    mean(log.(σ.(distrain(svae, pX, pZ)) + eps(Float)))
+Dloss(svae::sVAE, pX, pZ, qX, qZ) = -mean(log.(Float(1).-σ.(distrain(svae,qX, qZ)) .+ eps(Float))) - 
+    mean(log.(σ.(distrain(svae, pX, pZ)) .+ eps(Float)))
 
 """
     Dloss(svae, X)
@@ -344,7 +344,7 @@ alpha - weighs between reconstruction error and discriminator term
 anomalyscore(svae::sVAE, X::Array{Float, 1}, M, alpha) = 
     Flux.Tracker.data(Float(alpha)*rerr(svae, X, M) + Float(1-alpha)*mean(discriminate(svae, X, getcode(svae, X))))
 anomalyscore(svae::sVAE, X::Array{Float, 2}, M, alpha) = 
-    reshape(mapslices(y -> anomalyscore(svae, y, M, alpha), X, 1), size(X,2))
+    reshape(mapslices(y -> anomalyscore(svae, y, M, alpha), X, dims=1), size(X,2))
 anomalyscore(svae::sVAE, X::Union{Array{T, 1},Array{T, 2}} where T<:Real, M, alpha) = 
     anomalyscore(svae,Float.(X),M,alpha)
 

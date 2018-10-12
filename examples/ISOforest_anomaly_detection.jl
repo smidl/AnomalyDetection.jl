@@ -1,16 +1,17 @@
 
-using PyPlot, JLD, AnomalyDetection, EvalCurves
+using PyPlot, FileIO, AnomalyDetection, EvalCurves
 import PyPlot: plot
+using ScikitLearn
 using ScikitLearn: @sk_import, fit!, predict
 using ScikitLearn.Utils: meshgrid 
 
-dataset = load("toy_data_3.jld")["data"]
+dataset = load("toy_data_3.jld2")["data"]
 
 figure()
 X = dataset.data
-y = dataset.labels
-scatter(X[1, y.==1], X[2, y.==1])
-scatter(X[1, y.==0], X[2, y.==0])
+Y = dataset.labels
+scatter(X[1, Y.==1], X[2, Y.==1])
+scatter(X[1, Y.==0], X[2, Y.==0])
 show()
 
 # import the isolation forest from SKlearn
@@ -18,7 +19,7 @@ show()
 
 n_estimators=100  # how many estimators to use
 max_samples="auto" # how many samples to draw from X for each estimator
-contamination = size(y[y.==1],1)/size(y,1) # to set the decision threshold
+contamination = 0.0 # size(Y[Y.==1],1)/size(Y,1) # to set the decision threshold
 max_features=1.0 # how many features to use (if float, then it is a ratio)
 bootstrap=false # bootstrapping - if false, sample without replacing
 n_jobs=1 # how many cores to use
@@ -27,7 +28,7 @@ verbose=0 # verbosity of the fitting
 isoforest = IsolationForest(n_estimators, max_samples, contamination, max_features, bootstrap,
     n_jobs, verbose)
 
-fit!(isoforest, X[:,y.==0]')
+fit!(isoforest, X[:,Y.==0]')
 
 import ScikitLearn: decision_function
 
@@ -41,8 +42,8 @@ xl = (minimum(X[1,:])-0.05, maximum(X[1,:]) + 0.05)
 yl = (minimum(X[2,:])-0.05, maximum(X[2,:]) + 0.05)
 
 # compute the anomaly score on a grid
-x = linspace(xl[1], xl[2], 30)
-y = linspace(yl[1], yl[2], 30)
+x = range(xl[1], stop=xl[2], length=30)
+y = range(yl[1], stop=yl[2], length=30)
 zz = zeros(size(y,1),size(x,1))
 for i in 1:size(y, 1)
     for j in 1:size(x, 1)
@@ -63,3 +64,10 @@ ylim(yl)
 legend()
 show()
 
+
+# plot ROC curve and compute AUROC score
+ascore = 1.0.-decision_function(isoforest, X')[:]
+fprvec, tprvec = EvalCurves.roccurve(ascore, Y)
+auroc = round(EvalCurves.auc(fprvec, tprvec),digits=3)
+EvalCurves.plotroc((fprvec, tprvec, "AUROC = $(auroc)"))
+show()
