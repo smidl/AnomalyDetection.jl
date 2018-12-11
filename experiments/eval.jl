@@ -235,7 +235,7 @@ function rounddf!(df, n, datacols)
 
     for cname in cnames
         for i in 1:nrows
-            (ismissing(df[cname][i]))? df[cname][i]=missing :
+            (ismissing(df[cname][i])) ? df[cname][i]=missing :
                 df[cname][i]=round(float(df[cname][i]),n)
         end
     end

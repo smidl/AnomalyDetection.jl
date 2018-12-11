@@ -26,7 +26,7 @@ function txt2array(file::String)
     if isfile(file)
         x = readdlm(file)
     else
-        x = Array{Float,2}(0,0)
+        x = Array{Float,2}(undef,0,0)
     end
     return x
 end
@@ -201,7 +201,7 @@ function makeset(dataset::Basicset, alpha::Real=0.8,
 
     # set seed
     if seed != false
-        RAndom.seed!(seed)
+        Random.seed!(seed)
     end
 
 
@@ -330,11 +330,11 @@ indices identifying the original array boundaries.
 function cat(bs::Basicset)
     X = bs.normal
     inds = [size(X,2)]
-    for field in filter(x -> x != :normal, fieldnames(bs))
+    for field in filter(x -> x != :normal, [f for f in fieldnames(typeof(bs))])
         x = getfield(bs,field)
         m = size(x,2)
         if m!= 0
-            X = cat(2,X,x)
+            X = cat(X,x,dims=2)
         end
         push!(inds, m)
     end
@@ -557,12 +557,89 @@ function mprintln(string; verb = true)
     end
 end
 
+#####################################
+#### auxiliary and loss functions ###
+#####################################
+
 """ 
     softplus(X)
 
 softplus(X) = log(exp(X) + 1)   
 """
 softplus(X) = log.(exp.(X) .+ 1)
+
+"""
+    KL(μ, σ2)
+
+KL divergence between a normal distribution and unit gaussian.
+"""
+KL(μ, σ2) = Float(1/2)*mean(sum(σ2 + μ.^2 - log.(σ2) .- 1, dims = 1))
+
+"""
+    likelihood(X, μ, [σ2])
+
+Likelihood of a sample X given mean and variance.
+"""
+likelihood(X, μ) = - mean(sum((μ - X).^2,dims = 1))/2
+likelihood(X, μ, σ2) = - mean(sum((μ - X).^2 ./σ2 + log.(σ2),dims = 1))/2
+
+"""
+    mu(X)
+
+Extract mean as the first horizontal half of X.
+"""
+mu(X) = X[1:Int(size(X,1)/2),:]
+
+"""
+    sigma2(X)
+
+Extract sigma^2 as the second horizontal half of X. 
+"""
+sigma2(X) = softplus(X[Int(size(X,1)/2+1):end,:]) .+ Float(1e-6)
+
+"""
+    logps(x)
+
+Is the logarithm of the standard pdf of x.
+"""
+logps(x) = abs.(-1/2*x.^2 - 1/2*log(2*pi))
+
+"""
+    samplenormal(X)
+
+Sample normal distribution with mean and sigma2 extracted from X.
+"""
+function samplenormal(X)
+    μ, σ2 = mu(X), sigma2(X)
+    ϵ = Float.(randn(size(μ)))
+    return μ .+  ϵ .* sqrt.(σ2)
+end
+
+"""
+    k(x,y,σ)
+
+Gaussian kernel of x and y.
+"""
+k(x,y,σ) = exp.(-(sum((x-y).^2,dims=1)/(2*σ)))
+
+"""
+    ekxy(X,Y,σ)
+
+E_{x in X,y in Y}[k(x,y,σ)] - mean value of kernel k.
+"""
+ekxy(X,Y,σ) = mean(k(x,y,σ))
+
+"""
+    MMD(X,qz_sampler,pz_sampler,σ)
+
+MMD of qz and pz given data matrix X.    
+"""
+MMD(X,qz_sampler,pz_sampler,σ) = ekxy(qz_sampler(X),qz_sampler(X),σ) - 
+    2*ekxy(qz_sampler(X), pz_sampler(X),σ) + 
+        ekxy(pz_sampler(X),pz_sampler(X),σ)
+
+#####################################
+#####################################
 
 """
     freeze(m)

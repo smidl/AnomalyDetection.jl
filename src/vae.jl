@@ -23,39 +23,7 @@ VAE(E,S,D,V::Symbol = :unit) = VAE(E,S,D,Val(V))
 Flux.@treelike VAE
 
 """
-	mu(X)
-
-Extract mean as the first horizontal half of X.
-"""
-mu(X) = X[1:Int(size(X,1)/2),:]
-
-"""
-	sigma2(X)
-
-Extract sigma^2 as the second horizontal half of X. 
-"""
-sigma2(X) = softplus(X[Int(size(X,1)/2+1):end,:]) .+ Float(1e-6)
-
-"""
-	logps(x)
-
-Is the logarithm of the standard pdf of x.
-"""
-logps(x) = abs.(-1/2*x.^2 - 1/2*log(2*pi))
-
-"""
-	samplenormal(X)
-
-Sample normal distribution with mean and sigma2 extracted from X.
-"""
-function samplenormal(X)
-	μ, σ2 = mu(X), sigma2(X)
-	ϵ = Float.(randn(size(μ)))
-	return μ .+  ϵ .* sqrt.(σ2)
-end
-
-"""
-	VAE(esize, dsize; [activation, layer])
+	VAE(esize, dsize; [activation, layer, variant])
 
 Initialize a variational autoencoder with given encoder size and decoder size.
 
@@ -92,13 +60,6 @@ end
 ################
 
 """
-	KL(μ, σ2)
-
-KL divergence between a normal distribution and unit gaussian.
-"""
-KL(μ, σ2) = Float(1/2)*mean(sum(σ2 + μ.^2 - log.(σ2) .- 1, dims = 1))
-
-"""
 	KL(vae, X)
 
 KL divergence between the encoder output and unit gaussian.
@@ -107,14 +68,6 @@ function KL(vae::VAE, X)
 	ex = vae.encoder(X)
 	KL(mu(ex), sigma2(ex))
 end
-
-"""
-	likelihood(X, μ, [σ2])
-
-Likelihood of a sample X given mean and variance.
-"""
-likelihood(X, μ) = - mean(sum((μ - X).^2,dims = 1))/2
-likelihood(X, μ, σ2) = - mean(sum((μ - X).^2 ./σ2 + log.(σ2),dims = 1))/2
 
 """
 	likelihood(vae, X)
@@ -136,6 +89,10 @@ end
 Likelihood of an autoencoded sample X sampled M times.
 """
 likelihood(vae::VAE, X, M) = mean([likelihood(vae, X) for m in 1:M])
+
+### anomaly score jako pxvita?
+# muz, sigmaz = encoder(x)
+# lognormal(x, decoder(muz), 1.0)
 
 """
 	loss(vae, X, M, lambda)

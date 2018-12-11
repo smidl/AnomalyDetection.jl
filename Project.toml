@@ -2,7 +2,7 @@ name = "AnomalyDetection"
 uuid = "2069a70b-aa58-5cc0-a11c-32e347b774c5"
 authors = ["Vít Škvára <vit.skvara@gmail.com>"]
 repository = "https://github.com/smidl/AnomalyDetection.jl.git"
-version = "0.0.0"
+version = "0.1.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"

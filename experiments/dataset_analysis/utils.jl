@@ -29,7 +29,7 @@ nDpca(X, n) = transform(fit(PCA,X,maxoutdim=n),X)
 """
     nDtsne(X, n; [max_samples, args, kwargs])
 
-Returns an n-dimensional representation of X using a PCA transform.
+Returns an n-dimensional representation of X using a TSne transform.
 The arguments args and kwargs respond to the TSne.tsne function arguments.
 The second return variable are the indices of sampled samples.
 """
@@ -78,9 +78,9 @@ end
 Transforms a Basicset into 2D representation using PCA or tSne. 
 """
 function dataset2D(bs::Basicset, variant = "pca", normalize = true)
-    (variant in ["pca", "tsne"])? nothing : error("variant must be one of [pca, tsne]")
+    (variant in ["pca", "tsne"]) ? nothing : error("variant must be one of [pca, tsne]")
     X, inds = AnomalyDetection.cat(bs)
-    (normalize)? X = AnomalyDetection.normalize(X) : nothing
+    (normalize) ? X = AnomalyDetection.normalize(X) : nothing
     if variant == "pca"
         return uncat(nDpca(X, 2), inds)
     else
@@ -96,7 +96,7 @@ end
 Transforms a dataset 
 """
 function dataset2D(inpath, outpath, variant = "pca", normalize = true)
-    (variant in ["pca", "tsne"])? nothing : error("variant must be one of [pca, tsne]")
+    (variant in ["pca", "tsne"]) ? nothing : error("variant must be one of [pca, tsne]")
     dataset = Basicset(inpath)
     _dataset = dataset2D(dataset, variant, normalize)
     savetxt(_dataset, outpath)
@@ -218,8 +218,8 @@ function ascontours(model,xl,yl,griddensity=30)
     zz = zeros(size(y,1),size(x,1))
     for i in 1:size(y, 1)
         for j in 1:size(x, 1)
-            zz[i,j] = (:encoder in fieldnames(model))?
-             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]), 10):
+            zz[i,j] = (:encoder in fieldnames(model)) ?
+             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]), 10) :
             AnomalyDetection.anomalyscore(model, AnomalyDetection.Float.([x[j], y[i]]))
         end
     end
@@ -298,14 +298,14 @@ Get labels with automatically computed threshold.
 function labels(model,data)
     X,ytrue = data[2].data, data[2].labels
     M,N = size(X)
-    as = (:encoder in fieldnames(model))?
-        AnomalyDetection.anomalyscore(model, X, 50):
+    as = (:encoder in fieldnames(model)) ?
+        AnomalyDetection.anomalyscore(model, X, 50) :
         AnomalyDetection.anomalyscore(model, X)
     auc = EvalCurves.auc(EvalCurves.roccurve(as,ytrue)...)
     cont = length(ytrue[ytrue.==1])/length(ytrue)
     sas = sort(as)
     aN = Int(ceil(N*cont)) # number of contaminated samples
-    tr = ((aN > 0)? (sas[end-aN] + sas[end-aN+1])/2 : (sas[end]))
+    tr = ((aN > 0) ? (sas[end-aN] + sas[end-aN+1])/2 : (sas[end]))
     yhat = Int.(as .> tr)
     return yhat, auc
 end
@@ -443,13 +443,13 @@ function plot_ffs_all(df,iline,variant,loc="",showfig=false;seed=NaN)
     dataset, pair, vs, ks, k = lineinfo(df,iline)
     
     # setup other stuff
-    alldata = ((variant == "some")? false : true) 
+    alldata = ((variant == "some") ? false : true) 
     if loc != ""
         mkpath(loc)
     end
     
     # get the data
-    data = getdata(dataset,alldata,(isnan(seed))?518:seed);
+    data = getdata(dataset,alldata,(isnan(seed)) ? 518 : seed);
     data=(subfeatures(data[1], pair),subfeatures(data[2], pair)) 
     
     # do the plots
@@ -487,7 +487,7 @@ function plot_general_all(dataset,inpath,tit,loc="",showfig=false;seed=NaN)
     end
     
     # get the data
-    data = getdata(dataset,alldata,(isnan(seed))?518:seed,loc=inpath);
+    data = getdata(dataset,alldata,(isnan(seed)) ? 518 : seed,loc=inpath);
     
     # do the plots
     t = "$tit, $dataset, all data"
