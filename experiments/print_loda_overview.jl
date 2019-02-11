@@ -1,7 +1,7 @@
 using PyPlot
 using JLD
 using DataFrames
-
+using CSV
 using AnomalyDetection
 
 # this is where the LODA datasets are stored, change if necessary
@@ -12,7 +12,7 @@ function overview()
 	datasets = AnomalyDetection.loaddata(data_path);
 
 	# fill the dataset
-	arr = Array{Any, 2}(length(datasets), 7)
+	arr = Array{Any, 2}(undef, length(datasets), 7)
 	i = 1
 	for key in keys(datasets)
 	    arr[i, 1] = key
@@ -35,5 +35,6 @@ function overview()
 	return sort(df, :M)
 end
 df = overview()
-showall(df)
+print(df)
 println("")
+CSV.write("loda_overview.csv", df)
