@@ -1,6 +1,8 @@
 # Anomaly Detection
 
-Implementation of various generative neural network models for anomaly detection in Julia, using the Flux framework.
+Implementation of various generative neural network models for anomaly detection in Julia, using the Flux framework. Serves as a codebase for the comparative study presented in the [paper](https://arxiv.org/abs/1807.05027)
+
+Škvára, Vít, Tomáš Pevný, and Václav Šmídl. *Are generative deep models for novelty detection truly better?* arXiv preprint arXiv:1807.05027 (2018).
 
 ## Models implemented:
 
